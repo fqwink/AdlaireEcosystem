@@ -137,7 +137,7 @@ final class Database
             $this->commit();
             return $result;
         } catch (Throwable $exception) {
-            $this->rollBack();
+            $this->rollbackTransaction();
             throw $exception;
         }
     }
@@ -169,7 +169,7 @@ final class Database
         $this->transactionDepth--;
     }
 
-    private function rollBack(): void
+    private function rollbackTransaction(): void
     {
         if ($this->transactionDepth <= 0) {
             return;
