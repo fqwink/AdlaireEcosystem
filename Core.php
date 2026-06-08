@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version 0.2
+ * @version 0.3
  * @php     >= 8.3
  */
 
@@ -351,6 +351,9 @@ final class Validator
                         continue;
                     }
                     $this->applyRule((string)$targetField, $value, $rule, $data);
+                    if (in_array('bail', $ruleList, true) && isset($this->errors[(string)$targetField])) {
+                        break;
+                    }
                 }
             }
         }
@@ -393,6 +396,7 @@ final class Validator
         [$ruleName, $param] = array_pad(explode(':', $rule, 2), 2, null);
 
         match ($ruleName) {
+            'bail'        => null,
             'required'    => $this->validateRequired($field, $value),
             'required_if' => $this->validateRequiredIf($field, $value, (string)$param, $data),
             'string'      => $this->validateType($field, $value, 'string'),
@@ -404,6 +408,11 @@ final class Validator
             'max'         => $this->validateMax($field, $value, $this->numericParam($ruleName, $param)),
             'regex'       => $this->validateRegex($field, $value, $this->stringParam($ruleName, $param)),
             'email'       => $this->validateEmail($field, $value),
+            'url'         => $this->validateUrl($field, $value),
+            'uuid'        => $this->validateUuid($field, $value),
+            'date'        => $this->validateDate($field, $value),
+            'in'          => $this->validateIn($field, $value, $this->stringParam($ruleName, $param)),
+            'unique'      => $this->validateUnique($field, $value, $this->stringParam($ruleName, $param)),
             default       => throw new InvalidArgumentException("Unknown validation rule: {$ruleName}"),
         };
     }
@@ -586,6 +595,72 @@ final class Validator
 
         if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
             $this->addError($field, 'email', "{$field} must be a valid email address.");
+        }
+    }
+
+    private function validateUrl(string $field, mixed $value): void
+    {
+        if ($value === null) {
+            return;
+        }
+
+        if (!is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+            $this->addError($field, 'url', "{$field} must be a valid URL.");
+        }
+    }
+
+    private function validateUuid(string $field, mixed $value): void
+    {
+        if ($value === null) {
+            return;
+        }
+
+        if (!is_string($value) || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $value) !== 1) {
+            $this->addError($field, 'uuid', "{$field} must be a valid UUID.");
+        }
+    }
+
+    private function validateDate(string $field, mixed $value): void
+    {
+        if ($value === null) {
+            return;
+        }
+
+        if (!is_string($value) || strtotime($value) === false) {
+            $this->addError($field, 'date', "{$field} must be a valid date.");
+        }
+    }
+
+    private function validateIn(string $field, mixed $value, string $param): void
+    {
+        if ($value === null) {
+            return;
+        }
+
+        $allowed = array_map('trim', explode(',', $param));
+        if (!in_array((string)$value, $allowed, true)) {
+            $this->addError($field, 'in', "{$field} must be one of: " . implode(', ', $allowed) . '.');
+        }
+    }
+
+    private function validateUnique(string $field, mixed $value, string $param): void
+    {
+        if ($value === null) {
+            return;
+        }
+
+        if (!class_exists('Database') || !method_exists('Database', 'default')) {
+            throw new RuntimeException('unique validation requires Database::default().');
+        }
+
+        [$table, $column] = array_pad(explode(',', $param, 2), 2, null);
+        if ($table === null || $table === '' || $column === null || $column === '') {
+            throw new InvalidArgumentException('unique requires "table,column".');
+        }
+
+        $count = Database::default()->table($table)->where($column, $value)->count();
+        if ($count > 0) {
+            $this->addError($field, 'unique', "{$field} must be unique.");
         }
     }
 

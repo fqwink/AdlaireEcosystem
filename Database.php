@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Database.php
  *
- * @version 0.1
+ * @version 0.3
  * @php     >= 8.3
  */
 
@@ -16,8 +16,13 @@ if (PHP_VERSION_ID < 80300) {
 
 final class Database
 {
+    private static array $connections = [];
+    private static ?string $defaultConnection = null;
     private PDO $pdo;
     private int $transactionDepth = 0;
+    private bool $queryLogging = false;
+    private ?float $slowQueryThresholdMs = null;
+    private array $queryLog = [];
 
     public function __construct(string $path)
     {
@@ -27,9 +32,40 @@ final class Database
         $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     }
 
+    public static function addConnection(string $name, string $path, bool $default = false): self
+    {
+        $database = new self($path);
+        self::$connections[$name] = $database;
+
+        if ($default || self::$defaultConnection === null) {
+            self::$defaultConnection = $name;
+        }
+
+        return $database;
+    }
+
+    public static function connection(?string $name = null): self
+    {
+        $name ??= self::$defaultConnection;
+        if ($name === null || !isset(self::$connections[$name])) {
+            throw new RuntimeException('Database connection is not configured.');
+        }
+        return self::$connections[$name];
+    }
+
+    public static function default(): self
+    {
+        return self::connection();
+    }
+
     public static function connect(string $path): self
     {
-        return new self($path);
+        $database = new self($path);
+        if (self::$defaultConnection === null) {
+            self::$connections['default'] = $database;
+            self::$defaultConnection = 'default';
+        }
+        return $database;
     }
 
     public function pdo(): PDO
@@ -39,7 +75,7 @@ final class Database
 
     public function table(string $table): QueryBuilder
     {
-        return new QueryBuilder($this->pdo, $table);
+        return new QueryBuilder($this, $table);
     }
 
     public function statement(string $sql, array $bindings = []): PDOStatement
@@ -48,8 +84,49 @@ final class Database
         if (!$statement instanceof PDOStatement) {
             throw new RuntimeException('Failed to prepare SQL statement.');
         }
-        $statement->execute($bindings);
+        $this->executeStatement($statement, $sql, $bindings);
         return $statement;
+    }
+
+    public function executeStatement(PDOStatement $statement, string $sql, array $bindings = []): void
+    {
+        $start = microtime(true);
+        $statement->execute($bindings);
+        $durationMs = (microtime(true) - $start) * 1000;
+
+        if ($this->queryLogging || ($this->slowQueryThresholdMs !== null && $durationMs >= $this->slowQueryThresholdMs)) {
+            $this->queryLog[] = [
+                'sql' => $sql,
+                'bindings' => $bindings,
+                'duration_ms' => $durationMs,
+                'slow' => $this->slowQueryThresholdMs !== null && $durationMs >= $this->slowQueryThresholdMs,
+                'timestamp' => date('c'),
+            ];
+        }
+    }
+
+    public function enableQueryLog(?float $slowQueryThresholdMs = null): static
+    {
+        $this->queryLogging = true;
+        $this->slowQueryThresholdMs = $slowQueryThresholdMs;
+        return $this;
+    }
+
+    public function disableQueryLog(): static
+    {
+        $this->queryLogging = false;
+        $this->slowQueryThresholdMs = null;
+        return $this;
+    }
+
+    public function queryLog(): array
+    {
+        return $this->queryLog;
+    }
+
+    public function clearQueryLog(): void
+    {
+        $this->queryLog = [];
     }
 
     public function transaction(callable $callback): mixed
@@ -142,9 +219,11 @@ final class QueryBuilder
     private ?int $limit = null;
     private ?int $offset = null;
     private array $bindings = [];
+    private array $unions = [];
+    private array $eagerLoads = [];
 
     public function __construct(
-        private PDO $pdo,
+        private Database $database,
         private string $table
     ) {
         $this->assertIdentifier($table);
@@ -197,6 +276,20 @@ final class QueryBuilder
         return $this;
     }
 
+    public function whereSub(string $column, string $operator, QueryBuilder $query): static
+    {
+        $this->assertIdentifier($column, true);
+        $operator = strtoupper($operator);
+        if (!in_array($operator, ['=', '!=', '<>', '<', '<=', '>', '>=', 'IN', 'NOT IN'], true)) {
+            throw new InvalidArgumentException("Unsupported subquery operator: {$operator}");
+        }
+
+        [$sql, $bindings] = $query->toSql();
+        $this->wheres[] = ['AND', "{$column} {$operator} ({$sql})"];
+        array_push($this->bindings, ...$bindings);
+        return $this;
+    }
+
     public function join(string $table, string $first, string $operator, string $second): static
     {
         return $this->addJoin('INNER JOIN', $table, $first, $operator, $second);
@@ -236,9 +329,31 @@ final class QueryBuilder
         return $this;
     }
 
+    public function union(QueryBuilder $query): static
+    {
+        return $this->addUnion('UNION', $query);
+    }
+
+    public function unionAll(QueryBuilder $query): static
+    {
+        return $this->addUnion('UNION ALL', $query);
+    }
+
+    public function with(string $name, string $table, string $localKey, string $foreignKey): static
+    {
+        $this->assertIdentifier($name);
+        $this->assertIdentifier($table);
+        $this->assertIdentifier($localKey, true);
+        $this->assertIdentifier($foreignKey, true);
+
+        $this->eagerLoads[] = compact('name', 'table', 'localKey', 'foreignKey');
+        return $this;
+    }
+
     public function get(): array
     {
-        return $this->runSelect()->fetchAll();
+        $rows = $this->runSelect()->fetchAll();
+        return $this->loadRelations($rows);
     }
 
     public function first(): ?array
@@ -292,11 +407,11 @@ final class QueryBuilder
             }
         }
 
-        $statement = $this->pdo->prepare($sql);
+        $statement = $this->database->pdo()->prepare($sql);
         if (!$statement instanceof PDOStatement) {
             throw new RuntimeException('Failed to prepare insert statement.');
         }
-        $statement->execute($bindings);
+        $this->database->executeStatement($statement, $sql, $bindings);
         return $statement->rowCount();
     }
 
@@ -315,21 +430,22 @@ final class QueryBuilder
         }
 
         $sql = "UPDATE {$this->table} SET " . implode(', ', $sets) . $this->compileWhere();
-        $statement = $this->pdo->prepare($sql);
+        $statement = $this->database->pdo()->prepare($sql);
         if (!$statement instanceof PDOStatement) {
             throw new RuntimeException('Failed to prepare update statement.');
         }
-        $statement->execute([...$bindings, ...$this->bindings]);
+        $this->database->executeStatement($statement, $sql, [...$bindings, ...$this->bindings]);
         return $statement->rowCount();
     }
 
     public function delete(): int
     {
-        $statement = $this->pdo->prepare("DELETE FROM {$this->table}" . $this->compileWhere());
+        $sql = "DELETE FROM {$this->table}" . $this->compileWhere();
+        $statement = $this->database->pdo()->prepare($sql);
         if (!$statement instanceof PDOStatement) {
             throw new RuntimeException('Failed to prepare delete statement.');
         }
-        $statement->execute($this->bindings);
+        $this->database->executeStatement($statement, $sql, $this->bindings);
         return $statement->rowCount();
     }
 
@@ -383,7 +499,7 @@ final class QueryBuilder
         return $this;
     }
 
-    private function runSelect(): PDOStatement
+    public function toSql(): array
     {
         $sql = sprintf(
             'SELECT %s FROM %s%s%s%s%s',
@@ -395,11 +511,25 @@ final class QueryBuilder
             $this->compileLimit()
         );
 
-        $statement = $this->pdo->prepare($sql);
+        $bindings = $this->bindings;
+        foreach ($this->unions as $union) {
+            [$unionSql, $unionBindings] = $union['query']->toSql();
+            $sql .= ' ' . $union['type'] . ' ' . $unionSql;
+            array_push($bindings, ...$unionBindings);
+        }
+
+        return [$sql, $bindings];
+    }
+
+    private function runSelect(): PDOStatement
+    {
+        [$sql, $bindings] = $this->toSql();
+
+        $statement = $this->database->pdo()->prepare($sql);
         if (!$statement instanceof PDOStatement) {
             throw new RuntimeException('Failed to prepare select statement.');
         }
-        $statement->execute($this->bindings);
+        $this->database->executeStatement($statement, $sql, $bindings);
         return $statement;
     }
 
@@ -409,13 +539,42 @@ final class QueryBuilder
             $this->assertIdentifier($column, true);
         }
         $sql = sprintf('SELECT %s(%s) AS aggregate FROM %s%s', $function, $column, $this->table, $this->compileWhere());
-        $statement = $this->pdo->prepare($sql);
+        $statement = $this->database->pdo()->prepare($sql);
         if (!$statement instanceof PDOStatement) {
             throw new RuntimeException('Failed to prepare aggregate statement.');
         }
-        $statement->execute($this->bindings);
+        $this->database->executeStatement($statement, $sql, $this->bindings);
         $row = $statement->fetch();
         return is_array($row) ? ($row['aggregate'] ?? null) : null;
+    }
+
+    private function addUnion(string $type, QueryBuilder $query): static
+    {
+        $this->unions[] = ['type' => $type, 'query' => $query];
+        return $this;
+    }
+
+    private function loadRelations(array $rows): array
+    {
+        foreach ($this->eagerLoads as $relation) {
+            $keys = array_values(array_unique(array_filter(array_column($rows, $relation['localKey']), static fn(mixed $value): bool => $value !== null)));
+            if ($keys === []) {
+                continue;
+            }
+
+            $related = $this->database->table($relation['table'])->whereIn($relation['foreignKey'], $keys)->get();
+            $grouped = [];
+            foreach ($related as $row) {
+                $grouped[$row[$relation['foreignKey']] ?? null][] = $row;
+            }
+
+            foreach ($rows as &$row) {
+                $row[$relation['name']] = $grouped[$row[$relation['localKey']] ?? null] ?? [];
+            }
+            unset($row);
+        }
+
+        return $rows;
     }
 
     private function numericAggregate(string $function, string $column): float|int|null
