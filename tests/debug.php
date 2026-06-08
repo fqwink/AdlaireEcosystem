@@ -246,6 +246,29 @@ function test_logger(): void
     $content = (string)file_get_contents($file);
     assert_true(str_contains($content, '[masked]'), 'logger should mask configured fields');
     assert_true(is_file($file . '.hmac'), 'logger should write hmac file');
+
+    $debugFile = sys_get_temp_dir() . '/adlaire_request_debug.log';
+    if (is_file($debugFile)) {
+        assert_true(unlink($debugFile), 'old request debug log should be removed');
+    }
+    $request = make_request('GET', '/debug');
+    $request->setRouteInfo([
+        'matched' => true,
+        'path' => '/debug',
+        'method' => 'GET',
+        'name' => 'debug.show',
+        'params' => [],
+    ]);
+    $response = (new Response())->status(202)->header('X-Debug', 'yes');
+    $debugLogger = new Logger($debugFile, 'DEBUG', null, 1048576, 5, ['password'], 4096, true);
+    $debugLogger->debugRequest($request, $response, microtime(true), [
+        ['sql' => 'SELECT 1', 'bindings' => [], 'duration_ms' => 0.1, 'slow' => false],
+    ]);
+    $debugContent = (string)file_get_contents($debugFile);
+    assert_true(str_contains($debugContent, '"status_code":202'), 'logger should record response status code');
+    assert_true(str_contains($debugContent, '"X-Debug":"yes"'), 'logger should record response headers');
+    assert_true(str_contains($debugContent, '"name":"debug.show"'), 'logger should record matched route name');
+    assert_true(str_contains($debugContent, '"queries"'), 'logger should record query log entries');
 }
 
 function test_deployer_config(): void

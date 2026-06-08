@@ -78,7 +78,7 @@ final class Logger
         $this->write('ERROR', $message, $context);
     }
 
-    public function debugRequest(Request $request, float $startedAt): void
+    public function debugRequest(Request $request, ?Response $response, float $startedAt, array $queryLog = []): void
     {
         if (!$this->debugEnabled) {
             return;
@@ -103,9 +103,13 @@ final class Logger
                 'ip' => $request->ip(),
             ],
             'response' => [
+                'status_code' => $response?->statusCode() ?? http_response_code(),
+                'headers' => $response?->headers() ?? [],
                 'duration_ms' => (microtime(true) - $startedAt) * 1000,
                 'peak_memory' => memory_get_peak_usage(true),
             ],
+            'queries' => $queryLog,
+            'routing' => $request->routeInfo(),
         ]);
     }
 

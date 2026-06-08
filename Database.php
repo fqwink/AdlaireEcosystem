@@ -14,7 +14,7 @@ if (PHP_VERSION_ID < 80300) {
     exit(1);
 }
 
-interface SqlDriver
+interface LibSqlDriver
 {
     public function execute(string $sql, array $bindings = []): AdlaireStatement;
 
@@ -71,7 +71,7 @@ final class AdlaireStatement
     }
 }
 
-final class PdoDriver implements SqlDriver
+final class PdoDriver implements LibSqlDriver
 {
     private PDO $pdo;
 
@@ -126,7 +126,7 @@ final class PdoDriver implements SqlDriver
     }
 }
 
-class HttpDriver implements SqlDriver
+class HttpDriver implements LibSqlDriver
 {
     private bool $inTransaction = false;
 
@@ -246,7 +246,7 @@ final class Database
     private static array $connections = [];
     private static ?string $defaultConnection = null;
     private static bool $usedConnect = false;
-    private SqlDriver $driver;
+    private LibSqlDriver $driver;
     private ?PDO $pdo = null;
     private int $transactionDepth = 0;
     private bool $queryLogging = false;
@@ -445,7 +445,7 @@ final class Database
         (new Migrator($this))->rollback($directory, $steps);
     }
 
-    private function createDriver(string $url, ?string $token): SqlDriver
+    private function createDriver(string $url, ?string $token): LibSqlDriver
     {
         if ($url === ':memory:' || str_starts_with($url, 'file:') || !preg_match('/^[A-Za-z][A-Za-z0-9+.-]*:/', $url)) {
             $path = str_starts_with($url, 'file:') ? substr($url, 5) : $url;

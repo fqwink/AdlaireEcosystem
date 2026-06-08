@@ -35,6 +35,7 @@ final class Request
     private bool $bodyParsed = false;
     private string $ip;
     private array $routeParams = [];
+    private array $routeInfo = [];
 
     public function __construct()
     {
@@ -141,6 +142,16 @@ final class Request
     public function setRouteParams(array $params): void
     {
         $this->routeParams = $params;
+    }
+
+    public function setRouteInfo(array $info): void
+    {
+        $this->routeInfo = $info;
+    }
+
+    public function routeInfo(): array
+    {
+        return $this->routeInfo;
     }
 
     private function parseUri(): string
@@ -270,6 +281,16 @@ final class Response
         return $this;
     }
 
+    public function statusCode(): int
+    {
+        return $this->statusCode;
+    }
+
+    public function headers(): array
+    {
+        return $this->headers;
+    }
+
     public function cache(string $control, ?string $etag = null): static
     {
         $this->header('Cache-Control', $control);
@@ -344,6 +365,10 @@ final class Response
     {
         http_response_code($this->statusCode);
         if ($contentHeader !== null) {
+            [$name, $value] = array_pad(explode(':', $contentHeader, 2), 2, '');
+            if ($name !== '' && $value !== '') {
+                $this->headers[trim($name)] = trim($value);
+            }
             header($contentHeader);
         }
         foreach ($this->headers as $name => $value) {
@@ -868,6 +893,7 @@ final class Router
         if (isset($this->staticRoutes[$staticKey])) {
             $route = $this->routes[$this->staticRoutes[$staticKey]];
             $request->setRouteParams([]);
+            $request->setRouteInfo($this->routeDebugInfo($route, []));
             ($route['handler'])($request, $response);
             exit;
         }
@@ -893,15 +919,25 @@ final class Router
             }
 
             $request->setRouteParams($match);
+            $request->setRouteInfo($this->routeDebugInfo($route, $match));
             ($route['handler'])($request, $response);
             exit;
         }
 
         if ($matchedMethods !== []) {
+            $request->setRouteInfo([
+                'matched' => false,
+                'failure' => '405',
+                'allowed_methods' => array_values(array_unique($matchedMethods)),
+            ]);
             $response->header('Allow', implode(', ', array_unique($matchedMethods)))
                 ->error('Method Not Allowed', 405);
         }
 
+        $request->setRouteInfo([
+            'matched' => false,
+            'failure' => '404',
+        ]);
         $response->error('Not Found', 404);
     }
 
@@ -989,6 +1025,17 @@ final class Router
         ];
     }
 
+    private function routeDebugInfo(array $route, array $params): array
+    {
+        return [
+            'matched' => true,
+            'path' => $route['path'],
+            'method' => $route['method'],
+            'name' => $route['name'],
+            'params' => $params,
+        ];
+    }
+
     private function normalizePath(string $path): string
     {
         $path = '/' . trim($path, '/');
@@ -1018,6 +1065,14 @@ final class Adlaire
 
         if (class_exists('Logger')) {
             self::$logger = Logger::fromConfig($config['logger'] ?? []);
+        }
+
+        if (self::$logger !== null) {
+            register_shutdown_function(static function (): void {
+                if (self::$request !== null && self::$response !== null && self::$logger !== null) {
+                    self::$logger->debugRequest(self::$request, self::$response, self::$startedAt);
+                }
+            });
         }
 
         set_exception_handler(static function (Throwable $exception): never {
@@ -1083,9 +1138,6 @@ final class Adlaire
     {
         if (self::$router === null || self::$request === null || self::$response === null) {
             throw new RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
-        }
-        if (self::$logger !== null) {
-            self::$logger->debugRequest(self::$request, self::$startedAt);
         }
         self::$router->dispatch(self::$request, self::$response);
     }
