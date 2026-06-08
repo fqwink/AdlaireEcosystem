@@ -286,7 +286,7 @@ final class Deployer
 
     private function verifyHttpTrigger(): void
     {
-        if (PHP_SAPI === 'cli') {
+        if (in_array(PHP_SAPI, ['cli', 'cli-server'], true)) {
             return;
         }
 
@@ -373,6 +373,14 @@ final class Deployer
         $target = $this->path($this->config->requiredString('target_dir'));
         $snapshot = $this->path($this->config->requiredString('backup_dir')) . '/' . date('Ymd_His') . '_' . bin2hex(random_bytes(4));
         $this->ensureDirectory($snapshot);
+        $manifest = [
+            'created_at' => date('c'),
+            'files' => $this->files($target),
+        ];
+
+        if (file_put_contents($snapshot . '/manifest.json', json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)) === false) {
+            throw new RuntimeException('Failed to write deployment snapshot manifest.');
+        }
 
         foreach ($changes as $file) {
             $from = $target . '/' . $file;
@@ -416,7 +424,24 @@ final class Deployer
         rsort($snapshots, SORT_STRING);
         $snapshot = $snapshots[0];
         $target = $this->path($this->config->requiredString('target_dir'));
+        $manifestFile = $snapshot . '/manifest.json';
+        if (is_file($manifestFile)) {
+            $manifest = json_decode((string)file_get_contents($manifestFile), true, flags: JSON_THROW_ON_ERROR);
+            $before = is_array($manifest['files'] ?? null) ? $manifest['files'] : [];
+            foreach ($this->files($target) as $file) {
+                if (!in_array($file, $before, true)) {
+                    $path = $target . '/' . $file;
+                    if (is_file($path) && !unlink($path)) {
+                        throw new RuntimeException("Failed to remove newly deployed file during rollback: {$file}");
+                    }
+                }
+            }
+        }
+
         foreach ($this->files($snapshot) as $file) {
+            if ($file === 'manifest.json') {
+                continue;
+            }
             $from = $snapshot . '/' . $file;
             $to = $target . '/' . $file;
             $this->ensureDirectory(dirname($to));
@@ -588,15 +613,11 @@ final class Deployer
     private function lintPhp(string $file, string $code): void
     {
         $binary = defined('PHP_BINARY') ? PHP_BINARY : '';
-        if ($binary !== '' && is_file($binary)) {
-            $this->runCommand(escapeshellarg($binary) . ' -l ' . escapeshellarg($file), 10);
-            return;
+        if ($binary === '' || !is_file($binary)) {
+            throw new RuntimeException('PHP_BINARY is required for deployment health check.');
         }
 
-        $tokens = token_get_all($code);
-        if ($tokens === []) {
-            throw new RuntimeException("PHP tokenization failed: {$file}");
-        }
+        $this->runCommand(escapeshellarg($binary) . ' -l ' . escapeshellarg($file), 10);
     }
 
     private function pruneSnapshots(): void

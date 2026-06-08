@@ -221,6 +221,7 @@ final class QueryBuilder
     private array $bindings = [];
     private array $unions = [];
     private array $eagerLoads = [];
+    private bool $allowWithoutWhere = false;
 
     public function __construct(
         private Database $database,
@@ -350,6 +351,12 @@ final class QueryBuilder
         return $this;
     }
 
+    public function allowWithoutWhere(): static
+    {
+        $this->allowWithoutWhere = true;
+        return $this;
+    }
+
     public function get(): array
     {
         $rows = $this->runSelect()->fetchAll();
@@ -420,6 +427,7 @@ final class QueryBuilder
         if ($values === []) {
             throw new InvalidArgumentException('Update values must not be empty.');
         }
+        $this->assertWriteWhere('update');
 
         $sets = [];
         $bindings = [];
@@ -440,6 +448,7 @@ final class QueryBuilder
 
     public function delete(): int
     {
+        $this->assertWriteWhere('delete');
         $sql = "DELETE FROM {$this->table}" . $this->compileWhere();
         $statement = $this->database->pdo()->prepare($sql);
         if (!$statement instanceof PDOStatement) {
@@ -497,6 +506,13 @@ final class QueryBuilder
         }
         $this->joins[] = "{$type} {$table} ON {$first} {$operator} {$second}";
         return $this;
+    }
+
+    private function assertWriteWhere(string $operation): void
+    {
+        if ($this->wheres === [] && !$this->allowWithoutWhere) {
+            throw new RuntimeException("Refusing {$operation} without WHERE. Call allowWithoutWhere() to allow it explicitly.");
+        }
     }
 
     public function toSql(): array
@@ -667,6 +683,11 @@ final class Migrator
             throw new InvalidArgumentException('Rollback steps must be at least 1.');
         }
 
+        $executedCount = (int)$this->database->statement('SELECT COUNT(*) AS aggregate FROM ' . self::TABLE)->fetch()['aggregate'];
+        if ($steps > $executedCount) {
+            throw new RuntimeException('Rollback steps exceed executed migration count.');
+        }
+
         $rows = $this->database->statement(
             'SELECT migration FROM ' . self::TABLE . ' ORDER BY id DESC LIMIT ' . $steps
         )->fetchAll();
@@ -700,6 +721,10 @@ final class Migrator
         }
 
         sort($files, SORT_STRING);
+        foreach ($files as $file) {
+            $this->assertMigrationName(basename($file));
+        }
+
         $ran = $this->database->statement('SELECT migration FROM ' . self::TABLE)->fetchAll(PDO::FETCH_COLUMN);
         return array_values(array_filter($files, static fn(string $file): bool => !in_array(basename($file), $ran, true)));
     }
@@ -709,11 +734,19 @@ final class Migrator
         if (!is_file($file)) {
             throw new InvalidArgumentException("Migration file not found: {$file}");
         }
+        $this->assertMigrationName(basename($file));
 
         $migration = require $file;
         if (!$migration instanceof Migration) {
             throw new RuntimeException("Migration must return a Migration instance: {$file}");
         }
         return $migration;
+    }
+
+    private function assertMigrationName(string $name): void
+    {
+        if (preg_match('/^\d{8}_\d{6}_[A-Za-z0-9_]+\.php$/', $name) !== 1) {
+            throw new InvalidArgumentException("Invalid migration filename: {$name}");
+        }
     }
 }

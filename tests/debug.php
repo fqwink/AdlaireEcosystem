@@ -168,6 +168,20 @@ function test_database(): void
     $withPosts = $database->table('users')->with('posts', 'posts', 'id', 'user_id')->orderBy('id')->get();
     assert_same(2, count($withPosts[0]['posts']), 'eager loading should attach related rows');
 
+    try {
+        $database->table('users')->update(['score' => 0]);
+        throw new DebugTestFailure('update without WHERE should fail');
+    } catch (RuntimeException) {
+    }
+
+    try {
+        $database->table('users')->delete();
+        throw new DebugTestFailure('delete without WHERE should fail');
+    } catch (RuntimeException) {
+    }
+
+    assert_true($database->table('users')->allowWithoutWhere()->update(['score' => 1]) > 0, 'explicit full update should pass');
+
     $unique = new Validator();
     assert_true(
         !$unique->validate(['name' => 'alice'], ['name' => 'unique:users,name']),
