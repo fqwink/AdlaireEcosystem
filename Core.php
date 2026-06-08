@@ -2,14 +2,13 @@
 
 /**
  * Adlaire Ecosystem - Core.php
- * 
+ *
  * @version 0.2
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-// PHP バージョンチェック
 if (PHP_VERSION_ID < 80300) {
     http_response_code(500);
     echo json_encode(['error' => 'Adlaire Ecosystem requires PHP 8.3 or higher. Current version: ' . PHP_VERSION]);
@@ -22,12 +21,14 @@ if (PHP_VERSION_ID < 80300) {
 
 final class Request
 {
+    private string|false|null $rawInput = null;
     private string $method;
     private string $uri;
     private array $headers;
     private array $query;
     private mixed $body;
     private string $ip;
+    private array $routeParams = [];
 
     public function __construct()
     {
@@ -75,10 +76,10 @@ final class Request
 
     public function input(string $key, mixed $default = null): mixed
     {
-        if (is_array($this->body)) {
-            return $this->body[$key] ?? $default;
+        if (is_array($this->body) && array_key_exists($key, $this->body)) {
+            return $this->body[$key];
         }
-        return $default;
+        return $this->query[$key] ?? $default;
     }
 
     public function ip(): string
@@ -86,11 +87,54 @@ final class Request
         return $this->ip;
     }
 
+    public function file(?string $key = null): mixed
+    {
+        if ($key === null) {
+            return $_FILES;
+        }
+        return $_FILES[$key] ?? null;
+    }
+
+    public function hasValidFile(string $key): bool
+    {
+        $file = $this->file($key);
+        return is_array($file) && ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK && is_uploaded_file($file['tmp_name'] ?? '');
+    }
+
+    public function bearerToken(): ?string
+    {
+        $authorization = $this->header('authorization');
+        if (!is_string($authorization)) {
+            return null;
+        }
+        if (preg_match('/^Bearer\s+(.+)$/i', trim($authorization), $matches) !== 1) {
+            return null;
+        }
+        return trim($matches[1]);
+    }
+
+    public function param(?string $key = null, mixed $default = null): mixed
+    {
+        if ($key === null) {
+            return $this->routeParams;
+        }
+        return $this->routeParams[$key] ?? $default;
+    }
+
+    public function setRouteParams(array $params): void
+    {
+        $this->routeParams = $params;
+    }
+
     private function parseUri(): string
     {
         $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
         $path = parse_url($requestUri, PHP_URL_PATH);
-        return $path !== false && $path !== null ? $path : '/';
+        if ($path === false || $path === null || $path === '') {
+            return '/';
+        }
+        $normalized = '/' . trim($path, '/');
+        return $normalized === '/' ? '/' : rtrim($normalized, '/');
     }
 
     private function parseHeaders(): array
@@ -100,9 +144,11 @@ final class Request
             if (str_starts_with($key, 'HTTP_')) {
                 $name = strtolower(str_replace('_', '-', substr($key, 5)));
                 $headers[$name] = $value;
-            } elseif (in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH'])) {
+            } elseif (in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH'], true)) {
                 $name = strtolower(str_replace('_', '-', $key));
                 $headers[$name] = $value;
+            } elseif ($key === 'REDIRECT_HTTP_AUTHORIZATION') {
+                $headers['authorization'] = $value;
             }
         }
         return $headers;
@@ -110,23 +156,54 @@ final class Request
 
     private function parseBody(): mixed
     {
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        $contentType = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
+
         if (str_contains($contentType, 'application/json')) {
-            $raw = file_get_contents('php://input');
+            $raw = $this->rawInput();
             if ($raw === false || $raw === '') {
                 return null;
             }
             $decoded = json_decode($raw, true);
             return json_last_error() === JSON_ERROR_NONE ? $decoded : null;
         }
+
+        if (str_contains($contentType, 'application/x-www-form-urlencoded')) {
+            if ($this->method === 'POST') {
+                return $_POST;
+            }
+            $raw = $this->rawInput();
+            parse_str($raw === false ? '' : $raw, $parsed);
+            return $parsed;
+        }
+
+        if (str_contains($contentType, 'multipart/form-data')) {
+            return $_POST;
+        }
+
         return null;
+    }
+
+    private function rawInput(): string|false
+    {
+        if ($this->rawInput !== null) {
+            return $this->rawInput;
+        }
+
+        $raw = file_get_contents('php://input');
+        if ($raw === false) {
+            $this->rawInput = false;
+            return false;
+        }
+
+        $this->rawInput = $raw;
+        return $this->rawInput;
     }
 
     private function parseIp(): string
     {
         foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'] as $key) {
             if (!empty($_SERVER[$key])) {
-                $ip = trim(explode(',', $_SERVER[$key])[0]);
+                $ip = trim(explode(',', (string)$_SERVER[$key])[0]);
                 if (filter_var($ip, FILTER_VALIDATE_IP)) {
                     return $ip;
                 }
@@ -147,30 +224,46 @@ final class Response
 
     public function status(int $code): static
     {
+        if ($code < 100 || $code > 599) {
+            throw new InvalidArgumentException('HTTP status code must be between 100 and 599.');
+        }
         $this->statusCode = $code;
         return $this;
     }
 
     public function header(string $name, string $value): static
     {
+        $this->assertHeader($name, $value);
         $this->headers[$name] = $value;
         return $this;
     }
 
-    // #2修正: int $status = null → ?int $status = null
+    public function cache(string $control, ?string $etag = null): static
+    {
+        $this->header('Cache-Control', $control);
+        if ($etag !== null) {
+            $this->header('ETag', $etag);
+        }
+        return $this;
+    }
+
+    public function cors(
+        string $origin = '*',
+        string $methods = 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+        string $headers = 'Content-Type, Authorization'
+    ): static {
+        return $this->header('Access-Control-Allow-Origin', $origin)
+            ->header('Access-Control-Allow-Methods', $methods)
+            ->header('Access-Control-Allow-Headers', $headers);
+    }
+
     public function json(mixed $data, ?int $status = null): never
     {
         if ($status !== null) {
-            $this->statusCode = $status;
+            $this->status($status);
         }
 
-        http_response_code($this->statusCode);
-        header('Content-Type: application/json; charset=utf-8');
-
-        foreach ($this->headers as $name => $value) {
-            header("{$name}: {$value}");
-        }
-
+        $this->sendHeaders('Content-Type: application/json; charset=utf-8');
         $encoded = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         if ($encoded === false) {
@@ -182,6 +275,49 @@ final class Response
 
         exit;
     }
+
+    public function error(string $message, int $status = 400, array $details = []): never
+    {
+        $payload = ['error' => ['message' => $message, 'status' => $status]];
+        if ($details !== []) {
+            $payload['error']['details'] = $details;
+        }
+        $this->json($payload, $status);
+    }
+
+    public function redirect(string $url, int $status = 302): never
+    {
+        if (!in_array($status, [301, 302], true)) {
+            throw new InvalidArgumentException('Redirect status must be 301 or 302.');
+        }
+        if (str_contains($url, "\r") || str_contains($url, "\n")) {
+            throw new InvalidArgumentException('Redirect URL must not contain newlines.');
+        }
+        $this->status($status);
+        $this->sendHeaders('Location: ' . $url);
+        exit;
+    }
+
+    private function sendHeaders(?string $contentHeader = null): void
+    {
+        http_response_code($this->statusCode);
+        if ($contentHeader !== null) {
+            header($contentHeader);
+        }
+        foreach ($this->headers as $name => $value) {
+            header("{$name}: {$value}");
+        }
+    }
+
+    private function assertHeader(string $name, string $value): void
+    {
+        if (preg_match('/^[A-Za-z0-9!#$%&\'*+.^_`|~-]+$/', $name) !== 1) {
+            throw new InvalidArgumentException("Invalid response header name: {$name}");
+        }
+        if (str_contains($value, "\r") || str_contains($value, "\n")) {
+            throw new InvalidArgumentException("Invalid response header value for: {$name}");
+        }
+    }
 }
 
 // ============================================================
@@ -191,18 +327,31 @@ final class Response
 final class Validator
 {
     private array $errors = [];
+    private array $messages = [];
 
-    public function validate(array $data, array $rules): bool
+    public function validate(array $data, array $rules, array $messages = []): bool
     {
         $this->errors = [];
+        $this->messages = $messages;
 
         foreach ($rules as $field => $ruleSet) {
-            $ruleList = is_string($ruleSet) ? explode('|', $ruleSet) : $ruleSet;
-            $value    = $data[$field] ?? null;
+            $ruleList = is_string($ruleSet)
+                ? array_values(array_filter(array_map('trim', explode('|', $ruleSet)), static fn(string $rule): bool => $rule !== ''))
+                : $ruleSet;
+            $targets = $this->resolveTargets($data, (string)$field);
 
-            foreach ($ruleList as $rule) {
-                // #3修正: $data引数を削除
-                $this->applyRule($field, $value, $rule);
+            foreach ($targets as $targetField => $value) {
+                $nullable = in_array('nullable', $ruleList, true);
+                if ($nullable && ($value === null || $value === '')) {
+                    continue;
+                }
+
+                foreach ($ruleList as $rule) {
+                    if ($rule === 'nullable') {
+                        continue;
+                    }
+                    $this->applyRule((string)$targetField, $value, $rule, $data);
+                }
             }
         }
 
@@ -214,7 +363,7 @@ final class Validator
         return $this->errors;
     }
 
-    public function firstError(?string $field = null): string|null
+    public function firstError(?string $field = null): ?string
     {
         if ($field !== null) {
             return $this->errors[$field][0] ?? null;
@@ -225,45 +374,149 @@ final class Validator
         return null;
     }
 
-    // #3修正: $data引数を削除
-    private function applyRule(string $field, mixed $value, string $rule): void
+    private function applyRule(string $field, mixed $value, mixed $rule, array $data): void
     {
+        if ($rule instanceof Closure) {
+            $result = $rule($value, $field, $data);
+            if ($result === false) {
+                $this->addError($field, 'custom', "{$field} is invalid.");
+            } elseif (is_string($result) && $result !== '') {
+                $this->addError($field, 'custom', $result);
+            }
+            return;
+        }
+
+        if (!is_string($rule)) {
+            throw new InvalidArgumentException('Validation rule must be a string or Closure.');
+        }
+
         [$ruleName, $param] = array_pad(explode(':', $rule, 2), 2, null);
 
         match ($ruleName) {
-            'required' => $this->validateRequired($field, $value),
-            'string'   => $this->validateType($field, $value, 'string'),
-            'int'      => $this->validateType($field, $value, 'int'),
-            'float'    => $this->validateType($field, $value, 'float'),
-            'bool'     => $this->validateType($field, $value, 'bool'),
-            'array'    => $this->validateType($field, $value, 'array'),
-            'min'      => $this->validateMin($field, $value, (float)$param),
-            'max'      => $this->validateMax($field, $value, (float)$param),
-            'regex'    => $this->validateRegex($field, $value, (string)$param),
-            'email'    => $this->validateEmail($field, $value),
-            default    => null,
+            'required'    => $this->validateRequired($field, $value),
+            'required_if' => $this->validateRequiredIf($field, $value, (string)$param, $data),
+            'string'      => $this->validateType($field, $value, 'string'),
+            'int'         => $this->validateType($field, $value, 'int'),
+            'float'       => $this->validateType($field, $value, 'float'),
+            'bool'        => $this->validateType($field, $value, 'bool'),
+            'array'       => $this->validateType($field, $value, 'array'),
+            'min'         => $this->validateMin($field, $value, $this->numericParam($ruleName, $param)),
+            'max'         => $this->validateMax($field, $value, $this->numericParam($ruleName, $param)),
+            'regex'       => $this->validateRegex($field, $value, $this->stringParam($ruleName, $param)),
+            'email'       => $this->validateEmail($field, $value),
+            default       => throw new InvalidArgumentException("Unknown validation rule: {$ruleName}"),
         };
     }
 
-    private function addError(string $field, string $message): void
+    private function numericParam(string $ruleName, ?string $param): float
     {
-        $this->errors[$field][] = $message;
+        if ($param === null || $param === '' || !is_numeric($param)) {
+            throw new InvalidArgumentException("{$ruleName} requires a numeric parameter.");
+        }
+        return (float)$param;
+    }
+
+    private function stringParam(string $ruleName, ?string $param): string
+    {
+        if ($param === null || $param === '') {
+            throw new InvalidArgumentException("{$ruleName} requires a parameter.");
+        }
+        return $param;
+    }
+
+    private function resolveTargets(array $data, string $field): array
+    {
+        if (!str_contains($field, '*')) {
+            return [$field => $this->getValue($data, $field)];
+        }
+
+        $segments = explode('.', $field);
+        $targets = ['' => $data];
+
+        foreach ($segments as $segment) {
+            $next = [];
+            foreach ($targets as $path => $value) {
+                if ($segment === '*') {
+                    if (!is_array($value)) {
+                        continue;
+                    }
+                    foreach ($value as $index => $item) {
+                        $next[$path === '' ? (string)$index : "{$path}.{$index}"] = $item;
+                    }
+                    continue;
+                }
+
+                $nextPath = $path === '' ? $segment : "{$path}.{$segment}";
+                $next[$nextPath] = is_array($value) && array_key_exists($segment, $value) ? $value[$segment] : null;
+            }
+            $targets = $next;
+        }
+
+        return $targets === [] ? [$field => null] : $targets;
+    }
+
+    private function getValue(array $data, string $field): mixed
+    {
+        $value = $data;
+        foreach (explode('.', $field) as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return null;
+            }
+            $value = $value[$segment];
+        }
+        return $value;
+    }
+
+    private function addError(string $field, string $rule, string $message): void
+    {
+        $this->errors[$field][] = $this->messageFor($field, $rule, $message);
+    }
+
+    private function messageFor(string $field, string $rule, string $default): string
+    {
+        foreach (["{$field}.{$rule}", $field] as $key) {
+            if (isset($this->messages[$key])) {
+                return $this->messages[$key];
+            }
+        }
+
+        foreach ($this->messages as $key => $message) {
+            $pattern = '/^' . str_replace('\*', '[^.]+', preg_quote((string)$key, '/')) . '$/';
+            if (preg_match($pattern, $field) === 1 || preg_match($pattern, "{$field}.{$rule}") === 1) {
+                return (string)$message;
+            }
+        }
+
+        return $default;
     }
 
     private function validateRequired(string $field, mixed $value): void
     {
-        if ($value === null || $value === '' || (is_array($value) && empty($value))) {
-            $this->addError($field, "{$field} is required.");
+        if ($value === null || $value === '' || (is_array($value) && $value === [])) {
+            $this->addError($field, 'required', "{$field} is required.");
+        }
+    }
+
+    private function validateRequiredIf(string $field, mixed $value, string $param, array $data): void
+    {
+        [$otherField, $expected] = array_pad(explode(',', $param, 2), 2, null);
+        if ($otherField === null || $otherField === '' || $expected === null) {
+            throw new InvalidArgumentException('required_if requires "field,value".');
+        }
+        if ((string)$this->getValue($data, $otherField) === $expected) {
+            $this->validateRequired($field, $value);
         }
     }
 
     private function validateType(string $field, mixed $value, string $type): void
     {
-        if ($value === null) return;
+        if ($value === null) {
+            return;
+        }
 
         $valid = match ($type) {
             'string' => is_string($value),
-            'int'    => is_int($value) || (is_string($value) && ctype_digit($value)),
+            'int'    => is_int($value) || (is_string($value) && preg_match('/^-?\d+$/', $value) === 1),
             'float'  => is_float($value) || is_int($value) || is_numeric($value),
             'bool'   => is_bool($value),
             'array'  => is_array($value),
@@ -271,76 +524,77 @@ final class Validator
         };
 
         if (!$valid) {
-            $this->addError($field, "{$field} must be of type {$type}.");
+            $this->addError($field, $type, "{$field} must be of type {$type}.");
         }
     }
 
-    // #4修正: 文字列・数値・配列を排他的に判定
     private function validateMin(string $field, mixed $value, float $min): void
     {
-        if ($value === null) return;
+        if ($value === null) {
+            return;
+        }
 
-        if (is_array($value)) {
-            if (count($value) < (int)$min) {
-                $this->addError($field, "{$field} must have at least {$min} items.");
-            }
-        } elseif (is_string($value) && !is_numeric($value)) {
-            if (mb_strlen($value) < (int)$min) {
-                $this->addError($field, "{$field} must be at least {$min} characters.");
-            }
-        } elseif (is_numeric($value)) {
-            if ((float)$value < $min) {
-                $this->addError($field, "{$field} must be at least {$min}.");
-            }
+        if (is_array($value) && count($value) < (int)$min) {
+            $this->addError($field, 'min', "{$field} must have at least {$min} items.");
+        } elseif (is_string($value) && !is_numeric($value) && $this->stringLength($value) < (int)$min) {
+            $this->addError($field, 'min', "{$field} must be at least {$min} characters.");
+        } elseif (is_numeric($value) && (float)$value < $min) {
+            $this->addError($field, 'min', "{$field} must be at least {$min}.");
         }
     }
 
-    // #4修正: 文字列・数値・配列を排他的に判定
     private function validateMax(string $field, mixed $value, float $max): void
     {
-        if ($value === null) return;
+        if ($value === null) {
+            return;
+        }
 
-        if (is_array($value)) {
-            if (count($value) > (int)$max) {
-                $this->addError($field, "{$field} must have at most {$max} items.");
-            }
-        } elseif (is_string($value) && !is_numeric($value)) {
-            if (mb_strlen($value) > (int)$max) {
-                $this->addError($field, "{$field} must be at most {$max} characters.");
-            }
-        } elseif (is_numeric($value)) {
-            if ((float)$value > $max) {
-                $this->addError($field, "{$field} must be at most {$max}.");
-            }
+        if (is_array($value) && count($value) > (int)$max) {
+            $this->addError($field, 'max', "{$field} must have at most {$max} items.");
+        } elseif (is_string($value) && !is_numeric($value) && $this->stringLength($value) > (int)$max) {
+            $this->addError($field, 'max', "{$field} must be at most {$max} characters.");
+        } elseif (is_numeric($value) && (float)$value > $max) {
+            $this->addError($field, 'max', "{$field} must be at most {$max}.");
         }
     }
 
-    // #5修正: preg_match の無効パターンに対するエラーハンドリング追加
     private function validateRegex(string $field, mixed $value, string $pattern): void
     {
-        if ($value === null) return;
+        if ($value === null) {
+            return;
+        }
 
         set_error_handler(static fn() => true);
         $result = preg_match($pattern, (string)$value);
         restore_error_handler();
 
         if ($result === false) {
-            $this->addError($field, "{$field} has an invalid regex pattern.");
+            $this->addError($field, 'regex', "{$field} has an invalid regex pattern.");
             return;
         }
 
         if ($result === 0) {
-            $this->addError($field, "{$field} format is invalid.");
+            $this->addError($field, 'regex', "{$field} format is invalid.");
         }
     }
 
     private function validateEmail(string $field, mixed $value): void
     {
-        if ($value === null) return;
+        if ($value === null) {
+            return;
+        }
 
         if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
-            $this->addError($field, "{$field} must be a valid email address.");
+            $this->addError($field, 'email', "{$field} must be a valid email address.");
         }
+    }
+
+    private function stringLength(string $value): int
+    {
+        if (function_exists('mb_strlen')) {
+            return mb_strlen($value);
+        }
+        return strlen($value);
     }
 }
 
@@ -348,135 +602,295 @@ final class Validator
 // Router
 // ============================================================
 
+final class RouteDefinition
+{
+    public function __construct(
+        private Router $router,
+        private int $index
+    ) {
+    }
+
+    public function name(string $name): static
+    {
+        $this->router->nameRoute($this->index, $name);
+        return $this;
+    }
+
+    public function where(string|array $param, ?string $pattern = null): static
+    {
+        if (is_array($param)) {
+            foreach ($param as $name => $regex) {
+                $this->router->constrainRoute($this->index, (string)$name, (string)$regex);
+            }
+            return $this;
+        }
+
+        if ($pattern === null) {
+            throw new InvalidArgumentException('Route constraint pattern is required.');
+        }
+
+        $this->router->constrainRoute($this->index, $param, $pattern);
+        return $this;
+    }
+}
+
 final class Router
 {
     private array $routes  = [];
+    private array $names = [];
     private string $prefix = '';
 
-    public function get(string $path, callable $handler): void
+    public function get(string $path, callable $handler): RouteDefinition
     {
-        $this->addRoute('GET', $path, $handler);
+        return $this->addRoute('GET', $path, $handler);
     }
 
-    public function post(string $path, callable $handler): void
+    public function post(string $path, callable $handler): RouteDefinition
     {
-        $this->addRoute('POST', $path, $handler);
+        return $this->addRoute('POST', $path, $handler);
     }
 
-    public function put(string $path, callable $handler): void
+    public function put(string $path, callable $handler): RouteDefinition
     {
-        $this->addRoute('PUT', $path, $handler);
+        return $this->addRoute('PUT', $path, $handler);
     }
 
-    public function patch(string $path, callable $handler): void
+    public function patch(string $path, callable $handler): RouteDefinition
     {
-        $this->addRoute('PATCH', $path, $handler);
+        return $this->addRoute('PATCH', $path, $handler);
     }
 
-    public function delete(string $path, callable $handler): void
+    public function delete(string $path, callable $handler): RouteDefinition
     {
-        $this->addRoute('DELETE', $path, $handler);
+        return $this->addRoute('DELETE', $path, $handler);
     }
 
     public function group(string $prefix, callable $callback): void
     {
-        $previous     = $this->prefix;
-        $this->prefix = $previous . '/' . trim($prefix, '/');
-        $callback($this);
-        $this->prefix = $previous;
+        $previous = $this->prefix;
+        $this->prefix = $this->normalizePath($previous . '/' . trim($prefix, '/'));
+        try {
+            $callback($this);
+        } finally {
+            $this->prefix = $previous;
+        }
+    }
+
+    public function resource(string $name, string $controller): void
+    {
+        $base = '/' . trim($name, '/');
+        $param = 'id';
+
+        $this->get($base, $this->controllerAction($controller, 'index'))->name("{$name}.index");
+        $this->post($base, $this->controllerAction($controller, 'store'))->name("{$name}.store");
+        $this->get("{$base}/{{$param}}", $this->controllerAction($controller, 'show'))->name("{$name}.show");
+        $this->put("{$base}/{{$param}}", $this->controllerAction($controller, 'update'))->name("{$name}.update");
+        $this->patch("{$base}/{{$param}}", $this->controllerAction($controller, 'update'))->name("{$name}.patch");
+        $this->delete("{$base}/{{$param}}", $this->controllerAction($controller, 'destroy'))->name("{$name}.destroy");
+    }
+
+    public function url(string $name, array $params = []): string
+    {
+        if (!isset($this->names[$name])) {
+            throw new InvalidArgumentException("Unknown route name: {$name}");
+        }
+
+        $url = $this->names[$name];
+        foreach ($params as $key => $value) {
+            $url = str_replace('{' . $key . '}', rawurlencode((string)$value), $url);
+        }
+
+        if (preg_match('/\{[^}]+}/', $url) === 1) {
+            throw new InvalidArgumentException("Missing parameters for route: {$name}");
+        }
+
+        return $url;
+    }
+
+    public function nameRoute(int $index, string $name): void
+    {
+        if (isset($this->names[$name])) {
+            throw new InvalidArgumentException("Duplicate route name: {$name}");
+        }
+        if (!isset($this->routes[$index])) {
+            throw new InvalidArgumentException('Route does not exist.');
+        }
+        if ($this->routes[$index]['name'] !== null) {
+            throw new InvalidArgumentException('Route already has a name.');
+        }
+        $this->routes[$index]['name'] = $name;
+        $this->names[$name] = $this->routes[$index]['path'];
+    }
+
+    public function constrainRoute(int $index, string $param, string $pattern): void
+    {
+        if (!isset($this->routes[$index])) {
+            throw new InvalidArgumentException('Route does not exist.');
+        }
+        $this->routes[$index]['where'][$param] = $pattern;
     }
 
     public function dispatch(Request $request, Response $response): never
     {
         $method = $request->method();
-        $uri    = '/' . trim($request->uri(), '/');
-
-        $matchedPaths = [];
+        $uri = $this->normalizePath($request->uri());
+        $matchedMethods = [];
 
         foreach ($this->routes as $route) {
-            if ($route['path'] === $uri) {
-                $matchedPaths[] = $route['method'];
-                if ($route['method'] === $method) {
-                    ($route['handler'])($request, $response);
-                    exit;
-                }
+            $match = $this->matchRoute($route, $uri);
+            if ($match === null) {
+                continue;
             }
+
+            $matchedMethods[] = $route['method'];
+            if ($route['method'] !== $method) {
+                continue;
+            }
+
+            $request->setRouteParams($match);
+            ($route['handler'])($request, $response);
+            exit;
         }
 
-        if (!empty($matchedPaths)) {
-            $response->header('Allow', implode(', ', $matchedPaths))
-                     ->json(['error' => 'Method Not Allowed'], 405);
+        if ($matchedMethods !== []) {
+            $response->header('Allow', implode(', ', array_unique($matchedMethods)))
+                ->error('Method Not Allowed', 405);
         }
 
-        $response->json(['error' => 'Not Found'], 404);
+        $response->error('Not Found', 404);
     }
 
-    // #1修正: 無意味な自己代入を削除
-    private function addRoute(string $method, string $path, callable $handler): void
+    private function addRoute(string $method, string $path, callable $handler): RouteDefinition
     {
-        $combined = $this->prefix . '/' . trim($path, '/');
-        $fullPath = '/' . trim($combined, '/');
-
+        $fullPath = $this->normalizePath($this->prefix . '/' . trim($path, '/'));
         $this->routes[] = [
-            'method'  => $method,
-            'path'    => $fullPath,
+            'method' => $method,
+            'path' => $fullPath,
             'handler' => $handler,
+            'where' => [],
+            'name' => null,
         ];
+
+        $index = array_key_last($this->routes);
+        return new RouteDefinition($this, $index);
+    }
+
+    private function controllerAction(string $controller, string $method): Closure
+    {
+        return static function (Request $request, Response $response) use ($controller, $method): void {
+            if (!class_exists($controller)) {
+                throw new RuntimeException("Controller not found: {$controller}");
+            }
+
+            $instance = new $controller();
+            if (!method_exists($instance, $method) || !is_callable([$instance, $method])) {
+                throw new RuntimeException("Controller action not found: {$controller}::{$method}");
+            }
+
+            $instance->{$method}($request, $response);
+        };
+    }
+
+    private function matchRoute(array $route, string $uri): ?array
+    {
+        $pattern = '';
+        $offset = 0;
+
+        preg_match_all('/\{([A-Za-z_][A-Za-z0-9_]*)}/', $route['path'], $matches, PREG_OFFSET_CAPTURE);
+        foreach ($matches[0] as $index => $match) {
+            [$token, $position] = $match;
+            $pattern .= preg_quote(substr($route['path'], $offset, $position - $offset), '#');
+            $name = $matches[1][$index][0];
+            $constraint = str_replace('#', '\#', $route['where'][$name] ?? '[^/]+');
+            $pattern .= '(?P<' . $name . '>' . $constraint . ')';
+            $offset = $position + strlen($token);
+        }
+
+        $pattern .= preg_quote(substr($route['path'], $offset), '#');
+
+        set_error_handler(static fn(): bool => true);
+        $result = preg_match('#^' . $pattern . '$#', $uri, $matches);
+        restore_error_handler();
+
+        if ($result === false) {
+            throw new RuntimeException("Invalid route pattern: {$route['path']}");
+        }
+
+        if ($result !== 1) {
+            return null;
+        }
+
+        $params = [];
+        foreach ($matches as $key => $value) {
+            if (is_string($key)) {
+                $params[$key] = rawurldecode($value);
+            }
+        }
+        return $params;
+    }
+
+    private function normalizePath(string $path): string
+    {
+        $path = '/' . trim($path, '/');
+        return $path === '/' ? '/' : rtrim($path, '/');
     }
 }
 
 // ============================================================
-// Adlaire - ファサード
+// Adlaire - facade
 // ============================================================
 
 final class Adlaire
 {
-    private static ?Router   $router   = null;
-    private static ?Request  $request  = null;
+    private static ?Router $router = null;
+    private static ?Request $request = null;
     private static ?Response $response = null;
 
-    // #6修正: 未初期化アクセス防止のため各メソッドでinit保証
     public static function init(): void
     {
-        self::$router   = new Router();
-        self::$request  = new Request();
+        self::$router = new Router();
+        self::$request = new Request();
         self::$response = new Response();
     }
 
     public static function router(): Router
     {
-        self::$router ?? throw new \RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
+        if (self::$router === null) {
+            throw new RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
+        }
         return self::$router;
     }
 
     public static function request(): Request
     {
-        self::$request ?? throw new \RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
+        if (self::$request === null) {
+            throw new RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
+        }
         return self::$request;
     }
 
     public static function response(): Response
     {
-        self::$response ?? throw new \RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
+        if (self::$response === null) {
+            throw new RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
+        }
         return self::$response;
     }
 
-    public static function validate(array $data, array $rules): Validator
+    public static function validate(array $data, array $rules, array $messages = []): Validator
     {
-        $v = new Validator();
-        $v->validate($data, $rules);
-        return $v;
+        $validator = new Validator();
+        $validator->validate($data, $rules, $messages);
+        return $validator;
     }
 
     public static function run(): never
     {
-        self::$router ?? throw new \RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
+        if (self::$router === null || self::$request === null || self::$response === null) {
+            throw new RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
+        }
         self::$router->dispatch(self::$request, self::$response);
     }
 }
-
-// ============================================================
-// Bootstrap
-// ============================================================
 
 Adlaire::init();
