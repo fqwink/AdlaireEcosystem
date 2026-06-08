@@ -269,6 +269,21 @@ function test_logger(): void
     assert_true(str_contains($debugContent, '"X-Debug":"yes"'), 'logger should record response headers');
     assert_true(str_contains($debugContent, '"name":"debug.show"'), 'logger should record matched route name');
     assert_true(str_contains($debugContent, '"queries"'), 'logger should record query log entries');
+
+    $rotateFile = sys_get_temp_dir() . '/adlaire_rotate.log';
+    foreach ([$rotateFile, $rotateFile . '.1', $rotateFile . '.2', $rotateFile . '.3'] as $candidate) {
+        if (is_file($candidate)) {
+            assert_true(unlink($candidate), 'old rotate log should be removed');
+        }
+    }
+    $rotateLogger = new Logger($rotateFile, 'DEBUG', null, 1, 2);
+    $rotateLogger->info(str_repeat('a', 64));
+    $rotateLogger->info(str_repeat('b', 64));
+    $rotateLogger->info(str_repeat('c', 64));
+    $rotateLogger->info(str_repeat('d', 64));
+    assert_true(is_file($rotateFile . '.1'), 'logger should keep first rotated generation');
+    assert_true(is_file($rotateFile . '.2'), 'logger should keep second rotated generation');
+    assert_true(!is_file($rotateFile . '.3'), 'logger should not exceed configured rotated generations');
 }
 
 function test_deployer_config(): void
@@ -291,6 +306,54 @@ function test_deployer_config(): void
 
     $deployer = new Deployer($config);
     assert_true($deployer instanceof Deployer, 'deployer should be constructed from valid config');
+
+    $targetFile = $base . '/target/current.txt';
+    assert_true(file_put_contents($targetFile, 'current') !== false, 'target file should be prepared');
+    $snapshot = $base . '/backup/20000101_000000_previous';
+    if (!is_dir($snapshot)) {
+        assert_true(mkdir($snapshot, 0775, true) || is_dir($snapshot), 'previous snapshot should be created');
+    }
+    assert_true(file_put_contents($snapshot . '/manifest.json', json_encode([
+        'created_at' => date('c'),
+        'files' => ['current.txt'],
+    ], JSON_THROW_ON_ERROR)) !== false, 'previous snapshot manifest should be written');
+    assert_true(file_put_contents($snapshot . '/current.txt', 'old') !== false, 'previous snapshot file should be written');
+
+    $failingConfig = DeployConfig::fromArray([
+        'repository' => '/definitely/missing/repository.git',
+        'branch' => 'main',
+        'target_dir' => $base . '/target',
+        'work_dir' => $base . '/work',
+        'backup_dir' => $base . '/backup',
+        'log_file' => $base . '/deploy-failing.log',
+        'lock_file' => $base . '/work/deploy-failing.lock',
+    ]);
+
+    try {
+        (new Deployer($failingConfig))->run();
+        throw new DebugTestFailure('failing fetch should throw');
+    } catch (RuntimeException) {
+    }
+
+    assert_same('current', (string)file_get_contents($targetFile), 'failed fetch before backup should not rollback previous snapshot');
+
+    $initialBase = sys_get_temp_dir() . '/adlaire_deploy_initial_debug_' . bin2hex(random_bytes(4));
+    assert_true(mkdir($initialBase . '/work', 0775, true), 'initial work directory should be created');
+    assert_true(mkdir($initialBase . '/backup', 0775, true), 'initial backup directory should be created');
+    $initialConfig = DeployConfig::fromArray([
+        'repository' => '/definitely/missing/repository.git',
+        'branch' => 'main',
+        'target_dir' => $initialBase . '/target',
+        'work_dir' => $initialBase . '/work',
+        'backup_dir' => $initialBase . '/backup',
+        'log_file' => $initialBase . '/deploy.log',
+    ]);
+    $initialDeployer = new Deployer($initialConfig);
+    $backup = new ReflectionMethod($initialDeployer, 'backup');
+    $backup->setAccessible(true);
+    $snapshotPath = $backup->invoke($initialDeployer, []);
+    assert_true(is_dir($initialBase . '/target'), 'initial backup should create missing target directory');
+    assert_true(is_file($snapshotPath . '/manifest.json'), 'initial backup should write manifest for empty target');
 }
 
 $tests = [

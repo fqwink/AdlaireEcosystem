@@ -207,7 +207,19 @@ final class Logger
             return;
         }
 
-        for ($i = $this->keep; $i >= 1; $i--) {
+        if ($this->keep < 1) {
+            if (!unlink($this->file)) {
+                throw new RuntimeException("Failed to rotate log file: {$this->file}");
+            }
+            return;
+        }
+
+        $oldest = $this->file . '.' . $this->keep;
+        if (is_file($oldest) && !unlink($oldest)) {
+            throw new RuntimeException("Failed to remove old log file: {$oldest}");
+        }
+
+        for ($i = $this->keep - 1; $i >= 1; $i--) {
             $from = $this->file . '.' . $i;
             $to = $this->file . '.' . ($i + 1);
             if (is_file($from) && !rename($from, $to)) {

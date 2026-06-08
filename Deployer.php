@@ -123,6 +123,7 @@ final class Deployer
         $this->verifyHttpTrigger();
         $this->lock();
         $this->maintenance(true);
+        $snapshot = null;
 
         try {
             $source = $this->fetchArchive();
@@ -142,7 +143,9 @@ final class Deployer
             return ['dry_run' => false, 'changes' => $changes, 'snapshot' => $snapshot];
         } catch (Throwable $exception) {
             $this->logger->error('Deployment failed.', ['error' => $exception->getMessage()]);
-            $this->rollbackLatest();
+            if ($snapshot !== null) {
+                $this->rollbackSnapshot($snapshot);
+            }
             throw $exception;
         } finally {
             $this->cleanup();
@@ -258,6 +261,7 @@ final class Deployer
     {
         $target = $this->path($this->config->requiredString('target_dir'));
         $snapshot = $this->path($this->config->requiredString('backup_dir')) . '/' . date('Ymd_His') . '_' . bin2hex(random_bytes(4));
+        $this->ensureDirectory($target);
         $this->ensureDirectory($snapshot);
         $manifest = [
             'created_at' => date('c'),
@@ -309,7 +313,11 @@ final class Deployer
         }
 
         rsort($snapshots, SORT_STRING);
-        $snapshot = $snapshots[0];
+        $this->rollbackSnapshot($snapshots[0]);
+    }
+
+    private function rollbackSnapshot(string $snapshot): void
+    {
         $target = $this->path($this->config->requiredString('target_dir'));
         $manifestFile = $snapshot . '/manifest.json';
         if (is_file($manifestFile)) {
