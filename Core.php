@@ -3,11 +3,15 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version 0.3
+ * @version 0.6
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
+
+if (is_file(__DIR__ . '/Logger.php')) {
+    require_once __DIR__ . '/Logger.php';
+}
 
 if (PHP_VERSION_ID < 80300) {
     http_response_code(500);
@@ -21,12 +25,14 @@ if (PHP_VERSION_ID < 80300) {
 
 final class Request
 {
+    private static array $trustedProxies = [];
     private string|false|null $rawInput = null;
     private string $method;
     private string $uri;
     private array $headers;
     private array $query;
-    private mixed $body;
+    private mixed $body = null;
+    private bool $bodyParsed = false;
     private string $ip;
     private array $routeParams = [];
 
@@ -36,8 +42,17 @@ final class Request
         $this->uri     = $this->parseUri();
         $this->headers = $this->parseHeaders();
         $this->query   = $_GET;
-        $this->body    = $this->parseBody();
         $this->ip      = $this->parseIp();
+    }
+
+    public static function setTrustedProxies(array $proxies): void
+    {
+        foreach ($proxies as $proxy) {
+            if (!is_string($proxy) || filter_var($proxy, FILTER_VALIDATE_IP) === false) {
+                throw new InvalidArgumentException('Trusted proxy must be a valid IP address.');
+            }
+        }
+        self::$trustedProxies = array_values($proxies);
     }
 
     public function method(): string
@@ -71,11 +86,13 @@ final class Request
 
     public function body(): mixed
     {
+        $this->ensureBodyParsed();
         return $this->body;
     }
 
     public function input(string $key, mixed $default = null): mixed
     {
+        $this->ensureBodyParsed();
         if (is_array($this->body) && array_key_exists($key, $this->body)) {
             return $this->body[$key];
         }
@@ -201,15 +218,30 @@ final class Request
 
     private function parseIp(): string
     {
-        foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'] as $key) {
-            if (!empty($_SERVER[$key])) {
-                $ip = trim(explode(',', (string)$_SERVER[$key])[0]);
-                if (filter_var($ip, FILTER_VALIDATE_IP)) {
-                    return $ip;
+        $remote = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+        $remoteIsTrusted = $remote !== '' && in_array($remote, self::$trustedProxies, true);
+
+        if ($remoteIsTrusted) {
+            foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP'] as $key) {
+                if (!empty($_SERVER[$key])) {
+                    $ip = trim(explode(',', (string)$_SERVER[$key])[0]);
+                    if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                        return $ip;
+                    }
                 }
             }
         }
-        return '0.0.0.0';
+
+        return filter_var($remote, FILTER_VALIDATE_IP) ? $remote : '0.0.0.0';
+    }
+
+    private function ensureBodyParsed(): void
+    {
+        if ($this->bodyParsed) {
+            return;
+        }
+        $this->body = $this->parseBody();
+        $this->bodyParsed = true;
     }
 }
 
@@ -285,10 +317,20 @@ final class Response
         $this->json($payload, $status);
     }
 
+    public function success(mixed $data, int $status = 200): never
+    {
+        $this->json(['data' => $data], $status);
+    }
+
+    public function paginated(array $result): never
+    {
+        $this->json($result);
+    }
+
     public function redirect(string $url, int $status = 302): never
     {
-        if (!in_array($status, [301, 302], true)) {
-            throw new InvalidArgumentException('Redirect status must be 301 or 302.');
+        if (!in_array($status, [301, 302, 307, 308], true)) {
+            throw new InvalidArgumentException('Redirect status must be 301, 302, 307, or 308.');
         }
         if (str_contains($url, "\r") || str_contains($url, "\n")) {
             throw new InvalidArgumentException('Redirect URL must not contain newlines.');
@@ -328,6 +370,10 @@ final class Validator
 {
     private array $errors = [];
     private array $messages = [];
+
+    public function __construct(private ?Database $database = null)
+    {
+    }
 
     public function validate(array $data, array $rules, array $messages = []): bool
     {
@@ -401,6 +447,7 @@ final class Validator
             'required_if' => $this->validateRequiredIf($field, $value, (string)$param, $data),
             'string'      => $this->validateType($field, $value, 'string'),
             'int'         => $this->validateType($field, $value, 'int'),
+            'strict_int'  => $this->validateType($field, $value, 'strict_int'),
             'float'       => $this->validateType($field, $value, 'float'),
             'bool'        => $this->validateType($field, $value, 'bool'),
             'array'       => $this->validateType($field, $value, 'array'),
@@ -526,6 +573,7 @@ final class Validator
         $valid = match ($type) {
             'string' => is_string($value),
             'int'    => is_int($value) || (is_string($value) && preg_match('/^-?\d+$/', $value) === 1),
+            'strict_int' => is_int($value),
             'float'  => is_float($value) || is_int($value) || is_numeric($value),
             'bool'   => is_bool($value),
             'array'  => is_array($value),
@@ -649,7 +697,7 @@ final class Validator
             return;
         }
 
-        if (!class_exists('Database') || !method_exists('Database', 'default')) {
+        if ($this->database === null && (!class_exists('Database') || !method_exists('Database', 'default'))) {
             throw new RuntimeException('unique validation requires Database::default().');
         }
 
@@ -658,7 +706,8 @@ final class Validator
             throw new InvalidArgumentException('unique requires "table,column".');
         }
 
-        $count = Database::default()->table($table)->where($column, $value)->count();
+        $database = $this->database ?? Database::default();
+        $count = $database->table($table)->where($column, $value)->count();
         if ($count > 0) {
             $this->addError($field, 'unique', "{$field} must be unique.");
         }
@@ -712,6 +761,7 @@ final class RouteDefinition
 final class Router
 {
     private array $routes  = [];
+    private array $staticRoutes = [];
     private array $names = [];
     private string $prefix = '';
 
@@ -803,6 +853,9 @@ final class Router
             throw new InvalidArgumentException('Route does not exist.');
         }
         $this->routes[$index]['where'][$param] = $pattern;
+        $compiled = $this->compileRoute($this->routes[$index]['path'], $this->routes[$index]['where']);
+        $this->routes[$index]['pattern'] = $compiled['pattern'];
+        $this->routes[$index]['paramNames'] = $compiled['paramNames'];
     }
 
     public function dispatch(Request $request, Response $response): never
@@ -811,7 +864,24 @@ final class Router
         $uri = $this->normalizePath($request->uri());
         $matchedMethods = [];
 
+        $staticKey = $method . '#' . $uri;
+        if (isset($this->staticRoutes[$staticKey])) {
+            $route = $this->routes[$this->staticRoutes[$staticKey]];
+            $request->setRouteParams([]);
+            ($route['handler'])($request, $response);
+            exit;
+        }
+
+        foreach (['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as $candidateMethod) {
+            if ($candidateMethod !== $method && isset($this->staticRoutes[$candidateMethod . '#' . $uri])) {
+                $matchedMethods[] = $candidateMethod;
+            }
+        }
+
         foreach ($this->routes as $route) {
+            if ($route['paramNames'] === []) {
+                continue;
+            }
             $match = $this->matchRoute($route, $uri);
             if ($match === null) {
                 continue;
@@ -838,15 +908,21 @@ final class Router
     private function addRoute(string $method, string $path, callable $handler): RouteDefinition
     {
         $fullPath = $this->normalizePath($this->prefix . '/' . trim($path, '/'));
+        $compiled = $this->compileRoute($fullPath, []);
         $this->routes[] = [
             'method' => $method,
             'path' => $fullPath,
             'handler' => $handler,
             'where' => [],
+            'pattern' => $compiled['pattern'],
+            'paramNames' => $compiled['paramNames'],
             'name' => null,
         ];
 
         $index = array_key_last($this->routes);
+        if ($compiled['paramNames'] === []) {
+            $this->staticRoutes[$method . '#' . $fullPath] = $index;
+        }
         return new RouteDefinition($this, $index);
     }
 
@@ -868,23 +944,8 @@ final class Router
 
     private function matchRoute(array $route, string $uri): ?array
     {
-        $pattern = '';
-        $offset = 0;
-
-        preg_match_all('/\{([A-Za-z_][A-Za-z0-9_]*)}/', $route['path'], $matches, PREG_OFFSET_CAPTURE);
-        foreach ($matches[0] as $index => $match) {
-            [$token, $position] = $match;
-            $pattern .= preg_quote(substr($route['path'], $offset, $position - $offset), '#');
-            $name = $matches[1][$index][0];
-            $constraint = str_replace('#', '\#', $route['where'][$name] ?? '[^/]+');
-            $pattern .= '(?P<' . $name . '>' . $constraint . ')';
-            $offset = $position + strlen($token);
-        }
-
-        $pattern .= preg_quote(substr($route['path'], $offset), '#');
-
         set_error_handler(static fn(): bool => true);
-        $result = preg_match('#^' . $pattern . '$#', $uri, $matches);
+        $result = preg_match($route['pattern'], $uri, $matches);
         restore_error_handler();
 
         if ($result === false) {
@@ -904,6 +965,30 @@ final class Router
         return $params;
     }
 
+    private function compileRoute(string $path, array $where): array
+    {
+        $pattern = '';
+        $paramNames = [];
+        $offset = 0;
+
+        preg_match_all('/\{([A-Za-z_][A-Za-z0-9_]*)}/', $path, $matches, PREG_OFFSET_CAPTURE);
+        foreach ($matches[0] as $index => $match) {
+            [$token, $position] = $match;
+            $pattern .= preg_quote(substr($path, $offset, $position - $offset), '#');
+            $name = $matches[1][$index][0];
+            $paramNames[] = $name;
+            $constraint = str_replace('#', '\#', $where[$name] ?? '[^/]+');
+            $pattern .= '(?P<' . $name . '>' . $constraint . ')';
+            $offset = $position + strlen($token);
+        }
+
+        $pattern .= preg_quote(substr($path, $offset), '#');
+        return [
+            'pattern' => '#^' . $pattern . '$#',
+            'paramNames' => $paramNames,
+        ];
+    }
+
     private function normalizePath(string $path): string
     {
         $path = '/' . trim($path, '/');
@@ -920,12 +1005,47 @@ final class Adlaire
     private static ?Router $router = null;
     private static ?Request $request = null;
     private static ?Response $response = null;
+    private static ?Logger $logger = null;
+    private static float $startedAt = 0.0;
 
-    public static function init(): void
+    public static function init(array $config = []): void
     {
+        self::$startedAt = microtime(true);
+        Request::setTrustedProxies($config['trustedProxies'] ?? []);
         self::$router = new Router();
         self::$request = new Request();
         self::$response = new Response();
+
+        if (class_exists('Logger')) {
+            self::$logger = Logger::fromConfig($config['logger'] ?? []);
+        }
+
+        set_exception_handler(static function (Throwable $exception): never {
+            $development = getenv('APP_ENV') === 'development';
+            if (self::$logger !== null) {
+                self::$logger->error('Uncaught exception.', [
+                    'class' => $exception::class,
+                    'message' => $exception->getMessage(),
+                    'trace' => $development ? $exception->getTraceAsString() : null,
+                ]);
+            }
+
+            $payload = [
+                'error' => [
+                    'message' => $development ? $exception->getMessage() : 'Internal Server Error',
+                    'status' => 500,
+                ],
+            ];
+            if ($development) {
+                $payload['error']['class'] = $exception::class;
+                $payload['error']['trace'] = $exception->getTrace();
+            }
+
+            http_response_code(500);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit(1);
+        });
     }
 
     public static function router(): Router
@@ -952,9 +1072,9 @@ final class Adlaire
         return self::$response;
     }
 
-    public static function validate(array $data, array $rules, array $messages = []): Validator
+    public static function validate(array $data, array $rules, array $messages = [], ?Database $database = null): Validator
     {
-        $validator = new Validator();
+        $validator = new Validator($database);
         $validator->validate($data, $rules, $messages);
         return $validator;
     }
@@ -963,6 +1083,9 @@ final class Adlaire
     {
         if (self::$router === null || self::$request === null || self::$response === null) {
             throw new RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
+        }
+        if (self::$logger !== null) {
+            self::$logger->debugRequest(self::$request, self::$startedAt);
         }
         self::$router->dispatch(self::$request, self::$response);
     }

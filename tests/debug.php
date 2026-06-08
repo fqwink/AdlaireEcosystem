@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../Core.php';
+require_once __DIR__ . '/../Logger.php';
 require_once __DIR__ . '/../Database.php';
 require_once __DIR__ . '/../Deployer.php';
 
@@ -48,6 +49,7 @@ function make_request(string $method, string $uri, array $server = []): Request
 
 function test_request_helpers(): void
 {
+    Request::setTrustedProxies([]);
     $request = make_request('GET', '/users/42?active=1', [
         'HTTP_AUTHORIZATION' => 'Bearer token-123',
         'HTTP_X_FORWARDED_FOR' => '203.0.113.10, 10.0.0.1',
@@ -55,11 +57,24 @@ function test_request_helpers(): void
 
     assert_same('/users/42', $request->uri(), 'request URI should normalize path and drop query');
     assert_same('token-123', $request->bearerToken(), 'bearer token should parse authorization header');
-    assert_same('203.0.113.10', $request->ip(), 'client IP should prefer forwarded first IP');
+    assert_same('127.0.0.1', $request->ip(), 'untrusted proxy should not override remote address');
+
+    Request::setTrustedProxies(['127.0.0.1']);
+    $trusted = make_request('GET', '/users/42?active=1', [
+        'HTTP_X_FORWARDED_FOR' => '203.0.113.10, 10.0.0.1',
+    ]);
+    assert_same('203.0.113.10', $trusted->ip(), 'trusted proxy should use forwarded first IP');
+    Request::setTrustedProxies([]);
 }
 
 function test_validator(): void
 {
+    $validator = new Validator();
+    assert_true(
+        !$validator->validate(['id' => '123'], ['id' => 'strict_int']),
+        'strict_int should reject numeric strings'
+    );
+
     $validator = new Validator();
     $valid = $validator->validate(
         [
@@ -159,11 +174,20 @@ function test_database(): void
     assert_same(30, $database->table('users')->sum('score'), 'sum aggregate should return numeric value');
     assert_same('bob', $database->table('users')->where('score', '>', 10)->first()['name'] ?? null, 'where and first should find row');
     assert_true($database->queryLog() !== [], 'query log should capture executed statements');
+    assert_true(count($database->queryLog()) <= 1000, 'query log should respect default max size');
+
+    $raw = $database->table('users AS u')->selectRaw('u.name')->whereRaw('u.score >= ?', [10])->orderBy('u.id')->first();
+    assert_same('alice', $raw['name'] ?? null, 'raw select/where and table alias should work');
 
     $unionRows = $database->table('users')->select('name')->where('name', 'alice')
         ->union($database->table('users')->select('name')->where('name', 'bob'))
         ->get();
     assert_same(2, count($unionRows), 'union should combine query results');
+
+    $page = $database->table('users')->orderBy('id')->paginate(1, 2);
+    assert_same(2, $page['total'], 'paginate should include total');
+    assert_same(2, $page['current_page'], 'paginate should include current page');
+    assert_same('bob', $page['data'][0]['name'] ?? null, 'paginate should return page data');
 
     $withPosts = $database->table('users')->with('posts', 'posts', 'id', 'user_id')->orderBy('id')->get();
     assert_same(2, count($withPosts[0]['posts']), 'eager loading should attach related rows');
@@ -196,6 +220,32 @@ function test_database(): void
     });
 
     assert_same(4, $database->table('users')->count(), 'nested transaction should commit');
+
+    $path = sys_get_temp_dir() . '/adlaire_file_url.sqlite';
+    if (is_file($path)) {
+        assert_true(unlink($path), 'old file URL database should be removed');
+    }
+    $fileDatabase = new Database('file:' . $path);
+    $fileDatabase->statement('CREATE TABLE checks (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+    $fileDatabase->table('checks')->insert(['id' => 1, 'name' => 'file-url']);
+    assert_same('file-url', $fileDatabase->table('checks')->first()['name'] ?? null, 'file: SQLite URL should work');
+}
+
+function test_logger(): void
+{
+    $file = sys_get_temp_dir() . '/adlaire_debug.log';
+    if (is_file($file)) {
+        assert_true(unlink($file), 'old debug log should be removed');
+    }
+    if (is_file($file . '.hmac')) {
+        assert_true(unlink($file . '.hmac'), 'old debug log hmac should be removed');
+    }
+
+    $logger = new Logger($file, 'DEBUG', 'secret');
+    $logger->info('debug logger test', ['password' => 'hidden']);
+    $content = (string)file_get_contents($file);
+    assert_true(str_contains($content, '[masked]'), 'logger should mask configured fields');
+    assert_true(is_file($file . '.hmac'), 'logger should write hmac file');
 }
 
 function test_deployer_config(): void
@@ -225,6 +275,7 @@ $tests = [
     'validator' => test_validator(...),
     'router' => test_router(...),
     'database' => test_database(...),
+    'logger' => test_logger(...),
     'deployer_config' => test_deployer_config(...),
 ];
 

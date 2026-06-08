@@ -3,11 +3,13 @@
 /**
  * Adlaire Ecosystem - Deployer.php
  *
- * @version 0.3
+ * @version 0.6
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
+
+require_once __DIR__ . '/Logger.php';
 
 if (PHP_VERSION_ID < 80300) {
     echo json_encode(['error' => 'Adlaire Ecosystem requires PHP 8.3 or higher. Current version: ' . PHP_VERSION]);
@@ -81,6 +83,10 @@ final class DeployConfig
 
         if (!function_exists('exec')) {
             throw new RuntimeException('exec() is required for deployment.');
+        }
+
+        if (filter_var(ini_get('phar.readonly'), FILTER_VALIDATE_BOOLEAN)) {
+            throw new RuntimeException('phar.readonly must be Off for deployment archive handling.');
         }
 
         $sshKey = $this->get('ssh_key');
@@ -219,14 +225,15 @@ final class DeployLogger
 
 final class Deployer
 {
-    private DeployLogger $logger;
+    private Logger $logger;
+    private array $fileCache = [];
 
     public function __construct(private DeployConfig $config)
     {
-        $this->logger = new DeployLogger(
+        $this->logger = new Logger(
             $config->requiredString('log_file'),
             (string)$config->get('log_level', 'INFO'),
-            $config->get('hmac_key'),
+            is_string($config->get('hmac_key')) && $config->get('hmac_key') !== '' ? $config->get('hmac_key') : null,
             (int)$config->get('log_max_bytes', 1048576),
             (int)$config->get('log_keep', 5)
         );
@@ -411,6 +418,7 @@ final class Deployer
                 throw new RuntimeException("Failed to chmod file: {$file}");
             }
         }
+        $this->fileCache = [];
     }
 
     private function rollbackLatest(): void
@@ -532,6 +540,10 @@ final class Deployer
 
     private function files(string $directory): array
     {
+        if (isset($this->fileCache[$directory])) {
+            return $this->fileCache[$directory];
+        }
+
         $files = [];
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS));
         foreach ($iterator as $file) {
@@ -540,6 +552,7 @@ final class Deployer
             }
         }
         sort($files, SORT_STRING);
+        $this->fileCache[$directory] = $files;
         return $files;
     }
 

@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Database.php
  *
- * @version 0.3
+ * @version 0.6
  * @php     >= 8.3
  */
 
@@ -14,27 +14,264 @@ if (PHP_VERSION_ID < 80300) {
     exit(1);
 }
 
-final class Database
+interface SqlDriver
 {
-    private static array $connections = [];
-    private static ?string $defaultConnection = null;
+    public function execute(string $sql, array $bindings = []): AdlaireStatement;
+
+    public function exec(string $sql): void;
+
+    public function beginTransaction(): void;
+
+    public function commit(): void;
+
+    public function rollBack(): void;
+
+    public function inTransaction(): bool;
+}
+
+final class AdlaireStatement
+{
+    private int $cursor = 0;
+
+    public function __construct(
+        private array $rows = [],
+        private int $rowCount = 0
+    ) {
+    }
+
+    public static function fromPdo(PDOStatement $statement): self
+    {
+        $rows = $statement->columnCount() > 0 ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
+        return new self(is_array($rows) ? $rows : [], $statement->rowCount());
+    }
+
+    public function fetch(int $mode = PDO::FETCH_ASSOC): mixed
+    {
+        if ($this->cursor >= count($this->rows)) {
+            return false;
+        }
+        $row = $this->rows[$this->cursor++];
+        if ($mode === PDO::FETCH_COLUMN) {
+            return is_array($row) ? reset($row) : false;
+        }
+        return $row;
+    }
+
+    public function fetchAll(int $mode = PDO::FETCH_ASSOC): array
+    {
+        if ($mode === PDO::FETCH_COLUMN) {
+            return array_map(static fn(array $row): mixed => reset($row), $this->rows);
+        }
+        return $this->rows;
+    }
+
+    public function rowCount(): int
+    {
+        return $this->rowCount;
+    }
+}
+
+final class PdoDriver implements SqlDriver
+{
     private PDO $pdo;
-    private int $transactionDepth = 0;
-    private bool $queryLogging = false;
-    private ?float $slowQueryThresholdMs = null;
-    private array $queryLog = [];
 
     public function __construct(string $path)
     {
-        $this->assertDatabasePath($path);
         $this->pdo = new PDO('sqlite:' . $path);
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     }
 
-    public static function addConnection(string $name, string $path, bool $default = false): self
+    public function pdo(): PDO
     {
-        $database = new self($path);
+        return $this->pdo;
+    }
+
+    public function execute(string $sql, array $bindings = []): AdlaireStatement
+    {
+        $statement = $this->pdo->prepare($sql);
+        if (!$statement instanceof PDOStatement) {
+            throw new RuntimeException('Failed to prepare SQL statement.');
+        }
+        $statement->execute($bindings);
+        return AdlaireStatement::fromPdo($statement);
+    }
+
+    public function exec(string $sql): void
+    {
+        $result = $this->pdo->exec($sql);
+        if ($result === false) {
+            throw new RuntimeException('Failed to execute SQL statement.');
+        }
+    }
+
+    public function beginTransaction(): void
+    {
+        $this->pdo->beginTransaction();
+    }
+
+    public function commit(): void
+    {
+        $this->pdo->commit();
+    }
+
+    public function rollBack(): void
+    {
+        $this->pdo->rollBack();
+    }
+
+    public function inTransaction(): bool
+    {
+        return $this->pdo->inTransaction();
+    }
+}
+
+class HttpDriver implements SqlDriver
+{
+    private bool $inTransaction = false;
+
+    public function __construct(
+        protected string $url,
+        protected ?string $token = null
+    ) {
+        if (!extension_loaded('curl')) {
+            throw new RuntimeException('curl extension is required for libSQL HTTP connections.');
+        }
+    }
+
+    public function execute(string $sql, array $bindings = []): AdlaireStatement
+    {
+        $response = $this->request($sql, $bindings);
+        return $this->statementFromResponse($response);
+    }
+
+    public function exec(string $sql): void
+    {
+        $this->execute($sql);
+    }
+
+    public function beginTransaction(): void
+    {
+        $this->execute('BEGIN');
+        $this->inTransaction = true;
+    }
+
+    public function commit(): void
+    {
+        $this->execute('COMMIT');
+        $this->inTransaction = false;
+    }
+
+    public function rollBack(): void
+    {
+        $this->execute('ROLLBACK');
+        $this->inTransaction = false;
+    }
+
+    public function inTransaction(): bool
+    {
+        return $this->inTransaction;
+    }
+
+    protected function request(string $sql, array $bindings): array
+    {
+        $payload = json_encode([
+            'statements' => [[
+                'q' => $sql,
+                'params' => array_values($bindings),
+            ]],
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $curl = curl_init(rtrim($this->url, '/') . '/v2/pipeline');
+        if ($curl === false) {
+            throw new RuntimeException('Failed to initialize curl.');
+        }
+
+        $headers = ['Content-Type: application/json'];
+        if ($this->token !== null && $this->token !== '') {
+            $headers[] = 'Authorization: Bearer ' . $this->token;
+        }
+
+        curl_setopt_array($curl, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+        ]);
+
+        $body = curl_exec($curl);
+        $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $error = curl_error($curl);
+        curl_close($curl);
+
+        if ($body === false || $status < 200 || $status >= 300) {
+            throw new RuntimeException('libSQL HTTP request failed: ' . ($error !== '' ? $error : (string)$body));
+        }
+
+        $decoded = json_decode((string)$body, true);
+        if (!is_array($decoded)) {
+            throw new RuntimeException('libSQL HTTP response must be JSON.');
+        }
+        return $decoded;
+    }
+
+    protected function statementFromResponse(array $response): AdlaireStatement
+    {
+        $result = $response['results'][0] ?? $response['result'] ?? $response;
+        $rows = [];
+        foreach (($result['rows'] ?? []) as $row) {
+            if (is_array($row) && array_is_list($row) && isset($result['columns']) && is_array($result['columns'])) {
+                $assoc = [];
+                foreach ($result['columns'] as $index => $column) {
+                    $name = is_array($column) ? (string)($column['name'] ?? $index) : (string)$column;
+                    $assoc[$name] = $row[$index] ?? null;
+                }
+                $rows[] = $assoc;
+            } elseif (is_array($row)) {
+                $rows[] = $row;
+            }
+        }
+
+        return new AdlaireStatement($rows, (int)($result['affected_row_count'] ?? $result['rows_affected'] ?? count($rows)));
+    }
+}
+
+final class WebSocketDriver extends HttpDriver
+{
+}
+
+final class Database
+{
+    private static array $connections = [];
+    private static ?string $defaultConnection = null;
+    private static bool $usedConnect = false;
+    private SqlDriver $driver;
+    private ?PDO $pdo = null;
+    private int $transactionDepth = 0;
+    private bool $queryLogging = false;
+    private ?float $slowQueryThresholdMs = null;
+    private int $queryLogMaxEntries = 1000;
+    private array $queryLog = [];
+
+    public function __construct(string $url, ?string $token = null)
+    {
+        $this->driver = $this->createDriver($url, $token);
+        if ($this->driver instanceof PdoDriver) {
+            $this->pdo = $this->driver->pdo();
+        }
+    }
+
+    public static function addConnection(string $name, string $url, bool $default = false, ?string $token = null): self
+    {
+        if (self::$usedConnect) {
+            throw new RuntimeException('Database::connect() cannot be mixed with addConnection().');
+        }
+        if ($name === '') {
+            throw new InvalidArgumentException('Connection name must not be empty.');
+        }
+
+        $database = new self($url, $token);
         self::$connections[$name] = $database;
 
         if ($default || self::$defaultConnection === null) {
@@ -60,6 +297,10 @@ final class Database
 
     public static function connect(string $path): self
     {
+        if (self::$connections !== [] && !self::$usedConnect) {
+            throw new RuntimeException('Database::connect() cannot be mixed with addConnection().');
+        }
+        self::$usedConnect = true;
         $database = new self($path);
         if (self::$defaultConnection === null) {
             self::$connections['default'] = $database;
@@ -70,6 +311,9 @@ final class Database
 
     public function pdo(): PDO
     {
+        if (!$this->pdo instanceof PDO) {
+            throw new RuntimeException('PDO is only available for local SQLite connections.');
+        }
         return $this->pdo;
     }
 
@@ -78,20 +322,15 @@ final class Database
         return new QueryBuilder($this, $table);
     }
 
-    public function statement(string $sql, array $bindings = []): PDOStatement
+    public function statement(string $sql, array $bindings = []): AdlaireStatement
     {
-        $statement = $this->pdo->prepare($sql);
-        if (!$statement instanceof PDOStatement) {
-            throw new RuntimeException('Failed to prepare SQL statement.');
-        }
-        $this->executeStatement($statement, $sql, $bindings);
-        return $statement;
+        return $this->execute($sql, $bindings);
     }
 
-    public function executeStatement(PDOStatement $statement, string $sql, array $bindings = []): void
+    public function execute(string $sql, array $bindings = []): AdlaireStatement
     {
         $start = microtime(true);
-        $statement->execute($bindings);
+        $statement = $this->driver->execute($sql, $bindings);
         $durationMs = (microtime(true) - $start) * 1000;
 
         if ($this->queryLogging || ($this->slowQueryThresholdMs !== null && $durationMs >= $this->slowQueryThresholdMs)) {
@@ -102,13 +341,22 @@ final class Database
                 'slow' => $this->slowQueryThresholdMs !== null && $durationMs >= $this->slowQueryThresholdMs,
                 'timestamp' => date('c'),
             ];
+            if (count($this->queryLog) > $this->queryLogMaxEntries) {
+                $this->queryLog = array_slice($this->queryLog, -$this->queryLogMaxEntries);
+            }
         }
+
+        return $statement;
     }
 
-    public function enableQueryLog(?float $slowQueryThresholdMs = null): static
+    public function enableQueryLog(?float $slowQueryThresholdMs = null, int $maxEntries = 1000): static
     {
+        if ($maxEntries < 1) {
+            throw new InvalidArgumentException('Query log max entries must be at least 1.');
+        }
         $this->queryLogging = true;
         $this->slowQueryThresholdMs = $slowQueryThresholdMs;
+        $this->queryLogMaxEntries = $maxEntries;
         return $this;
     }
 
@@ -145,9 +393,9 @@ final class Database
     private function beginTransaction(): void
     {
         if ($this->transactionDepth === 0) {
-            $this->pdo->beginTransaction();
+            $this->driver->beginTransaction();
         } else {
-            $this->pdo->exec('SAVEPOINT adlaire_tx_' . $this->transactionDepth);
+            $this->driver->exec('SAVEPOINT adlaire_tx_' . $this->transactionDepth);
         }
         $this->transactionDepth++;
     }
@@ -159,13 +407,13 @@ final class Database
         }
 
         if ($this->transactionDepth === 1) {
-            $this->pdo->commit();
+            $this->driver->commit();
             $this->transactionDepth = 0;
             return;
         }
 
         $savepoint = $this->transactionDepth - 1;
-        $this->pdo->exec('RELEASE SAVEPOINT adlaire_tx_' . $savepoint);
+        $this->driver->exec('RELEASE SAVEPOINT adlaire_tx_' . $savepoint);
         $this->transactionDepth--;
     }
 
@@ -177,14 +425,14 @@ final class Database
 
         $this->transactionDepth--;
         if ($this->transactionDepth === 0) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
+            if ($this->driver->inTransaction()) {
+                $this->driver->rollBack();
             }
             return;
         }
 
-        $this->pdo->exec('ROLLBACK TO SAVEPOINT adlaire_tx_' . $this->transactionDepth);
-        $this->pdo->exec('RELEASE SAVEPOINT adlaire_tx_' . $this->transactionDepth);
+        $this->driver->exec('ROLLBACK TO SAVEPOINT adlaire_tx_' . $this->transactionDepth);
+        $this->driver->exec('RELEASE SAVEPOINT adlaire_tx_' . $this->transactionDepth);
     }
 
     public function migrate(string $directory): void
@@ -195,6 +443,30 @@ final class Database
     public function rollback(string $directory, int $steps = 1): void
     {
         (new Migrator($this))->rollback($directory, $steps);
+    }
+
+    private function createDriver(string $url, ?string $token): SqlDriver
+    {
+        if ($url === ':memory:' || str_starts_with($url, 'file:') || !preg_match('/^[A-Za-z][A-Za-z0-9+.-]*:/', $url)) {
+            $path = str_starts_with($url, 'file:') ? substr($url, 5) : $url;
+            $this->assertDatabasePath($path);
+            return new PdoDriver($path);
+        }
+
+        if (str_starts_with($url, 'https://')) {
+            return new HttpDriver($url, $token);
+        }
+
+        if (str_starts_with($url, 'wss://')) {
+            if (extension_loaded('libsql')) {
+                return new WebSocketDriver($url, $token);
+            }
+            $fallback = 'https://' . substr($url, 6);
+            error_log("Adlaire WARNING: libSQL extension is not loaded. Falling back to HTTP: {$fallback}");
+            return new HttpDriver($fallback, $token);
+        }
+
+        throw new InvalidArgumentException("Unsupported database URL: {$url}");
     }
 
     private function assertDatabasePath(string $path): void
@@ -213,6 +485,7 @@ final class Database
 final class QueryBuilder
 {
     private array $columns = ['*'];
+    private array $selectBindings = [];
     private array $wheres = [];
     private array $joins = [];
     private array $orders = [];
@@ -245,6 +518,16 @@ final class QueryBuilder
         return $this;
     }
 
+    public function selectRaw(string $expression, array $bindings = []): static
+    {
+        if ($expression === '') {
+            throw new InvalidArgumentException('Raw select expression must not be empty.');
+        }
+        $this->columns = [$expression];
+        array_push($this->selectBindings, ...array_values($bindings));
+        return $this;
+    }
+
     public function where(string $column, mixed $operator, mixed $value = null): static
     {
         if (func_num_args() === 2) {
@@ -274,6 +557,16 @@ final class QueryBuilder
         $placeholders = implode(', ', array_fill(0, count($values), '?'));
         $this->wheres[] = ['AND', "{$column} IN ({$placeholders})"];
         array_push($this->bindings, ...array_values($values));
+        return $this;
+    }
+
+    public function whereRaw(string $expression, array $bindings = []): static
+    {
+        if ($expression === '') {
+            throw new InvalidArgumentException('Raw where expression must not be empty.');
+        }
+        $this->wheres[] = ['AND', '(' . $expression . ')'];
+        array_push($this->bindings, ...array_values($bindings));
         return $this;
     }
 
@@ -369,6 +662,27 @@ final class QueryBuilder
         return $row === false ? null : $row;
     }
 
+    public function paginate(int $perPage, int $page = 1): array
+    {
+        if ($perPage < 1) {
+            throw new InvalidArgumentException('Per page must be at least 1.');
+        }
+        if ($page < 1) {
+            throw new InvalidArgumentException('Page must be at least 1.');
+        }
+
+        $total = $this->count();
+        $data = $this->limit($perPage)->offset(($page - 1) * $perPage)->get();
+
+        return [
+            'data' => $data,
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => max(1, (int)ceil($total / $perPage)),
+        ];
+    }
+
     public function insert(array $rows): int
     {
         if ($rows === []) {
@@ -414,11 +728,7 @@ final class QueryBuilder
             }
         }
 
-        $statement = $this->database->pdo()->prepare($sql);
-        if (!$statement instanceof PDOStatement) {
-            throw new RuntimeException('Failed to prepare insert statement.');
-        }
-        $this->database->executeStatement($statement, $sql, $bindings);
+        $statement = $this->database->execute($sql, $bindings);
         return $statement->rowCount();
     }
 
@@ -438,11 +748,7 @@ final class QueryBuilder
         }
 
         $sql = "UPDATE {$this->table} SET " . implode(', ', $sets) . $this->compileWhere();
-        $statement = $this->database->pdo()->prepare($sql);
-        if (!$statement instanceof PDOStatement) {
-            throw new RuntimeException('Failed to prepare update statement.');
-        }
-        $this->database->executeStatement($statement, $sql, [...$bindings, ...$this->bindings]);
+        $statement = $this->database->execute($sql, [...$bindings, ...$this->bindings]);
         return $statement->rowCount();
     }
 
@@ -450,11 +756,7 @@ final class QueryBuilder
     {
         $this->assertWriteWhere('delete');
         $sql = "DELETE FROM {$this->table}" . $this->compileWhere();
-        $statement = $this->database->pdo()->prepare($sql);
-        if (!$statement instanceof PDOStatement) {
-            throw new RuntimeException('Failed to prepare delete statement.');
-        }
-        $this->database->executeStatement($statement, $sql, $this->bindings);
+        $statement = $this->database->execute($sql, $this->bindings);
         return $statement->rowCount();
     }
 
@@ -527,7 +829,7 @@ final class QueryBuilder
             $this->compileLimit()
         );
 
-        $bindings = $this->bindings;
+        $bindings = [...$this->selectBindings, ...$this->bindings];
         foreach ($this->unions as $union) {
             [$unionSql, $unionBindings] = $union['query']->toSql();
             $sql .= ' ' . $union['type'] . ' ' . $unionSql;
@@ -537,16 +839,10 @@ final class QueryBuilder
         return [$sql, $bindings];
     }
 
-    private function runSelect(): PDOStatement
+    private function runSelect(): AdlaireStatement
     {
         [$sql, $bindings] = $this->toSql();
-
-        $statement = $this->database->pdo()->prepare($sql);
-        if (!$statement instanceof PDOStatement) {
-            throw new RuntimeException('Failed to prepare select statement.');
-        }
-        $this->database->executeStatement($statement, $sql, $bindings);
-        return $statement;
+        return $this->database->execute($sql, $bindings);
     }
 
     private function aggregate(string $function, string $column): mixed
@@ -555,11 +851,7 @@ final class QueryBuilder
             $this->assertIdentifier($column, true);
         }
         $sql = sprintf('SELECT %s(%s) AS aggregate FROM %s%s', $function, $column, $this->table, $this->compileWhere());
-        $statement = $this->database->pdo()->prepare($sql);
-        if (!$statement instanceof PDOStatement) {
-            throw new RuntimeException('Failed to prepare aggregate statement.');
-        }
-        $this->database->executeStatement($statement, $sql, $this->bindings);
+        $statement = $this->database->execute($sql, $this->bindings);
         $row = $statement->fetch();
         return is_array($row) ? ($row['aggregate'] ?? null) : null;
     }
@@ -640,7 +932,9 @@ final class QueryBuilder
 
     private function assertIdentifier(string $identifier, bool $allowDot = false): void
     {
-        $pattern = $allowDot ? '/^[A-Za-z_][A-Za-z0-9_]*(\.([A-Za-z_][A-Za-z0-9_]*|\*))?$/' : '/^[A-Za-z_][A-Za-z0-9_]*$/';
+        $name = '[A-Za-z_][A-Za-z0-9_]*';
+        $base = $allowDot ? "{$name}(\\.({$name}|\\*))?" : $name;
+        $pattern = '/^' . $base . '(\\s+AS\\s+' . $name . ')?$/i';
         if (preg_match($pattern, $identifier) !== 1) {
             throw new InvalidArgumentException("Invalid SQL identifier: {$identifier}");
         }
