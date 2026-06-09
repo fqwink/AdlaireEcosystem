@@ -2844,6 +2844,13 @@ final class Adlaire
                 && self::apiRemovalPolicy()['cors_available'] === false
                 && self::apiRemovalPolicy()['json_metadata_exception_retained'] === true
                 && self::apiRemovalPolicy()['internal_libsql_api_allowed'] === true,
+            'documentation_consistency_policy' => self::documentationConsistencyPolicy()['theme'] === 'Repository Documentation Consistency'
+                && self::documentationConsistencyPolicy()['xserver_required'] === false
+                && self::documentationConsistencyPolicy()['mysql_support_planned'] === false
+                && self::documentationConsistencyPolicy()['framework_configuration_files_allowed'] === false
+                && self::documentationConsistencyPolicy()['json_configuration_files_allowed'] === false
+                && self::documentationConsistencyPolicy()['public_api_available'] === false
+                && in_array('docs/xserver-production-equivalent.md', self::documentationConsistencyPolicy()['checked_documents'], true),
             'development_workflow_policy' => self::developmentWorkflowPolicy()['theme'] === 'Specification-First Development Workflow'
                 && self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
                 && self::developmentWorkflowPolicy()['required_order'] === ['specification', 'implementation_plan', 'implementation']
