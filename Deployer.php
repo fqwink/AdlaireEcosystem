@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Deployer.php
  *
- * @version 0.6
+ * @version v0.19
  * @php     >= 8.3
  */
 
@@ -267,6 +267,7 @@ final class Deployer
         $changes = [];
 
         foreach ($sourceFiles as $file) {
+            $this->assertRelativePath($file);
             if (!$this->allowed($file, $allowed)) {
                 continue;
             }
@@ -297,6 +298,7 @@ final class Deployer
         }
 
         foreach ($changes as $file) {
+            $this->assertRelativePath($file);
             $from = $target . '/' . $file;
             if (!is_file($from)) {
                 continue;
@@ -315,6 +317,7 @@ final class Deployer
     {
         $target = $this->path($this->config->requiredString('target_dir'));
         foreach ($changes as $file) {
+            $this->assertRelativePath($file);
             $from = $source . '/' . $file;
             $to = $target . '/' . $file;
             $this->ensureDirectory(dirname($to));
@@ -350,6 +353,7 @@ final class Deployer
             $manifest = json_decode((string)file_get_contents($manifestFile), true, flags: JSON_THROW_ON_ERROR);
             $before = is_array($manifest['files'] ?? null) ? $manifest['files'] : [];
             foreach ($this->files($target) as $file) {
+                $this->assertRelativePath($file);
                 if (!in_array($file, $before, true)) {
                     $path = $target . '/' . $file;
                     if (is_file($path) && !unlink($path)) {
@@ -363,6 +367,7 @@ final class Deployer
             if ($file === 'manifest.json') {
                 continue;
             }
+            $this->assertRelativePath($file);
             $from = $snapshot . '/' . $file;
             $to = $target . '/' . $file;
             $this->ensureDirectory(dirname($to));
@@ -473,6 +478,7 @@ final class Deployer
 
     private function allowed(string $file, array $allowlist): bool
     {
+        $this->assertRelativePath($file);
         if ($allowlist === []) {
             return true;
         }
@@ -598,6 +604,20 @@ final class Deployer
         if ($directory !== '' && !is_dir($directory)) {
             if (!mkdir($directory, 0775, true) && !is_dir($directory)) {
                 throw new RuntimeException("Failed to create directory: {$directory}");
+            }
+        }
+    }
+
+    private function assertRelativePath(string $file): void
+    {
+        if ($file === '' || str_contains($file, "\0") || str_starts_with($file, '/') || str_contains($file, '\\')) {
+            throw new InvalidArgumentException("Invalid deployment file path: {$file}");
+        }
+
+        $segments = explode('/', $file);
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.' || $segment === '..') {
+                throw new InvalidArgumentException("Invalid deployment file path: {$file}");
             }
         }
     }

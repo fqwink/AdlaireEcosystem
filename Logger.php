@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Logger.php
  *
- * @version 0.6
+ * @version v0.19
  * @php     >= 8.3
  */
 
@@ -146,6 +146,18 @@ final class Logger
         $this->debug('Query debug.', ['queries' => $entries]);
     }
 
+    public function auditEvent(string $event, array $context = []): void
+    {
+        if ($event === '') {
+            throw new InvalidArgumentException('Audit event must not be empty.');
+        }
+        $this->info('Audit event.', [
+            'component' => 'audit',
+            'event' => $event,
+            'audit' => $context,
+        ]);
+    }
+
     private function write(string $level, string $message, array $context): void
     {
         if ((self::LEVELS[$level] ?? 99) < self::LEVELS[$this->level]) {
@@ -185,7 +197,7 @@ final class Logger
     private function maskArray(array $value): array
     {
         foreach ($value as $key => $item) {
-            if (is_string($key) && in_array(strtolower($key), $this->maskFields, true)) {
+            if (is_string($key) && $this->isSensitiveKey($key)) {
                 $value[$key] = '[masked]';
                 continue;
             }
@@ -194,6 +206,18 @@ final class Logger
             }
         }
         return $value;
+    }
+
+    private function isSensitiveKey(string $key): bool
+    {
+        $normalized = strtolower($key);
+        foreach ($this->maskFields as $field) {
+            $field = strtolower((string)$field);
+            if ($field !== '' && str_contains($normalized, $field)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function verifyHmac(): void

@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Database.php
  *
- * @version 0.6
+ * @version v0.19
  * @php     >= 8.3
  */
 

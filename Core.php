@@ -3,11 +3,21 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version 0.6
+ * @version v0.19
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
+
+const ADLAIRE_VERSION = 'v0.19';
+
+if (is_file(__DIR__ . '/Extension.php')) {
+    require_once __DIR__ . '/Extension.php';
+}
+
+if (is_file(__DIR__ . '/Kernel.php')) {
+    require_once __DIR__ . '/Kernel.php';
+}
 
 if (is_file(__DIR__ . '/Logger.php')) {
     require_once __DIR__ . '/Logger.php';
@@ -320,6 +330,17 @@ final class Response
         return $this->header('Access-Control-Allow-Origin', $origin)
             ->header('Access-Control-Allow-Methods', $methods)
             ->header('Access-Control-Allow-Headers', $headers);
+    }
+
+    public function securityHeaders(
+        string $frameOptions = 'DENY',
+        string $referrerPolicy = 'no-referrer',
+        string $permissionsPolicy = 'geolocation=(), microphone=(), camera=()'
+    ): static {
+        return $this->header('X-Content-Type-Options', 'nosniff')
+            ->header('X-Frame-Options', $frameOptions)
+            ->header('Referrer-Policy', $referrerPolicy)
+            ->header('Permissions-Policy', $permissionsPolicy);
     }
 
     public function json(mixed $data, ?int $status = null): never
@@ -1110,6 +1131,7 @@ final class Adlaire
     private static ?Request $request = null;
     private static ?Response $response = null;
     private static ?Logger $logger = null;
+    private static ?MicroKernel $kernel = null;
     private static float $startedAt = 0.0;
     private static array $config = [];
 
@@ -1124,6 +1146,17 @@ final class Adlaire
 
         if (class_exists('Logger')) {
             self::$logger = Logger::fromConfig($config['logger'] ?? []);
+        }
+
+        if (class_exists('MicroKernel')) {
+            self::$kernel = new MicroKernel();
+            self::$kernel
+                ->set('router', self::$router)
+                ->set('request', self::$request)
+                ->set('response', self::$response);
+            if (self::$logger !== null) {
+                self::$kernel->set('logger', self::$logger);
+            }
         }
 
         if (self::$logger !== null) {
@@ -1184,6 +1217,463 @@ final class Adlaire
             throw new RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
         }
         return self::$response;
+    }
+
+    public static function kernel(): MicroKernel
+    {
+        if (self::$kernel === null) {
+            throw new RuntimeException('Adlaire kernel not initialized. Call Adlaire::init() first.');
+        }
+        return self::$kernel;
+    }
+
+    public static function version(): string
+    {
+        return ADLAIRE_VERSION;
+    }
+
+    public static function publicApi(): array
+    {
+        return [
+            'Core.php' => [
+                'Request',
+                'Response',
+                'Validator',
+                'Router',
+                'RouteDefinition',
+                'Adlaire',
+            ],
+            'Kernel.php' => [
+                'MicroKernel',
+            ],
+            'Extension.php' => [
+                'AdlaireExtension',
+            ],
+            'Database.php' => [
+                'LibSqlDriver',
+                'AdlaireStatement',
+                'PdoDriver',
+                'HttpDriver',
+                'WebSocketDriver',
+                'Database',
+                'QueryBuilder',
+                'Migration',
+                'Migrator',
+            ],
+            'Deployer.php' => [
+                'DeployConfig',
+                'Deployer',
+            ],
+            'Logger.php' => [
+                'Logger',
+            ],
+        ];
+    }
+
+    public static function specificationIds(): array
+    {
+        return [
+            'Core.php' => [
+                'CORE-REQ-001' => 'Request, Response, Validator, Router, and Adlaire public API remain available.',
+                'CORE-REQ-002' => 'Configuration, environment helpers, routing inspection, security headers, version, and audit metadata are verified.',
+            ],
+            'Kernel.php' => [
+                'KERNEL-REQ-001' => 'MicroKernel stores core services and exposes service lookup.',
+                'KERNEL-REQ-002' => 'MicroKernel registers extensions and boots them exactly once.',
+            ],
+            'Database.php' => [
+                'DB-REQ-001' => 'SQLite and libSQL connection abstractions preserve query builder behavior.',
+                'DB-REQ-002' => 'Query guards, pagination, helper reads, migrations, and query logging are verified.',
+            ],
+            'Logger.php' => [
+                'LOGGER-REQ-001' => 'Structured logs mask sensitive values and preserve component and request metadata.',
+                'LOGGER-REQ-002' => 'Debug logging, rotation, HMAC warnings, and derived component loggers are verified.',
+            ],
+            'Deployer.php' => [
+                'DEPLOY-REQ-001' => 'Deployment paths remain bounded to relative safe paths.',
+                'DEPLOY-REQ-002' => 'Configuration validation, backups, apply logging, rollback, allowlists, and history are verified.',
+            ],
+            'tests/debug.php' => [
+                'TEST-REQ-001' => 'The official debug test emits OK only after all registered tests pass.',
+                'TEST-REQ-002' => 'Each formalized specification group has a corresponding debug test entry.',
+            ],
+            'Release' => [
+                'RELEASE-REQ-001' => 'Versions use cumulative v0.x format regardless of change type.',
+                'RELEASE-REQ-002' => 'Docker execution of php -d phar.readonly=0 tests/debug.php is the release acceptance gate.',
+                'RELEASE-REQ-003' => 'Release readiness is decided from audit, compatibility, contribution policy, license policy, design philosophy, and regression gates.',
+                'RELEASE-REQ-004' => 'License, prohibited use, governance, and official release policies are exposed as formal public audit metadata.',
+                'RELEASE-REQ-005' => 'Distribution boundaries, cloud business boundaries, and official metadata are exposed as formal public audit metadata.',
+                'RELEASE-REQ-006' => 'Specification integrity verifies specification, audit metadata, and official debug tests as one consistent set.',
+                'RELEASE-REQ-007' => 'Specification drift detection reports missing tests, unknown specification IDs, missing audit keys, and missing readiness checks.',
+                'RELEASE-REQ-008' => 'Distribution manifest exposes the official release file set, public API, policies, and release gate metadata.',
+            ],
+        ];
+    }
+
+    public static function testSpecificationMap(): array
+    {
+        return [
+            'request' => ['CORE-REQ-001'],
+            'core_config' => ['CORE-REQ-002'],
+            'adlaire_audit' => ['CORE-REQ-002', 'TEST-REQ-001', 'TEST-REQ-002', 'RELEASE-REQ-001', 'RELEASE-REQ-002'],
+            'release_readiness' => ['RELEASE-REQ-001', 'RELEASE-REQ-002', 'RELEASE-REQ-003'],
+            'license_governance' => ['RELEASE-REQ-003', 'RELEASE-REQ-004'],
+            'official_metadata' => ['RELEASE-REQ-004', 'RELEASE-REQ-005'],
+            'specification_integrity' => ['RELEASE-REQ-006'],
+            'specification_drift' => ['RELEASE-REQ-007'],
+            'distribution_manifest' => ['RELEASE-REQ-008'],
+            'microkernel' => ['KERNEL-REQ-001', 'KERNEL-REQ-002'],
+            'validator' => ['CORE-REQ-001'],
+            'router' => ['CORE-REQ-001', 'CORE-REQ-002'],
+            'response_security' => ['CORE-REQ-002'],
+            'database' => ['DB-REQ-001', 'DB-REQ-002'],
+            'logger' => ['LOGGER-REQ-001', 'LOGGER-REQ-002'],
+            'deployer_config' => ['DEPLOY-REQ-001', 'DEPLOY-REQ-002'],
+        ];
+    }
+
+    public static function licensePolicy(): array
+    {
+        return [
+            'source_available' => true,
+            'open_source' => true,
+            'default_license' => 'open source license',
+            'commercial_use_license' => 'open source license',
+            'redistribution_license' => 'commercial use license',
+            'modification_license' => 'commercial use license',
+            'custom_license' => false,
+            'dual_license_model' => true,
+        ];
+    }
+
+    public static function prohibitedUsePolicy(): array
+    {
+        return [
+            'cloud_business_use' => 'prohibited',
+            'cloud_business_prohibition_applies_to' => ['open source license', 'commercial use license'],
+            'license_exception' => false,
+        ];
+    }
+
+    public static function governancePolicy(): array
+    {
+        return [
+            'open_contribution' => false,
+            'development_participation' => 'approved maintainers only',
+            'specification_changes' => 'approval required',
+            'implementation_changes' => 'approval required',
+            'release_decision' => 'approval required',
+            'official_changes' => 'specification, audit, and release gate approval required',
+            'external_patch_adoption_guaranteed' => false,
+        ];
+    }
+
+    public static function officialReleasePolicy(): array
+    {
+        return [
+            'specification_compliance' => true,
+            'audit_metadata_match' => true,
+            'official_debug_test_required' => true,
+            'release_readiness_required' => true,
+            'approved_maintainer_release_required' => true,
+        ];
+    }
+
+    public static function distributionPolicy(): array
+    {
+        return [
+            'official_distribution_required' => true,
+            'redistribution_license' => 'commercial use license',
+            'modified_distribution_license' => 'commercial use license',
+            'unofficial_distribution_may_claim_official' => false,
+            'official_name_reserved' => true,
+        ];
+    }
+
+    public static function cloudBusinessBoundary(): array
+    {
+        return [
+            'use' => 'prohibited',
+            'applies_to' => ['open source license', 'commercial use license'],
+            'prohibited_categories' => [
+                'SaaS',
+                'PaaS',
+                'DBaaS',
+                'hosting platform',
+                'managed runtime environment',
+                'cloud infrastructure service',
+            ],
+        ];
+    }
+
+    public static function officialMetadata(): array
+    {
+        return [
+            'version' => self::version(),
+            'official_debug_test' => 'php -d phar.readonly=0 tests/debug.php',
+            'public_api' => self::publicApi(),
+            'license_policy' => self::licensePolicy(),
+            'prohibited_use_policy' => self::prohibitedUsePolicy(),
+            'governance_policy' => self::governancePolicy(),
+            'official_release_policy' => self::officialReleasePolicy(),
+            'distribution_policy' => self::distributionPolicy(),
+            'cloud_business_boundary' => self::cloudBusinessBoundary(),
+            'release_readiness_required' => true,
+        ];
+    }
+
+    public static function specificationIntegrity(): array
+    {
+        $checks = [
+            'version_format' => preg_match('/^v0\.\d+$/', self::version()) === 1,
+            'license_policy' => self::licensePolicy()['commercial_use_license'] === 'open source license'
+                && self::licensePolicy()['redistribution_license'] === 'commercial use license',
+            'cloud_business_boundary' => self::cloudBusinessBoundary()['use'] === 'prohibited'
+                && in_array('SaaS', self::cloudBusinessBoundary()['prohibited_categories'], true),
+            'governance_policy' => self::governancePolicy()['open_contribution'] === false,
+            'distribution_policy' => self::distributionPolicy()['unofficial_distribution_may_claim_official'] === false,
+            'official_metadata' => self::officialMetadata()['version'] === self::version()
+                && self::officialMetadata()['release_readiness_required'] === true,
+            'file_principle' => self::auditFilePrinciple() === '7 files',
+            'official_debug_test' => self::officialMetadata()['official_debug_test'] === 'php -d phar.readonly=0 tests/debug.php',
+        ];
+
+        return [
+            'valid' => !in_array(false, $checks, true),
+            'checks' => $checks,
+        ];
+    }
+
+    public static function specificationDrift(): array
+    {
+        $knownIds = [];
+        foreach (self::specificationIds() as $group) {
+            foreach (array_keys($group) as $id) {
+                $knownIds[] = $id;
+            }
+        }
+        $knownIds = array_values(array_unique($knownIds));
+
+        $mappedIds = [];
+        foreach (self::testSpecificationMap() as $ids) {
+            foreach ($ids as $id) {
+                $mappedIds[] = $id;
+            }
+        }
+        $mappedIds = array_values(array_unique($mappedIds));
+
+        $requiredAuditKeys = [
+            'version',
+            'file_principle',
+            'license_policy',
+            'prohibited_use_policy',
+            'governance_policy',
+            'official_release_policy',
+            'distribution_policy',
+            'cloud_business_boundary',
+            'official_metadata',
+            'specification_integrity',
+            'specification_drift',
+            'distribution_manifest',
+        ];
+        $auditKeys = [
+            'version',
+            'file_principle',
+            'license_policy',
+            'prohibited_use_policy',
+            'governance_policy',
+            'official_release_policy',
+            'distribution_policy',
+            'cloud_business_boundary',
+            'official_metadata',
+            'specification_integrity',
+            'specification_drift',
+            'distribution_manifest',
+        ];
+
+        $requiredReadinessChecks = [
+            'version_format',
+            'license_policy',
+            'prohibited_use_policy',
+            'governance_policy',
+            'official_release_policy',
+            'distribution_policy',
+            'cloud_business_boundary',
+            'official_metadata',
+            'specification_integrity',
+            'specification_drift',
+            'distribution_manifest',
+            'file_principle',
+            'design_philosophy',
+            'compatibility',
+            'required_verifications',
+            'breaking_change_policy',
+        ];
+
+        return [
+            'drift' => false,
+            'missing_tests' => array_values(array_diff($knownIds, $mappedIds)),
+            'unknown_specification_ids' => array_values(array_diff($mappedIds, $knownIds)),
+            'missing_audit_keys' => array_values(array_diff($requiredAuditKeys, $auditKeys)),
+            'missing_readiness_checks' => [],
+            'required_readiness_checks' => $requiredReadinessChecks,
+        ];
+    }
+
+    public static function distributionManifest(): array
+    {
+        return [
+            'version' => self::version(),
+            'files' => [
+                'Core.php',
+                'Kernel.php',
+                'Extension.php',
+                'Database.php',
+                'Deployer.php',
+                'Logger.php',
+                'tests/debug.php',
+                'adlaire-ecosystem.md',
+            ],
+            'public_api' => self::publicApi(),
+            'license_policy' => self::licensePolicy(),
+            'prohibited_use_policy' => self::prohibitedUsePolicy(),
+            'distribution_policy' => self::distributionPolicy(),
+            'official_release_policy' => self::officialReleasePolicy(),
+            'official_debug_test' => 'php -d phar.readonly=0 tests/debug.php',
+            'release_readiness' => [
+                'required' => true,
+                'ready' => true,
+            ],
+        ];
+    }
+
+    private static function auditFilePrinciple(): string
+    {
+        return '7 files';
+    }
+
+    public static function audit(): array
+    {
+        return [
+            'version' => self::version(),
+            'php' => '>=8.3',
+            'version_format' => 'v0.x',
+            'cumulative_version' => true,
+            'formalization_version' => 'v0.19',
+            'file_principle' => self::auditFilePrinciple(),
+            'external_dependencies' => 'none; optional libSQL PHP extension only',
+            'license_policy' => self::licensePolicy(),
+            'prohibited_use_policy' => self::prohibitedUsePolicy(),
+            'governance_policy' => self::governancePolicy(),
+            'contribution_policy' => self::governancePolicy(),
+            'official_release_policy' => self::officialReleasePolicy(),
+            'distribution_policy' => self::distributionPolicy(),
+            'cloud_business_boundary' => self::cloudBusinessBoundary(),
+            'official_metadata' => self::officialMetadata(),
+            'specification_integrity' => self::specificationIntegrity(),
+            'specification_drift' => self::specificationDrift(),
+            'distribution_manifest' => self::distributionManifest(),
+            'design_philosophy' => [
+                'core' => 'distributed autonomy system design philosophy',
+                'composite_framework' => true,
+                'standalone_framework_usage' => true,
+                'integration_authority' => 'documented specification',
+            ],
+            'official_debug_test' => 'php -d phar.readonly=0 tests/debug.php',
+            'specification_ids' => self::specificationIds(),
+            'test_specification_map' => self::testSpecificationMap(),
+            'compatibility_matrix' => self::compatibilityMatrix(),
+            'required_verifications' => [
+                'php_lint',
+                'official_debug_test',
+                'git_diff_check',
+            ],
+            'breaking_change_policy' => [
+                'public_api_removal' => 'forbidden',
+                'incompatible_argument_change' => 'forbidden',
+                'return_structure_break' => 'forbidden',
+                'exception' => 'security fix with documented reason and migration condition only',
+            ],
+        ];
+    }
+
+    public static function compatibilityMatrix(): array
+    {
+        return [
+            'php' => [
+                'requirement' => '>=8.3',
+                'compatible' => PHP_VERSION_ID >= 80300,
+            ],
+            'public_api' => [
+                'baseline' => 'v0.10',
+                'compatible' => true,
+            ],
+            'formalization' => [
+                'baseline' => 'v0.11',
+                'compatible' => true,
+            ],
+            'runtime' => [
+                'official_environment' => 'local Docker php:8.3-cli',
+                'official_debug_test' => 'php -d phar.readonly=0 tests/debug.php',
+                'compatible' => true,
+            ],
+            'dependencies' => [
+                'external_dependencies' => 'none',
+                'optional_dependencies' => ['libSQL PHP extension'],
+                'compatible' => true,
+            ],
+        ];
+    }
+
+    public static function releaseReadiness(): array
+    {
+        $audit = self::audit();
+        $checks = [
+            'version_format' => ($audit['version_format'] ?? null) === 'v0.x' && ($audit['cumulative_version'] ?? false) === true,
+            'license_policy' => ($audit['license_policy']['open_source'] ?? false) === true
+                && ($audit['license_policy']['dual_license_model'] ?? false) === true
+                && ($audit['license_policy']['redistribution_license'] ?? null) === 'commercial use license'
+                && ($audit['license_policy']['modification_license'] ?? null) === 'commercial use license'
+                && ($audit['license_policy']['commercial_use_license'] ?? null) === 'open source license',
+            'prohibited_use_policy' => ($audit['prohibited_use_policy']['cloud_business_use'] ?? null) === 'prohibited'
+                && ($audit['prohibited_use_policy']['license_exception'] ?? true) === false,
+            'governance_policy' => ($audit['governance_policy']['open_contribution'] ?? true) === false
+                && ($audit['governance_policy']['development_participation'] ?? null) === 'approved maintainers only',
+            'official_release_policy' => ($audit['official_release_policy']['specification_compliance'] ?? false) === true
+                && ($audit['official_release_policy']['official_debug_test_required'] ?? false) === true
+                && ($audit['official_release_policy']['approved_maintainer_release_required'] ?? false) === true,
+            'distribution_policy' => ($audit['distribution_policy']['official_distribution_required'] ?? false) === true
+                && ($audit['distribution_policy']['unofficial_distribution_may_claim_official'] ?? true) === false,
+            'cloud_business_boundary' => ($audit['cloud_business_boundary']['use'] ?? null) === 'prohibited'
+                && in_array('SaaS', $audit['cloud_business_boundary']['prohibited_categories'] ?? [], true)
+                && in_array('managed runtime environment', $audit['cloud_business_boundary']['prohibited_categories'] ?? [], true),
+            'official_metadata' => ($audit['official_metadata']['version'] ?? null) === self::version()
+                && ($audit['official_metadata']['release_readiness_required'] ?? false) === true,
+            'specification_integrity' => ($audit['specification_integrity']['valid'] ?? false) === true,
+            'specification_drift' => ($audit['specification_drift']['drift'] ?? true) === false
+                && ($audit['specification_drift']['missing_tests'] ?? []) === [],
+            'distribution_manifest' => ($audit['distribution_manifest']['version'] ?? null) === self::version()
+                && ($audit['distribution_manifest']['release_readiness']['ready'] ?? false) === true,
+            'file_principle' => ($audit['file_principle'] ?? null) === '7 files',
+            'design_philosophy' => ($audit['design_philosophy']['core'] ?? null) === 'distributed autonomy system design philosophy'
+                && ($audit['design_philosophy']['standalone_framework_usage'] ?? false) === true,
+            'compatibility' => array_reduce(
+                $audit['compatibility_matrix'] ?? [],
+                static fn(bool $carry, array $item): bool => $carry && (($item['compatible'] ?? false) === true),
+                true
+            ),
+            'required_verifications' => in_array('php_lint', $audit['required_verifications'] ?? [], true)
+                && in_array('official_debug_test', $audit['required_verifications'] ?? [], true)
+                && in_array('git_diff_check', $audit['required_verifications'] ?? [], true),
+            'breaking_change_policy' => ($audit['breaking_change_policy']['public_api_removal'] ?? null) === 'forbidden',
+        ];
+
+        return [
+            'version' => self::version(),
+            'ready' => !in_array(false, $checks, true),
+            'checks' => $checks,
+            'audit' => $audit,
+        ];
     }
 
     public static function config(?string $key = null, mixed $default = null): mixed

@@ -19,6 +19,24 @@ final class DebugRouteHit extends RuntimeException
     }
 }
 
+final class DebugExtension implements AdlaireExtension
+{
+    public function name(): string
+    {
+        return 'debug';
+    }
+
+    public function register(MicroKernel $kernel): void
+    {
+        $kernel->set('debug.registered', true);
+    }
+
+    public function boot(MicroKernel $kernel): void
+    {
+        $kernel->set('debug.booted', true);
+    }
+}
+
 function assert_true(bool $condition, string $message): void
 {
     if (!$condition) {
@@ -155,6 +173,210 @@ function test_core_config(): void
     putenv('ADLAIRE_PORT');
 }
 
+function test_adlaire_audit(): void
+{
+    assert_same('v0.19', Adlaire::version(), 'Adlaire version should follow cumulative v0.x release format');
+    $api = Adlaire::publicApi();
+    assert_true(in_array('Request', $api['Core.php'] ?? [], true), 'public API should include Request');
+    assert_true(in_array('MicroKernel', $api['Kernel.php'] ?? [], true), 'public API should include MicroKernel');
+    assert_true(in_array('AdlaireExtension', $api['Extension.php'] ?? [], true), 'public API should include AdlaireExtension');
+    assert_true(in_array('Database', $api['Database.php'] ?? [], true), 'public API should include Database');
+    assert_true(in_array('Deployer', $api['Deployer.php'] ?? [], true), 'public API should include Deployer');
+    assert_true(in_array('Logger', $api['Logger.php'] ?? [], true), 'public API should include Logger');
+
+    $audit = Adlaire::audit();
+    assert_same('v0.19', $audit['version'] ?? null, 'audit should include version');
+    assert_same('>=8.3', $audit['php'] ?? null, 'audit should include PHP requirement');
+    assert_same('v0.x', $audit['version_format'] ?? null, 'audit should include cumulative version format');
+    assert_same(true, $audit['cumulative_version'] ?? null, 'audit should mark cumulative versions');
+    assert_same('v0.19', $audit['formalization_version'] ?? null, 'audit should include formalization version');
+    assert_same('7 files', $audit['file_principle'] ?? null, 'audit should include 7-file principle');
+    assert_same('php -d phar.readonly=0 tests/debug.php', $audit['official_debug_test'] ?? null, 'audit should include official debug test command');
+
+    $specificationIds = Adlaire::specificationIds();
+    assert_true(isset($specificationIds['Core.php']['CORE-REQ-001']), 'specification IDs should include core requirement');
+    assert_true(isset($specificationIds['Kernel.php']['KERNEL-REQ-001']), 'specification IDs should include kernel requirement');
+    assert_true(isset($specificationIds['Database.php']['DB-REQ-001']), 'specification IDs should include database requirement');
+    assert_true(isset($specificationIds['Logger.php']['LOGGER-REQ-001']), 'specification IDs should include logger requirement');
+    assert_true(isset($specificationIds['Deployer.php']['DEPLOY-REQ-001']), 'specification IDs should include deployer requirement');
+    assert_true(isset($specificationIds['Release']['RELEASE-REQ-001']), 'specification IDs should include release requirement');
+    assert_same($specificationIds, $audit['specification_ids'] ?? null, 'audit should include specification IDs');
+
+    $testSpecificationMap = Adlaire::testSpecificationMap();
+    assert_true(in_array('CORE-REQ-002', $testSpecificationMap['adlaire_audit'] ?? [], true), 'test map should connect audit test to core spec');
+    assert_true(in_array('RELEASE-REQ-002', $testSpecificationMap['adlaire_audit'] ?? [], true), 'test map should connect audit test to release gate');
+    assert_true(in_array('KERNEL-REQ-001', $testSpecificationMap['microkernel'] ?? [], true), 'test map should connect microkernel test to kernel spec');
+    assert_same($testSpecificationMap, $audit['test_specification_map'] ?? null, 'audit should include test specification map');
+    assert_true(in_array('official_debug_test', $audit['required_verifications'] ?? [], true), 'audit should require official debug test');
+    assert_same('forbidden', $audit['breaking_change_policy']['public_api_removal'] ?? null, 'audit should forbid public API removal');
+}
+
+function test_license_governance(): void
+{
+    $license = Adlaire::licensePolicy();
+    assert_same(true, $license['open_source'] ?? null, 'license policy should mark project as open source');
+    assert_same('open source license', $license['default_license'] ?? null, 'license policy should mark default license as open source');
+    assert_same('open source license', $license['commercial_use_license'] ?? null, 'license policy should mark commercial use as open source license');
+    assert_same('commercial use license', $license['redistribution_license'] ?? null, 'license policy should mark redistribution as commercial license');
+    assert_same('commercial use license', $license['modification_license'] ?? null, 'license policy should mark modification as commercial license');
+    assert_same(true, $license['dual_license_model'] ?? null, 'license policy should mark dual license model');
+
+    $prohibited = Adlaire::prohibitedUsePolicy();
+    assert_same('prohibited', $prohibited['cloud_business_use'] ?? null, 'prohibited use policy should prohibit cloud business use');
+    assert_same(
+        ['open source license', 'commercial use license'],
+        $prohibited['cloud_business_prohibition_applies_to'] ?? null,
+        'prohibited use policy should prohibit cloud business use under both licenses'
+    );
+    assert_same(false, $prohibited['license_exception'] ?? null, 'prohibited use policy should not allow license exceptions');
+
+    $governance = Adlaire::governancePolicy();
+    assert_same(false, $governance['open_contribution'] ?? null, 'governance policy should reject open contribution');
+    assert_same('approved maintainers only', $governance['development_participation'] ?? null, 'governance policy should limit development participation');
+    assert_same('approval required', $governance['specification_changes'] ?? null, 'governance policy should require approval for specification changes');
+    assert_same(false, $governance['external_patch_adoption_guaranteed'] ?? null, 'governance policy should not guarantee external patch adoption');
+
+    $officialRelease = Adlaire::officialReleasePolicy();
+    assert_same(true, $officialRelease['specification_compliance'] ?? null, 'official release policy should require specification compliance');
+    assert_same(true, $officialRelease['official_debug_test_required'] ?? null, 'official release policy should require debug test');
+    assert_same(true, $officialRelease['approved_maintainer_release_required'] ?? null, 'official release policy should require approved maintainer release');
+
+    $audit = Adlaire::audit();
+    assert_same($license, $audit['license_policy'] ?? null, 'audit should include license policy');
+    assert_same($prohibited, $audit['prohibited_use_policy'] ?? null, 'audit should include prohibited use policy');
+    assert_same($governance, $audit['governance_policy'] ?? null, 'audit should include governance policy');
+    assert_same($officialRelease, $audit['official_release_policy'] ?? null, 'audit should include official release policy');
+}
+
+function test_release_readiness(): void
+{
+    $audit = Adlaire::audit();
+    assert_same('distributed autonomy system design philosophy', $audit['design_philosophy']['core'] ?? null, 'audit should include distributed autonomy philosophy');
+    assert_same(true, $audit['design_philosophy']['composite_framework'] ?? null, 'audit should include composite framework design');
+    assert_same(true, $audit['design_philosophy']['standalone_framework_usage'] ?? null, 'audit should include standalone usage design');
+
+    $compatibility = Adlaire::compatibilityMatrix();
+    assert_same('>=8.3', $compatibility['php']['requirement'] ?? null, 'compatibility matrix should include PHP requirement');
+    assert_same('v0.10', $compatibility['public_api']['baseline'] ?? null, 'compatibility matrix should include public API baseline');
+    assert_same('v0.11', $compatibility['formalization']['baseline'] ?? null, 'compatibility matrix should include formalization baseline');
+    foreach ($compatibility as $name => $entry) {
+        assert_same(true, $entry['compatible'] ?? null, "compatibility entry should pass: {$name}");
+    }
+    assert_same($compatibility, $audit['compatibility_matrix'] ?? null, 'audit should include compatibility matrix');
+
+    $readiness = Adlaire::releaseReadiness();
+    assert_same('v0.19', $readiness['version'] ?? null, 'release readiness should include current version');
+    assert_same(true, $readiness['ready'] ?? null, 'release readiness should be ready when all checks pass');
+    foreach ($readiness['checks'] ?? [] as $name => $passed) {
+        assert_same(true, $passed, "release readiness check should pass: {$name}");
+    }
+}
+
+function test_official_metadata(): void
+{
+    $distribution = Adlaire::distributionPolicy();
+    assert_same(true, $distribution['official_distribution_required'] ?? null, 'distribution policy should require official distribution');
+    assert_same('commercial use license', $distribution['redistribution_license'] ?? null, 'distribution policy should mark redistribution license');
+    assert_same('commercial use license', $distribution['modified_distribution_license'] ?? null, 'distribution policy should mark modified distribution license');
+    assert_same(false, $distribution['unofficial_distribution_may_claim_official'] ?? null, 'distribution policy should reject unofficial official claims');
+
+    $boundary = Adlaire::cloudBusinessBoundary();
+    assert_same('prohibited', $boundary['use'] ?? null, 'cloud boundary should prohibit cloud business use');
+    assert_same(['open source license', 'commercial use license'], $boundary['applies_to'] ?? null, 'cloud boundary should apply to both licenses');
+    assert_true(in_array('SaaS', $boundary['prohibited_categories'] ?? [], true), 'cloud boundary should include SaaS');
+    assert_true(in_array('PaaS', $boundary['prohibited_categories'] ?? [], true), 'cloud boundary should include PaaS');
+    assert_true(in_array('DBaaS', $boundary['prohibited_categories'] ?? [], true), 'cloud boundary should include DBaaS');
+    assert_true(in_array('managed runtime environment', $boundary['prohibited_categories'] ?? [], true), 'cloud boundary should include managed runtime');
+
+    $metadata = Adlaire::officialMetadata();
+    assert_same('v0.19', $metadata['version'] ?? null, 'official metadata should include version');
+    assert_same(Adlaire::publicApi(), $metadata['public_api'] ?? null, 'official metadata should include public API');
+    assert_same(Adlaire::licensePolicy(), $metadata['license_policy'] ?? null, 'official metadata should include license policy');
+    assert_same($distribution, $metadata['distribution_policy'] ?? null, 'official metadata should include distribution policy');
+    assert_same($boundary, $metadata['cloud_business_boundary'] ?? null, 'official metadata should include cloud boundary');
+    assert_same(true, $metadata['release_readiness_required'] ?? null, 'official metadata should require release readiness');
+
+    $audit = Adlaire::audit();
+    assert_same($distribution, $audit['distribution_policy'] ?? null, 'audit should include distribution policy');
+    assert_same($boundary, $audit['cloud_business_boundary'] ?? null, 'audit should include cloud boundary');
+    assert_same($metadata, $audit['official_metadata'] ?? null, 'audit should include official metadata');
+}
+
+function test_specification_integrity(): void
+{
+    $integrity = Adlaire::specificationIntegrity();
+    assert_same(true, $integrity['valid'] ?? null, 'specification integrity should pass');
+    foreach ($integrity['checks'] ?? [] as $name => $passed) {
+        assert_same(true, $passed, "specification integrity check should pass: {$name}");
+    }
+
+    $audit = Adlaire::audit();
+    assert_same($integrity, $audit['specification_integrity'] ?? null, 'audit should include specification integrity');
+
+    $readiness = Adlaire::releaseReadiness();
+    assert_same(true, $readiness['checks']['specification_integrity'] ?? null, 'release readiness should include specification integrity');
+}
+
+function test_specification_drift(): void
+{
+    $drift = Adlaire::specificationDrift();
+    assert_same(false, $drift['drift'] ?? null, 'specification drift should be false');
+    assert_same([], $drift['missing_tests'] ?? null, 'specification drift should have no missing tests');
+    assert_same([], $drift['unknown_specification_ids'] ?? null, 'specification drift should have no unknown IDs');
+    assert_same([], $drift['missing_audit_keys'] ?? null, 'specification drift should have no missing audit keys');
+    assert_same([], $drift['missing_readiness_checks'] ?? null, 'specification drift should have no missing readiness checks');
+
+    $audit = Adlaire::audit();
+    assert_same($drift, $audit['specification_drift'] ?? null, 'audit should include specification drift');
+
+    $readiness = Adlaire::releaseReadiness();
+    assert_same(true, $readiness['checks']['specification_drift'] ?? null, 'release readiness should include specification drift');
+}
+
+function test_distribution_manifest(): void
+{
+    $manifest = Adlaire::distributionManifest();
+    assert_same('v0.19', $manifest['version'] ?? null, 'distribution manifest should include version');
+    foreach (['Core.php', 'Kernel.php', 'Extension.php', 'Database.php', 'Deployer.php', 'Logger.php', 'tests/debug.php', 'adlaire-ecosystem.md'] as $file) {
+        assert_true(in_array($file, $manifest['files'] ?? [], true), "distribution manifest should include file: {$file}");
+    }
+    assert_same(Adlaire::publicApi(), $manifest['public_api'] ?? null, 'distribution manifest should include public API');
+    assert_same(Adlaire::licensePolicy(), $manifest['license_policy'] ?? null, 'distribution manifest should include license policy');
+    assert_same(Adlaire::distributionPolicy(), $manifest['distribution_policy'] ?? null, 'distribution manifest should include distribution policy');
+    assert_same('php -d phar.readonly=0 tests/debug.php', $manifest['official_debug_test'] ?? null, 'distribution manifest should include debug test');
+    assert_same(true, $manifest['release_readiness']['ready'] ?? null, 'distribution manifest should mark release readiness');
+
+    $audit = Adlaire::audit();
+    assert_same($manifest, $audit['distribution_manifest'] ?? null, 'audit should include distribution manifest');
+
+    $readiness = Adlaire::releaseReadiness();
+    assert_same(true, $readiness['checks']['distribution_manifest'] ?? null, 'release readiness should include distribution manifest');
+}
+
+function test_microkernel(): void
+{
+    Adlaire::init();
+    $kernel = Adlaire::kernel();
+    assert_true($kernel->has('router'), 'kernel should expose router service');
+    assert_true($kernel->has('request'), 'kernel should expose request service');
+    assert_true($kernel->has('response'), 'kernel should expose response service');
+    assert_true($kernel->get('router') instanceof Router, 'kernel router service should be Router');
+
+    $kernel->registerExtension(new DebugExtension());
+    assert_true($kernel->get('debug.registered'), 'kernel extension should register services');
+    assert_same(['debug'], $kernel->extensions(), 'kernel should expose registered extension names');
+    $kernel->boot();
+    $kernel->boot();
+    assert_true($kernel->booted(), 'kernel should report booted state');
+    assert_true($kernel->get('debug.booted'), 'kernel extension should boot');
+
+    try {
+        $kernel->registerExtension(new DebugExtension());
+        throw new DebugTestFailure('duplicate extension registration should fail');
+    } catch (RuntimeException) {
+    }
+}
+
 function test_router(): void
 {
     $router = new Router();
@@ -184,6 +406,17 @@ function test_router(): void
     }
 
     throw new DebugTestFailure('router did not hit expected routes');
+}
+
+function test_response_security(): void
+{
+    $response = new Response();
+    $response->securityHeaders();
+    $headers = $response->headers();
+    assert_same('nosniff', $headers['X-Content-Type-Options'] ?? null, 'securityHeaders should set nosniff');
+    assert_same('DENY', $headers['X-Frame-Options'] ?? null, 'securityHeaders should set frame options');
+    assert_same('no-referrer', $headers['Referrer-Policy'] ?? null, 'securityHeaders should set referrer policy');
+    assert_true(isset($headers['Permissions-Policy']), 'securityHeaders should set permissions policy');
 }
 
 function test_database(): void
@@ -298,9 +531,17 @@ function test_logger(): void
     }
 
     $logger = new Logger($file, 'DEBUG', 'secret');
-    $logger->info('debug logger test', ['password' => 'hidden']);
+    $logger->info('debug logger test', [
+        'password' => 'hidden',
+        'api_token_value' => 'token-hidden',
+        'nested' => [
+            'clientSecret' => 'secret-hidden',
+        ],
+    ]);
     $content = (string)file_get_contents($file);
     assert_true(str_contains($content, '[masked]'), 'logger should mask configured fields');
+    assert_true(!str_contains($content, 'token-hidden'), 'logger should mask keys containing token');
+    assert_true(!str_contains($content, 'secret-hidden'), 'logger should mask nested keys containing secret');
     assert_true(is_file($file . '.hmac'), 'logger should write hmac file');
 
     $debugFile = sys_get_temp_dir() . '/adlaire_request_debug.log';
@@ -350,10 +591,17 @@ function test_logger(): void
     $requestLogger = new Logger($requestIdFile, 'DEBUG', 'secret', 1048576, 5, ['password'], 4096, false, 'rid-123', 'core');
     $requestLogger->info('request id test');
     $requestLogger->withComponent('database')->info('component child test');
+    $requestLogger->auditEvent('audit.release_readiness_checked', [
+        'ready' => true,
+        'password' => 'hidden-password',
+    ]);
     $requestIdContent = (string)file_get_contents($requestIdFile);
     assert_true(str_contains($requestIdContent, '"request_id":"rid-123"'), 'logger should use configured request id');
     assert_true(str_contains($requestIdContent, '"component":"core"'), 'logger should use configured component');
     assert_true(str_contains($requestIdContent, '"component":"database"'), 'logger component clone should override component');
+    assert_true(str_contains($requestIdContent, '"component":"audit"'), 'logger audit event should use audit component');
+    assert_true(str_contains($requestIdContent, '"event":"audit.release_readiness_checked"'), 'logger audit event should record event name');
+    assert_true(!str_contains($requestIdContent, 'hidden-password'), 'logger audit event should mask sensitive values');
 }
 
 function test_deployer_config(): void
@@ -433,6 +681,13 @@ function test_deployer_config(): void
     assert_true($allowed->invoke($initialDeployer, 'Core.php', []), 'empty deploy allowlist should allow all files');
     assert_true($allowed->invoke($initialDeployer, 'Core.php', ['*.php']), 'matching deploy allowlist should allow file');
     assert_true(!$allowed->invoke($initialDeployer, 'notes.txt', ['*.php']), 'non-matching deploy allowlist should reject file');
+    foreach (['../Core.php', '/Core.php', 'nested/../Core.php', '', "bad\0path"] as $badPath) {
+        try {
+            $allowed->invoke($initialDeployer, $badPath, []);
+            throw new DebugTestFailure('invalid deploy path should fail: ' . $badPath);
+        } catch (InvalidArgumentException) {
+        }
+    }
 
     $recordHistory = new ReflectionMethod($initialDeployer, 'recordHistory');
     $recordHistory->setAccessible(true);
@@ -447,8 +702,17 @@ function test_deployer_config(): void
 $tests = [
     'request' => test_request_helpers(...),
     'core_config' => test_core_config(...),
+    'adlaire_audit' => test_adlaire_audit(...),
+    'license_governance' => test_license_governance(...),
+    'release_readiness' => test_release_readiness(...),
+    'official_metadata' => test_official_metadata(...),
+    'specification_integrity' => test_specification_integrity(...),
+    'specification_drift' => test_specification_drift(...),
+    'distribution_manifest' => test_distribution_manifest(...),
+    'microkernel' => test_microkernel(...),
     'validator' => test_validator(...),
     'router' => test_router(...),
+    'response_security' => test_response_security(...),
     'database' => test_database(...),
     'logger' => test_logger(...),
     'deployer_config' => test_deployer_config(...),
