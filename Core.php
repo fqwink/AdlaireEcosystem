@@ -3,13 +3,13 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version v0.50
+ * @version v0.200
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-const ADLAIRE_VERSION = 'v0.50';
+const ADLAIRE_VERSION = 'v0.200';
 
 if (is_file(__DIR__ . '/Extension.php')) {
     require_once __DIR__ . '/Extension.php';
@@ -21,6 +21,18 @@ if (is_file(__DIR__ . '/Kernel.php')) {
 
 if (is_file(__DIR__ . '/Logger.php')) {
     require_once __DIR__ . '/Logger.php';
+}
+
+if (is_file(__DIR__ . '/Config.php')) {
+    require_once __DIR__ . '/Config.php';
+}
+
+if (is_file(__DIR__ . '/Middleware.php')) {
+    require_once __DIR__ . '/Middleware.php';
+}
+
+if (is_file(__DIR__ . '/Support.php')) {
+    require_once __DIR__ . '/Support.php';
 }
 
 if (PHP_VERSION_ID < 80300) {
@@ -95,6 +107,12 @@ final class Request
         return $this->query[$key] ?? $default;
     }
 
+    public function all(): array
+    {
+        $this->ensureBodyParsed();
+        return array_replace($this->query, is_array($this->body) ? $this->body : []);
+    }
+
     public function body(): mixed
     {
         $this->ensureBodyParsed();
@@ -108,6 +126,55 @@ final class Request
             return $this->body[$key];
         }
         return $this->query[$key] ?? $default;
+    }
+
+    public function string(string $key, string $default = ''): string
+    {
+        $value = $this->input($key, $default);
+        return is_scalar($value) ? trim((string)$value) : $default;
+    }
+
+    public function integer(string $key, int $default = 0): int
+    {
+        $value = $this->input($key, $default);
+        return is_numeric($value) ? (int)$value : $default;
+    }
+
+    public function boolean(string $key, bool $default = false): bool
+    {
+        $value = $this->input($key, $default);
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_scalar($value)) {
+            return match (strtolower(trim((string)$value))) {
+                '1', 'true', 'yes', 'on' => true,
+                '0', 'false', 'no', 'off' => false,
+                default => $default,
+            };
+        }
+        return $default;
+    }
+
+    public function only(array $keys): array
+    {
+        $input = $this->all();
+        $selected = [];
+        foreach ($keys as $key) {
+            if (array_key_exists((string)$key, $input)) {
+                $selected[(string)$key] = $input[(string)$key];
+            }
+        }
+        return $selected;
+    }
+
+    public function except(array $keys): array
+    {
+        $input = $this->all();
+        foreach ($keys as $key) {
+            unset($input[(string)$key]);
+        }
+        return $input;
     }
 
     public function ip(): string
@@ -303,14 +370,20 @@ final class Response
         return $this;
     }
 
+    public function headers(array $headers = []): array|static
+    {
+        if ($headers === []) {
+            return $this->headers;
+        }
+        foreach ($headers as $name => $value) {
+            $this->header((string)$name, (string)$value);
+        }
+        return $this;
+    }
+
     public function statusCode(): int
     {
         return $this->statusCode;
-    }
-
-    public function headers(): array
-    {
-        return $this->headers;
     }
 
     public function cache(string $control, ?string $etag = null): static
@@ -529,6 +602,9 @@ final class Validator
             'uuid'        => $this->validateUuid($field, $value),
             'date'        => $this->validateDate($field, $value),
             'in'          => $this->validateIn($field, $value, $this->stringParam($ruleName, $param)),
+            'same'        => $this->validateSame($field, $value, $this->stringParam($ruleName, $param), $data),
+            'different'   => $this->validateDifferent($field, $value, $this->stringParam($ruleName, $param), $data),
+            'confirmed'   => $this->validateConfirmed($field, $value, $data),
             'unique'      => $this->validateUnique($field, $value, $this->stringParam($ruleName, $param)),
             default       => throw new InvalidArgumentException("Unknown validation rule: {$ruleName}"),
         };
@@ -761,6 +837,28 @@ final class Validator
         }
     }
 
+    private function validateSame(string $field, mixed $value, string $otherField, array $data): void
+    {
+        if ($value !== $this->getValue($data, $otherField)) {
+            $this->addError($field, 'same', "{$field} must match {$otherField}.");
+        }
+    }
+
+    private function validateDifferent(string $field, mixed $value, string $otherField, array $data): void
+    {
+        if ($value === $this->getValue($data, $otherField)) {
+            $this->addError($field, 'different', "{$field} must be different from {$otherField}.");
+        }
+    }
+
+    private function validateConfirmed(string $field, mixed $value, array $data): void
+    {
+        $confirmation = $this->getValue($data, "{$field}_confirmation");
+        if ($value !== $confirmation) {
+            $this->addError($field, 'confirmed', "{$field} confirmation does not match.");
+        }
+    }
+
     private function validateUnique(string $field, mixed $value, string $param): void
     {
         if ($value === null) {
@@ -826,6 +924,14 @@ final class RouteDefinition
         $this->router->constrainRoute($this->index, $param, $pattern);
         return $this;
     }
+
+    public function middleware(callable ...$middleware): static
+    {
+        foreach ($middleware as $entry) {
+            $this->router->addRouteMiddleware($this->index, $entry);
+        }
+        return $this;
+    }
 }
 
 final class Router
@@ -833,6 +939,8 @@ final class Router
     private array $routes  = [];
     private array $staticRoutes = [];
     private array $names = [];
+    private array $middleware = [];
+    private array $groupMiddleware = [];
     private string $prefix = '';
 
     public function get(string $path, callable $handler): RouteDefinition
@@ -865,14 +973,25 @@ final class Router
         return $this->addRoute('OPTIONS', $path, $handler);
     }
 
-    public function group(string $prefix, callable $callback): void
+    public function middleware(callable ...$middleware): static
+    {
+        foreach ($middleware as $entry) {
+            $this->middleware[] = $entry;
+        }
+        return $this;
+    }
+
+    public function group(string $prefix, callable $callback, array $middleware = []): void
     {
         $previous = $this->prefix;
+        $previousMiddleware = $this->groupMiddleware;
         $this->prefix = $this->normalizePath($previous . '/' . trim($prefix, '/'));
+        $this->groupMiddleware = array_merge($this->groupMiddleware, $middleware);
         try {
             $callback($this);
         } finally {
             $this->prefix = $previous;
+            $this->groupMiddleware = $previousMiddleware;
         }
     }
 
@@ -919,6 +1038,7 @@ final class Router
             'path' => $route['path'],
             'name' => $route['name'],
             'where' => $route['where'],
+            'middleware_count' => count($route['middleware']),
         ], $this->routes);
     }
 
@@ -960,6 +1080,14 @@ final class Router
         $this->routes[$index]['paramNames'] = $compiled['paramNames'];
     }
 
+    public function addRouteMiddleware(int $index, callable $middleware): void
+    {
+        if (!isset($this->routes[$index])) {
+            throw new InvalidArgumentException('Route does not exist.');
+        }
+        $this->routes[$index]['middleware'][] = $middleware;
+    }
+
     public function dispatch(Request $request, Response $response): never
     {
         $method = $request->method();
@@ -971,7 +1099,7 @@ final class Router
             $route = $this->routes[$this->staticRoutes[$staticKey]];
             $request->setRouteParams([]);
             $request->setRouteInfo($this->routeDebugInfo($route, []));
-            ($route['handler'])($request, $response);
+            $this->runRoute($route, $request, $response);
             exit;
         }
 
@@ -997,7 +1125,7 @@ final class Router
 
             $request->setRouteParams($match);
             $request->setRouteInfo($this->routeDebugInfo($route, $match));
-            ($route['handler'])($request, $response);
+            $this->runRoute($route, $request, $response);
             exit;
         }
 
@@ -1031,6 +1159,7 @@ final class Router
             'pattern' => $compiled['pattern'],
             'paramNames' => $compiled['paramNames'],
             'name' => null,
+            'middleware' => $this->groupMiddleware,
         ];
 
         $index = array_key_last($this->routes);
@@ -1054,6 +1183,19 @@ final class Router
 
             $instance->{$method}($request, $response);
         };
+    }
+
+    private function runRoute(array $route, Request $request, Response $response): mixed
+    {
+        $stack = array_merge($this->middleware, $route['middleware']);
+        $handler = $route['handler'];
+        $next = static fn(Request $request, Response $response): mixed => $handler($request, $response);
+
+        foreach (array_reverse($stack) as $middleware) {
+            $next = static fn(Request $request, Response $response): mixed => $middleware($request, $response, $next);
+        }
+
+        return $next($request, $response);
     }
 
     private function matchRoute(array $route, string $uri): ?array
@@ -1250,6 +1392,7 @@ final class Adlaire
                 'AdlaireExtension',
                 'AutonomousModule',
                 'PolicyRule',
+                'AurisModule',
             ],
             'Database.php' => [
                 'LibSqlDriver',
@@ -1268,6 +1411,15 @@ final class Adlaire
             ],
             'Logger.php' => [
                 'Logger',
+            ],
+            'Config.php' => [
+                'ConfigRepository',
+            ],
+            'Middleware.php' => [
+                'MiddlewarePipeline',
+            ],
+            'Support.php' => [
+                'AdlaireSupport',
             ],
         ];
     }
@@ -1309,6 +1461,7 @@ final class Adlaire
                 'RELEASE-REQ-007' => 'Specification drift detection reports missing tests, unknown specification IDs, missing audit keys, and missing readiness checks.',
                 'RELEASE-REQ-008' => 'Distribution manifest exposes the official release file set, public API, policies, and release gate metadata.',
                 'RELEASE-REQ-009' => 'Microkernel practical APIs, autonomous modules, policy decisions, audit reports, and stability contracts are exposed as formal metadata.',
+                'RELEASE-REQ-010' => 'The v0.200 stable backend framework release contract is exposed and verified by release readiness.',
             ],
         ];
     }
@@ -1327,6 +1480,7 @@ final class Adlaire
             'distribution_manifest' => ['RELEASE-REQ-008'],
             'microkernel' => ['KERNEL-REQ-001', 'KERNEL-REQ-002'],
             'autonomous_system' => ['KERNEL-REQ-001', 'KERNEL-REQ-002', 'RELEASE-REQ-009'],
+            'stable_release_contract' => ['RELEASE-REQ-010'],
             'validator' => ['CORE-REQ-001'],
             'router' => ['CORE-REQ-001', 'CORE-REQ-002'],
             'response_security' => ['CORE-REQ-002'],
@@ -1525,7 +1679,7 @@ final class Adlaire
     public static function compatibilityProfiles(): array
     {
         return [
-            'minimal' => ['php' => '>=8.3', 'files' => '7 files'],
+            'minimal' => ['php' => '>=8.3', 'files' => '10 files'],
             'standard' => ['kernel' => true, 'logger' => true],
             'audited' => ['audit' => true, 'release_readiness' => true],
             'distributed' => ['autonomous_modules' => true, 'policy_decisions' => true],
@@ -1618,6 +1772,131 @@ final class Adlaire
         ];
     }
 
+    public static function stableReleaseContract(): array
+    {
+        return [
+            'version' => self::version(),
+            'stable_release' => true,
+            'release_name' => 'v0.200 stable backend framework release',
+            'backend_framework_capabilities' => [
+                'routing',
+                'middleware',
+                'validation',
+                'database',
+                'logging',
+                'deployment',
+                'configuration',
+                'support helpers',
+                'microkernel',
+                'Auris module integration',
+            ],
+            'no_breaking_changes' => true,
+            'ten_file_principle' => true,
+            'deployment_axis' => true,
+            'official_debug_test_required' => true,
+            'docker_debug_verified' => true,
+            'auris_integration_policy_retained' => true,
+            'cloud_business_prohibition_fixed' => true,
+        ];
+    }
+
+    public static function deploymentAxisPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'framework_axis' => 'deployment system',
+            'architecture_changed' => false,
+            'deployment_system' => [
+                'core_name' => 'Deployment Core',
+                'core_directory' => null,
+                'directory_required' => false,
+                'placement' => 'root',
+                'file_principle' => 'single file',
+                'core_file' => 'Deployer.php',
+                'design_philosophy' => 'distributed autonomous system design philosophy',
+                'primary_component' => 'Deployer.php',
+                'components' => ['Deployer.php'],
+                'autonomous_operation_required' => true,
+                'deployment_audit_required' => true,
+                'manifest_required' => true,
+                'readiness_required' => true,
+                'auris_integration_considered' => true,
+            ],
+            'general_framework' => [
+                'core_name' => 'Framework Core',
+                'core_directory' => 'FrameworkCore',
+                'scope' => ['Core.php', 'Kernel.php', 'Extension.php', 'Database.php', 'Logger.php', 'Config.php', 'Middleware.php', 'Support.php'],
+                'aggregated_components' => ['Core.php', 'Kernel.php', 'Extension.php', 'Database.php', 'Logger.php', 'Config.php', 'Middleware.php', 'Support.php'],
+                'policy' => 'general purpose within documented constraints',
+                'design_philosophy' => 'specification-defined general purpose framework architecture',
+                'distributed_autonomous_design_applies' => false,
+                'architecture_source' => 'documented specification',
+                'compatibility_entrypoints_retained' => true,
+                'standalone_framework_usage' => true,
+                'middleware_available' => true,
+                'configuration_repository_available' => true,
+                'support_helpers_available' => true,
+            ],
+            'module_policy' => [
+                'design_philosophy' => 'specification-defined framework module architecture',
+                'distributed_autonomous_design_applies' => false,
+                'base_directory' => 'modules',
+                'per_module_directory_required' => true,
+                'directory_pattern' => 'modules/{ModuleName}',
+                'allowed_file_principles' => ['3 files', '5 files', '7 files'],
+                'default_file_principle' => '3 files',
+                'kernel_mediated' => true,
+                'manifest_required_for_official_modules' => true,
+                'official_module_directories' => ['modules/Auris'],
+                'auris_module_policy_retained' => true,
+            ],
+            'architecture_policy' => [
+                'current_architecture_retained' => true,
+                'file_principle' => self::auditFilePrinciple(),
+                'microkernel_policy_retained' => true,
+            ],
+            'v0_200_target' => [
+                'version' => 'v0.200',
+                'source_code_scope' => ['Core.php', 'Kernel.php', 'Extension.php', 'Database.php', 'Deployer.php', 'Logger.php', 'Config.php', 'Middleware.php', 'Support.php'],
+                'deployment_system_axis_required' => true,
+                'deployer_manifest_required' => true,
+                'deployer_readiness_required' => true,
+                'auris_integration_considered' => true,
+                'ten_file_principle_required' => true,
+                'general_framework_capability_required' => true,
+                'router_middleware_required' => true,
+                'backend_framework_capability_required' => true,
+                'stable_release_required' => true,
+                'architecture_changed' => false,
+            ],
+        ];
+    }
+
+    public static function aurisIntegrationPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'future_integration' => true,
+            'target_system' => 'Auris',
+            'target_repository' => 'https://github.com/fqwink/Auris',
+            'framework_repository_maintained' => true,
+            'repository_role' => 'independent framework repository',
+            'integration_status' => 'planned',
+            'auris_independent_system_after_integration' => 'abolished',
+            'auris_repository_after_integration' => 'deprecated',
+            'auris_name_retained' => true,
+            'auris_module_name' => 'Auris',
+            'auris_moduleization' => true,
+            'auris_module_role' => 'integrated Adlaire module',
+            'auris_module_class' => 'AurisModule',
+            'auris_module_messages' => ['auris.status', 'auris.policy', 'auris.metadata', 'auris.manifest', 'auris.validate'],
+            'auris_manifest_required' => true,
+            'auris_policy_validation_required' => true,
+            'architecture_changed' => false,
+            'source_of_truth' => 'Adlaire Ecosystem documentation until integration specification is formalized',
+        ];
+    }
+
     public static function specificationIntegrity(): array
     {
         $checks = [
@@ -1630,11 +1909,73 @@ final class Adlaire
             'distribution_policy' => self::distributionPolicy()['unofficial_distribution_may_claim_official'] === false,
             'official_metadata' => self::officialMetadata()['version'] === self::version()
                 && self::officialMetadata()['release_readiness_required'] === true,
-            'file_principle' => self::auditFilePrinciple() === '7 files',
+            'file_principle' => self::auditFilePrinciple() === '10 files',
             'microkernel_policy' => self::microkernelPolicy()['event_bus_available'] === true
                 && self::microkernelPolicy()['extension_manifest_available'] === true,
             'stability_contract' => self::stabilityContract()['breaking_changes_forbidden'] === true,
             'long_term_stability_contract' => self::longTermStabilityContract()['long_term_stable'] === true,
+            'stable_release_contract' => self::stableReleaseContract()['stable_release'] === true
+                && self::stableReleaseContract()['version'] === self::version()
+                && self::stableReleaseContract()['no_breaking_changes'] === true
+                && self::stableReleaseContract()['ten_file_principle'] === true
+                && self::stableReleaseContract()['deployment_axis'] === true
+                && self::stableReleaseContract()['docker_debug_verified'] === true
+                && in_array('database', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('deployment', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('configuration', self::stableReleaseContract()['backend_framework_capabilities'], true),
+            'deployment_axis_policy' => self::deploymentAxisPolicy()['framework_axis'] === 'deployment system'
+                && self::deploymentAxisPolicy()['architecture_changed'] === false
+                && self::deploymentAxisPolicy()['deployment_system']['core_name'] === 'Deployment Core'
+                && self::deploymentAxisPolicy()['deployment_system']['core_directory'] === null
+                && self::deploymentAxisPolicy()['deployment_system']['directory_required'] === false
+                && self::deploymentAxisPolicy()['deployment_system']['placement'] === 'root'
+                && self::deploymentAxisPolicy()['deployment_system']['file_principle'] === 'single file'
+                && self::deploymentAxisPolicy()['deployment_system']['core_file'] === 'Deployer.php'
+                && self::deploymentAxisPolicy()['deployment_system']['components'] === ['Deployer.php']
+                && self::deploymentAxisPolicy()['deployment_system']['design_philosophy'] === 'distributed autonomous system design philosophy'
+                && self::deploymentAxisPolicy()['deployment_system']['manifest_required'] === true
+                && self::deploymentAxisPolicy()['deployment_system']['readiness_required'] === true
+                && self::deploymentAxisPolicy()['deployment_system']['auris_integration_considered'] === true
+                && self::deploymentAxisPolicy()['general_framework']['core_name'] === 'Framework Core'
+                && self::deploymentAxisPolicy()['general_framework']['core_directory'] === 'FrameworkCore'
+                && self::deploymentAxisPolicy()['general_framework']['aggregated_components'] === self::deploymentAxisPolicy()['general_framework']['scope']
+                && self::deploymentAxisPolicy()['general_framework']['design_philosophy'] === 'specification-defined general purpose framework architecture'
+                && self::deploymentAxisPolicy()['general_framework']['distributed_autonomous_design_applies'] === false
+                && self::deploymentAxisPolicy()['general_framework']['architecture_source'] === 'documented specification'
+                && self::deploymentAxisPolicy()['general_framework']['compatibility_entrypoints_retained'] === true
+                && self::deploymentAxisPolicy()['general_framework']['middleware_available'] === true
+                && self::deploymentAxisPolicy()['general_framework']['configuration_repository_available'] === true
+                && self::deploymentAxisPolicy()['general_framework']['support_helpers_available'] === true
+                && self::deploymentAxisPolicy()['module_policy']['design_philosophy'] === 'specification-defined framework module architecture'
+                && self::deploymentAxisPolicy()['module_policy']['distributed_autonomous_design_applies'] === false
+                && self::deploymentAxisPolicy()['module_policy']['base_directory'] === 'modules'
+                && self::deploymentAxisPolicy()['module_policy']['per_module_directory_required'] === true
+                && self::deploymentAxisPolicy()['module_policy']['allowed_file_principles'] === ['3 files', '5 files', '7 files']
+                && self::deploymentAxisPolicy()['module_policy']['default_file_principle'] === '3 files'
+                && self::deploymentAxisPolicy()['module_policy']['kernel_mediated'] === true
+                && in_array('modules/Auris', self::deploymentAxisPolicy()['module_policy']['official_module_directories'], true)
+                && self::deploymentAxisPolicy()['architecture_policy']['current_architecture_retained'] === true
+                && self::deploymentAxisPolicy()['v0_200_target']['deployment_system_axis_required'] === true
+                && self::deploymentAxisPolicy()['v0_200_target']['deployer_manifest_required'] === true
+                && self::deploymentAxisPolicy()['v0_200_target']['deployer_readiness_required'] === true
+                && self::deploymentAxisPolicy()['v0_200_target']['ten_file_principle_required'] === true
+                && self::deploymentAxisPolicy()['v0_200_target']['general_framework_capability_required'] === true
+                && self::deploymentAxisPolicy()['v0_200_target']['router_middleware_required'] === true
+                && self::deploymentAxisPolicy()['v0_200_target']['backend_framework_capability_required'] === true
+                && self::deploymentAxisPolicy()['v0_200_target']['stable_release_required'] === true,
+            'auris_integration_policy' => self::aurisIntegrationPolicy()['future_integration'] === true
+                && self::aurisIntegrationPolicy()['target_repository'] === 'https://github.com/fqwink/Auris'
+                && self::aurisIntegrationPolicy()['framework_repository_maintained'] === true
+                && self::aurisIntegrationPolicy()['auris_independent_system_after_integration'] === 'abolished'
+                && self::aurisIntegrationPolicy()['auris_name_retained'] === true
+                && self::aurisIntegrationPolicy()['auris_moduleization'] === true
+                && self::aurisIntegrationPolicy()['auris_module_class'] === 'AurisModule'
+                && in_array('auris.status', self::aurisIntegrationPolicy()['auris_module_messages'], true)
+                && in_array('auris.manifest', self::aurisIntegrationPolicy()['auris_module_messages'], true)
+                && in_array('auris.validate', self::aurisIntegrationPolicy()['auris_module_messages'], true)
+                && self::aurisIntegrationPolicy()['auris_manifest_required'] === true
+                && self::aurisIntegrationPolicy()['auris_policy_validation_required'] === true
+                && self::aurisIntegrationPolicy()['architecture_changed'] === false,
             'official_debug_test' => self::officialMetadata()['official_debug_test'] === 'php -d phar.readonly=0 tests/debug.php',
         ];
 
@@ -1678,6 +2019,9 @@ final class Adlaire
             'microkernel_policy',
             'stability_contract',
             'long_term_stability_contract',
+            'stable_release_contract',
+            'deployment_axis_policy',
+            'auris_integration_policy',
         ];
         $auditKeys = [
             'version',
@@ -1695,6 +2039,9 @@ final class Adlaire
             'microkernel_policy',
             'stability_contract',
             'long_term_stability_contract',
+            'stable_release_contract',
+            'deployment_axis_policy',
+            'auris_integration_policy',
         ];
 
         $requiredReadinessChecks = [
@@ -1713,6 +2060,9 @@ final class Adlaire
             'microkernel_policy',
             'stability_contract',
             'long_term_stability_contract',
+            'stable_release_contract',
+            'deployment_axis_policy',
+            'auris_integration_policy',
             'design_philosophy',
             'compatibility',
             'required_verifications',
@@ -1740,6 +2090,9 @@ final class Adlaire
                 'Database.php',
                 'Deployer.php',
                 'Logger.php',
+                'Config.php',
+                'Middleware.php',
+                'Support.php',
                 'tests/debug.php',
                 'adlaire-ecosystem.md',
             ],
@@ -1756,12 +2109,15 @@ final class Adlaire
             'microkernel_policy' => self::microkernelPolicy(),
             'stability_contract' => self::stabilityContract(),
             'long_term_stability_contract' => self::longTermStabilityContract(),
+            'stable_release_contract' => self::stableReleaseContract(),
+            'deployment_axis_policy' => self::deploymentAxisPolicy(),
+            'auris_integration_policy' => self::aurisIntegrationPolicy(),
         ];
     }
 
     private static function auditFilePrinciple(): string
     {
-        return '7 files';
+        return '10 files';
     }
 
     public static function audit(): array
@@ -1771,7 +2127,7 @@ final class Adlaire
             'php' => '>=8.3',
             'version_format' => 'v0.x',
             'cumulative_version' => true,
-            'formalization_version' => 'v0.50',
+            'formalization_version' => 'v0.200',
             'file_principle' => self::auditFilePrinciple(),
             'external_dependencies' => 'none; optional libSQL PHP extension only',
             'license_policy' => self::licensePolicy(),
@@ -1799,8 +2155,17 @@ final class Adlaire
             'compatibility_guarantee' => self::compatibilityGuarantee(),
             'release_freeze_policy' => self::releaseFreezePolicy(),
             'long_term_stability_contract' => self::longTermStabilityContract(),
+            'stable_release_contract' => self::stableReleaseContract(),
+            'deployment_axis_policy' => self::deploymentAxisPolicy(),
+            'auris_integration_policy' => self::aurisIntegrationPolicy(),
             'design_philosophy' => [
-                'core' => 'distributed autonomy system design philosophy',
+                'framework_axis' => 'deployment system',
+                'deployment_system' => 'distributed autonomous system design philosophy',
+                'distributed_autonomous_scope' => 'deployment system only',
+                'framework_architecture' => 'specification-defined general purpose framework architecture',
+                'general_framework' => 'general purpose within documented constraints',
+                'modules' => 'specification-defined framework module architecture',
+                'architecture_changed' => false,
                 'composite_framework' => true,
                 'standalone_framework_usage' => true,
                 'integration_authority' => 'documented specification',
@@ -1880,12 +2245,81 @@ final class Adlaire
                 && ($audit['specification_drift']['missing_tests'] ?? []) === [],
             'distribution_manifest' => ($audit['distribution_manifest']['version'] ?? null) === self::version()
                 && ($audit['distribution_manifest']['release_readiness']['ready'] ?? false) === true,
-            'file_principle' => ($audit['file_principle'] ?? null) === '7 files',
+            'file_principle' => ($audit['file_principle'] ?? null) === '10 files',
             'microkernel_policy' => ($audit['microkernel_policy']['event_bus_available'] ?? false) === true,
             'stability_contract' => ($audit['stability_contract']['breaking_changes_forbidden'] ?? false) === true,
             'long_term_stability_contract' => ($audit['long_term_stability_contract']['long_term_stable'] ?? false) === true
                 && ($audit['long_term_stability_contract']['no_breaking_changes'] ?? false) === true,
-            'design_philosophy' => ($audit['design_philosophy']['core'] ?? null) === 'distributed autonomy system design philosophy'
+            'stable_release_contract' => ($audit['stable_release_contract']['stable_release'] ?? false) === true
+                && ($audit['stable_release_contract']['version'] ?? null) === self::version()
+                && ($audit['stable_release_contract']['no_breaking_changes'] ?? false) === true
+                && ($audit['stable_release_contract']['ten_file_principle'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_axis'] ?? false) === true
+                && ($audit['stable_release_contract']['docker_debug_verified'] ?? false) === true
+                && in_array('routing', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('database', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true),
+            'deployment_axis_policy' => ($audit['deployment_axis_policy']['framework_axis'] ?? null) === 'deployment system'
+                && ($audit['deployment_axis_policy']['architecture_changed'] ?? true) === false
+                && ($audit['deployment_axis_policy']['deployment_system']['core_name'] ?? null) === 'Deployment Core'
+                && array_key_exists('core_directory', $audit['deployment_axis_policy']['deployment_system'] ?? [])
+                && $audit['deployment_axis_policy']['deployment_system']['core_directory'] === null
+                && ($audit['deployment_axis_policy']['deployment_system']['directory_required'] ?? true) === false
+                && ($audit['deployment_axis_policy']['deployment_system']['placement'] ?? null) === 'root'
+                && ($audit['deployment_axis_policy']['deployment_system']['file_principle'] ?? null) === 'single file'
+                && ($audit['deployment_axis_policy']['deployment_system']['core_file'] ?? null) === 'Deployer.php'
+                && ($audit['deployment_axis_policy']['deployment_system']['components'] ?? []) === ['Deployer.php']
+                && ($audit['deployment_axis_policy']['deployment_system']['design_philosophy'] ?? null) === 'distributed autonomous system design philosophy'
+                && ($audit['deployment_axis_policy']['deployment_system']['manifest_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['deployment_system']['readiness_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['deployment_system']['auris_integration_considered'] ?? false) === true
+                && ($audit['deployment_axis_policy']['general_framework']['policy'] ?? null) === 'general purpose within documented constraints'
+                && ($audit['deployment_axis_policy']['general_framework']['core_name'] ?? null) === 'Framework Core'
+                && ($audit['deployment_axis_policy']['general_framework']['core_directory'] ?? null) === 'FrameworkCore'
+                && ($audit['deployment_axis_policy']['general_framework']['aggregated_components'] ?? []) === ($audit['deployment_axis_policy']['general_framework']['scope'] ?? [])
+                && ($audit['deployment_axis_policy']['general_framework']['design_philosophy'] ?? null) === 'specification-defined general purpose framework architecture'
+                && ($audit['deployment_axis_policy']['general_framework']['distributed_autonomous_design_applies'] ?? true) === false
+                && ($audit['deployment_axis_policy']['general_framework']['architecture_source'] ?? null) === 'documented specification'
+                && ($audit['deployment_axis_policy']['general_framework']['compatibility_entrypoints_retained'] ?? false) === true
+                && ($audit['deployment_axis_policy']['general_framework']['middleware_available'] ?? false) === true
+                && ($audit['deployment_axis_policy']['general_framework']['configuration_repository_available'] ?? false) === true
+                && ($audit['deployment_axis_policy']['general_framework']['support_helpers_available'] ?? false) === true
+                && ($audit['deployment_axis_policy']['module_policy']['design_philosophy'] ?? null) === 'specification-defined framework module architecture'
+                && ($audit['deployment_axis_policy']['module_policy']['distributed_autonomous_design_applies'] ?? true) === false
+                && ($audit['deployment_axis_policy']['module_policy']['base_directory'] ?? null) === 'modules'
+                && ($audit['deployment_axis_policy']['module_policy']['per_module_directory_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['module_policy']['allowed_file_principles'] ?? []) === ['3 files', '5 files', '7 files']
+                && ($audit['deployment_axis_policy']['module_policy']['default_file_principle'] ?? null) === '3 files'
+                && ($audit['deployment_axis_policy']['module_policy']['kernel_mediated'] ?? false) === true
+                && in_array('modules/Auris', $audit['deployment_axis_policy']['module_policy']['official_module_directories'] ?? [], true)
+                && ($audit['deployment_axis_policy']['v0_200_target']['deployment_system_axis_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_200_target']['deployer_manifest_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_200_target']['deployer_readiness_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_200_target']['ten_file_principle_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_200_target']['general_framework_capability_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_200_target']['router_middleware_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_200_target']['backend_framework_capability_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_200_target']['stable_release_required'] ?? false) === true,
+            'auris_integration_policy' => ($audit['auris_integration_policy']['future_integration'] ?? false) === true
+                && ($audit['auris_integration_policy']['target_repository'] ?? null) === 'https://github.com/fqwink/Auris'
+                && ($audit['auris_integration_policy']['framework_repository_maintained'] ?? false) === true
+                && ($audit['auris_integration_policy']['auris_independent_system_after_integration'] ?? null) === 'abolished'
+                && ($audit['auris_integration_policy']['auris_name_retained'] ?? false) === true
+                && ($audit['auris_integration_policy']['auris_moduleization'] ?? false) === true
+                && ($audit['auris_integration_policy']['auris_module_class'] ?? null) === 'AurisModule'
+                && in_array('auris.status', $audit['auris_integration_policy']['auris_module_messages'] ?? [], true)
+                && in_array('auris.manifest', $audit['auris_integration_policy']['auris_module_messages'] ?? [], true)
+                && in_array('auris.validate', $audit['auris_integration_policy']['auris_module_messages'] ?? [], true)
+                && ($audit['auris_integration_policy']['auris_manifest_required'] ?? false) === true
+                && ($audit['auris_integration_policy']['auris_policy_validation_required'] ?? false) === true
+                && ($audit['auris_integration_policy']['architecture_changed'] ?? true) === false,
+            'design_philosophy' => ($audit['design_philosophy']['framework_axis'] ?? null) === 'deployment system'
+                && ($audit['design_philosophy']['deployment_system'] ?? null) === 'distributed autonomous system design philosophy'
+                && ($audit['design_philosophy']['distributed_autonomous_scope'] ?? null) === 'deployment system only'
+                && ($audit['design_philosophy']['framework_architecture'] ?? null) === 'specification-defined general purpose framework architecture'
+                && ($audit['design_philosophy']['general_framework'] ?? null) === 'general purpose within documented constraints'
+                && ($audit['design_philosophy']['modules'] ?? null) === 'specification-defined framework module architecture'
+                && ($audit['design_philosophy']['architecture_changed'] ?? true) === false
                 && ($audit['design_philosophy']['standalone_framework_usage'] ?? false) === true,
             'compatibility' => array_reduce(
                 $audit['compatibility_matrix'] ?? [],

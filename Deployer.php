@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Deployer.php
  *
- * @version v0.50
+ * @version v0.200
  * @php     >= 8.3
  */
 
@@ -61,6 +61,45 @@ final class DeployConfig
             throw new InvalidArgumentException("Config must be an array: {$key}");
         }
         return $value;
+    }
+
+    public function bool(string $key, bool $default = false): bool
+    {
+        $value = $this->get($key, $default);
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+                return true;
+            }
+            if (in_array($normalized, ['0', 'false', 'no', 'off'], true)) {
+                return false;
+            }
+        }
+        return (bool)$value;
+    }
+
+    public function deploymentManifest(): array
+    {
+        $integrationModules = $this->array('integration_modules');
+        $aurisConsidered = $this->bool('auris_integration', false) || in_array('Auris', $integrationModules, true);
+
+        return [
+            'axis' => 'deployment system',
+            'repository' => $this->requiredString('repository'),
+            'branch' => $this->requiredString('branch'),
+            'target_dir' => $this->requiredString('target_dir'),
+            'work_dir' => $this->requiredString('work_dir'),
+            'backup_dir' => $this->requiredString('backup_dir'),
+            'log_file' => $this->requiredString('log_file'),
+            'deploy_allowlist' => $this->array('deploy_allowlist'),
+            'integration_modules' => $integrationModules,
+            'auris_integration_considered' => $aurisConsidered,
+            'autonomous_operation' => true,
+            'architecture_changed' => false,
+        ];
     }
 
     private function withEnvironment(array $values): array
@@ -173,6 +212,50 @@ final class Deployer
             'target_dir' => $this->path($this->config->requiredString('target_dir')),
             'work_dir' => $this->path($this->config->requiredString('work_dir')),
             'backup_dir' => $this->path($this->config->requiredString('backup_dir')),
+            'deployment_axis' => 'deployment system',
+        ];
+    }
+
+    public function deploymentSystemManifest(): array
+    {
+        $config = $this->config->deploymentManifest();
+
+        return [
+            'component' => 'Deployer.php',
+            'axis' => 'deployment system',
+            'design_philosophy' => 'distributed autonomous system design philosophy',
+            'architecture_changed' => false,
+            'auris_integration_considered' => $config['auris_integration_considered'],
+            'autonomous_operation' => true,
+            'required_directories' => [
+                'target_dir' => $this->path($this->config->requiredString('target_dir')),
+                'work_dir' => $this->path($this->config->requiredString('work_dir')),
+                'backup_dir' => $this->path($this->config->requiredString('backup_dir')),
+            ],
+            'config' => $config,
+        ];
+    }
+
+    public function deploymentReadiness(): array
+    {
+        $validation = $this->validateOnly();
+        $manifest = $this->deploymentSystemManifest();
+        $checks = [
+            'config_valid' => ($validation['valid'] ?? false) === true,
+            'deployment_axis' => ($manifest['axis'] ?? null) === 'deployment system',
+            'distributed_autonomous_design' => ($manifest['design_philosophy'] ?? null) === 'distributed autonomous system design philosophy',
+            'auris_integration_considered' => ($manifest['auris_integration_considered'] ?? false) === true,
+            'architecture_unchanged' => ($manifest['architecture_changed'] ?? true) === false,
+            'target_dir_ready' => is_dir($manifest['required_directories']['target_dir'] ?? ''),
+            'work_dir_ready' => is_dir($manifest['required_directories']['work_dir'] ?? ''),
+            'backup_dir_ready' => is_dir($manifest['required_directories']['backup_dir'] ?? ''),
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'checks' => $checks,
+            'validation' => $validation,
+            'manifest' => $manifest,
         ];
     }
 
