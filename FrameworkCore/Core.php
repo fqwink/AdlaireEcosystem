@@ -3,13 +3,13 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version v0.202
+ * @version v0.206
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-const ADLAIRE_VERSION = 'v0.202';
+const ADLAIRE_VERSION = 'v0.206';
 
 if (is_file(__DIR__ . '/Extension.php')) {
     require_once __DIR__ . '/Extension.php';
@@ -1374,62 +1374,14 @@ final class Adlaire
         return ADLAIRE_VERSION;
     }
 
-    public static function publicApi(): array
-    {
-        return [
-            'FrameworkCore/Core.php' => [
-                'Request',
-                'Response',
-                'Validator',
-                'Router',
-                'RouteDefinition',
-                'Adlaire',
-            ],
-            'FrameworkCore/Kernel.php' => [
-                'MicroKernel',
-            ],
-            'FrameworkCore/Extension.php' => [
-                'AdlaireExtension',
-                'AutonomousModule',
-                'PolicyRule',
-                'AurisModule',
-            ],
-            'FrameworkCore/Database.php' => [
-                'LibSqlDriver',
-                'AdlaireStatement',
-                'PdoDriver',
-                'HttpDriver',
-                'WebSocketDriver',
-                'Database',
-                'QueryBuilder',
-                'Migration',
-                'Migrator',
-            ],
-            'DeploymentCore.php' => [
-                'DeployConfig',
-                'Deployer',
-            ],
-            'FrameworkCore/Logger.php' => [
-                'Logger',
-            ],
-            'FrameworkCore/Config.php' => [
-                'ConfigRepository',
-            ],
-            'FrameworkCore/Middleware.php' => [
-                'MiddlewarePipeline',
-            ],
-            'FrameworkCore/Support.php' => [
-                'AdlaireSupport',
-            ],
-        ];
-    }
-
     public static function specificationIds(): array
     {
         return [
             'FrameworkCore/Core.php' => [
-                'CORE-REQ-001' => 'Request, Response, Validator, Router, and Adlaire public API remain available.',
+                'CORE-REQ-001' => 'Request, Response, Validator, Router, and Adlaire contracts remain available.',
                 'CORE-REQ-002' => 'Configuration, environment helpers, routing inspection, security headers, version, and audit metadata are verified.',
+                'CORE-REQ-003' => 'Runtime health checks and configuration audit contracts expose portable operations diagnostics.',
+                'CORE-REQ-004' => 'Operations dashboard exposes read-only authenticated operations visibility without JSON output.',
             ],
             'FrameworkCore/Kernel.php' => [
                 'KERNEL-REQ-001' => 'MicroKernel stores core services and exposes service lookup.',
@@ -1438,6 +1390,7 @@ final class Adlaire
             'FrameworkCore/Database.php' => [
                 'DB-REQ-001' => 'SQLite and libSQL connection abstractions preserve query builder behavior.',
                 'DB-REQ-002' => 'Query guards, pagination, helper reads, migrations, and query logging are verified.',
+                'DB-REQ-003' => 'SQLite runtime hardening, Database::fromConfig(), libSQL runtime options, and no MySQL support are verified.',
             ],
             'FrameworkCore/Logger.php' => [
                 'LOGGER-REQ-001' => 'Structured logs mask sensitive values and preserve component and request metadata.',
@@ -1454,15 +1407,19 @@ final class Adlaire
             'Release' => [
                 'RELEASE-REQ-001' => 'Versions use cumulative v0.x format regardless of change type.',
                 'RELEASE-REQ-002' => 'Docker execution of php -d phar.readonly=0 tests/debug.php is the release acceptance gate.',
-                'RELEASE-REQ-003' => 'Release readiness is decided from audit, compatibility, contribution policy, license policy, design philosophy, and regression gates.',
+                'RELEASE-REQ-003' => 'Release readiness is decided from audit, contribution policy, license policy, design philosophy, and regression gates.',
                 'RELEASE-REQ-004' => 'License, prohibited use, governance, and official release policies are exposed as formal public audit metadata.',
                 'RELEASE-REQ-005' => 'Distribution boundaries, cloud business boundaries, and official metadata are exposed as formal public audit metadata.',
                 'RELEASE-REQ-006' => 'Specification integrity verifies specification, audit metadata, and official debug tests as one consistent set.',
                 'RELEASE-REQ-007' => 'Specification drift detection reports missing tests, unknown specification IDs, missing audit keys, and missing readiness checks.',
-                'RELEASE-REQ-008' => 'Distribution manifest exposes the official release file set, public API, policies, and release gate metadata.',
-                'RELEASE-REQ-009' => 'Microkernel practical APIs, autonomous modules, policy decisions, audit reports, and stability contracts are exposed as formal metadata.',
-                'RELEASE-REQ-010' => 'The v0.202 stable backend framework release contract is exposed and verified by release readiness.',
+                'RELEASE-REQ-008' => 'Distribution manifest exposes the official release file set, policies, and release gate metadata without interface dependency.',
+                'RELEASE-REQ-009' => 'Microkernel contracts, autonomous modules, policy decisions, audit reports, and stability contracts are exposed as formal metadata.',
+                'RELEASE-REQ-010' => 'The stable backend framework release contract is exposed and verified by release readiness.',
                 'RELEASE-REQ-011' => 'Xserver rental server production-equivalent testing is formalized and required for release readiness.',
+                'RELEASE-REQ-012' => 'The v0.203 SQLite / libSQL runtime hardening policy is exposed and verified by release readiness.',
+                'RELEASE-REQ-013' => 'The v0.204 runtime operations hardening policy streamlines stable release verification.',
+                'RELEASE-REQ-014' => 'The v0.205 operations dashboard is disabled by default, authenticated, read-only, and verified by release readiness.',
+                'RELEASE-REQ-015' => 'The v0.206 configuration file prohibition policy allows JSON metadata while forbidding framework runtime configuration files.',
             ],
         ];
     }
@@ -1472,6 +1429,9 @@ final class Adlaire
         return [
             'request' => ['CORE-REQ-001'],
             'core_config' => ['CORE-REQ-002'],
+            'runtime_operations_hardening' => ['CORE-REQ-003', 'RELEASE-REQ-013'],
+            'operations_dashboard' => ['CORE-REQ-004', 'RELEASE-REQ-014'],
+            'configuration_file_policy' => ['CORE-REQ-002', 'RELEASE-REQ-015'],
             'adlaire_audit' => ['CORE-REQ-002', 'TEST-REQ-001', 'TEST-REQ-002', 'RELEASE-REQ-001', 'RELEASE-REQ-002'],
             'release_readiness' => ['RELEASE-REQ-001', 'RELEASE-REQ-002', 'RELEASE-REQ-003'],
             'license_governance' => ['RELEASE-REQ-003', 'RELEASE-REQ-004'],
@@ -1483,10 +1443,11 @@ final class Adlaire
             'autonomous_system' => ['KERNEL-REQ-001', 'KERNEL-REQ-002', 'RELEASE-REQ-009'],
             'stable_release_contract' => ['RELEASE-REQ-010'],
             'production_equivalent_environment' => ['RELEASE-REQ-011'],
+            'database_runtime_hardening_policy' => ['DB-REQ-003', 'RELEASE-REQ-012'],
             'validator' => ['CORE-REQ-001'],
             'router' => ['CORE-REQ-001', 'CORE-REQ-002'],
             'response_security' => ['CORE-REQ-002'],
-            'database' => ['DB-REQ-001', 'DB-REQ-002'],
+            'database' => ['DB-REQ-001', 'DB-REQ-002', 'DB-REQ-003'],
             'logger' => ['LOGGER-REQ-001', 'LOGGER-REQ-002'],
             'deployer_config' => ['DEPLOY-REQ-001', 'DEPLOY-REQ-002'],
         ];
@@ -1571,7 +1532,6 @@ final class Adlaire
         return [
             'version' => self::version(),
             'official_debug_test' => 'php -d phar.readonly=0 tests/debug.php',
-            'public_api' => self::publicApi(),
             'license_policy' => self::licensePolicy(),
             'prohibited_use_policy' => self::prohibitedUsePolicy(),
             'governance_policy' => self::governancePolicy(),
@@ -1624,6 +1584,211 @@ final class Adlaire
         ];
     }
 
+    public static function health(array $checks = []): array
+    {
+        $checks = array_replace([
+            'database' => false,
+            'writable_paths' => [],
+        ], $checks);
+
+        $results = [
+            'php' => [
+                'status' => PHP_VERSION_ID >= 80300 ? 'ok' : 'failed',
+                'version' => PHP_VERSION,
+                'requirement' => '>=8.3',
+            ],
+            'runtime' => [
+                'status' => 'ok',
+                'environment' => self::env('APP_ENV', 'production'),
+                'debug' => self::env('APP_DEBUG', false),
+                'sapi' => PHP_SAPI,
+            ],
+            'framework' => [
+                'status' => 'ok',
+                'version' => self::version(),
+            ],
+        ];
+
+        if (($checks['database'] ?? false) === true) {
+            try {
+                $database = Database::default();
+                $database->statement('SELECT 1');
+                $results['database'] = [
+                    'status' => 'ok',
+                    'profile' => $database->runtimeProfile(),
+                ];
+            } catch (Throwable $exception) {
+                $results['database'] = [
+                    'status' => 'failed',
+                    'error' => $exception->getMessage(),
+                ];
+            }
+        }
+
+        $paths = $checks['writable_paths'] ?? [];
+        if (is_array($paths) && $paths !== []) {
+            $results['writable_paths'] = [];
+            foreach ($paths as $name => $path) {
+                $path = (string)$path;
+                $results['writable_paths'][(string)$name] = [
+                    'path' => $path,
+                    'status' => is_dir($path) && is_writable($path) ? 'ok' : 'failed',
+                ];
+            }
+        }
+
+        $failed = array_filter($results, static fn(array $entry): bool => ($entry['status'] ?? 'ok') !== 'ok');
+        return [
+            'status' => $failed === [] ? 'ok' : 'failed',
+            'version' => self::version(),
+            'checks' => $results,
+        ];
+    }
+
+    public static function configAudit(array $requirements = []): array
+    {
+        $requirements = array_replace([
+            'required_env' => [],
+            'forbidden_production_debug' => true,
+            'writable_paths' => [],
+        ], $requirements);
+
+        $checks = [
+            'required_env' => true,
+            'production_debug_disabled' => true,
+            'writable_paths' => true,
+        ];
+        $details = [
+            'missing_env' => [],
+            'writable_paths' => [],
+        ];
+
+        foreach ((array)($requirements['required_env'] ?? []) as $key) {
+            $key = (string)$key;
+            if (getenv($key) === false) {
+                $checks['required_env'] = false;
+                $details['missing_env'][] = $key;
+            }
+        }
+
+        if (($requirements['forbidden_production_debug'] ?? true) === true) {
+            $production = self::env('APP_ENV', 'production') === 'production';
+            $debug = self::env('APP_DEBUG', false) === true;
+            $checks['production_debug_disabled'] = !($production && $debug);
+        }
+
+        foreach ((array)($requirements['writable_paths'] ?? []) as $name => $path) {
+            $path = (string)$path;
+            $ok = is_dir($path) && is_writable($path);
+            $details['writable_paths'][(string)$name] = ['path' => $path, 'writable' => $ok];
+            if (!$ok) {
+                $checks['writable_paths'] = false;
+            }
+        }
+
+        return [
+            'valid' => !in_array(false, $checks, true),
+            'checks' => $checks,
+            'details' => $details,
+        ];
+    }
+
+    public static function dashboardPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Operations Dashboard',
+            'default_enabled' => false,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'external_network_allowed' => false,
+            'auth_required' => true,
+            'auth_methods' => ['bearer_token', 'session_token'],
+            'token_env' => 'ADLAIRE_DASHBOARD_TOKEN',
+            'enabled_env' => 'ADLAIRE_DASHBOARD_ENABLED',
+            'json_format_available' => false,
+            'secret_values_exposed' => false,
+            'sections' => [
+                'overview',
+                'health',
+                'config_audit',
+                'release_readiness',
+                'distribution',
+                'database',
+                'security',
+            ],
+            'required_verifications' => [
+                'dashboard_disabled_by_default',
+                'dashboard_auth_required',
+                'dashboard_html_only',
+                'dashboard_secret_redaction',
+                'official_debug_test',
+            ],
+        ];
+    }
+
+    public static function configurationFilePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Configuration File Prohibition',
+            'framework_configuration_files_allowed' => false,
+            'env_files_allowed' => false,
+            'env_loader_allowed' => false,
+            'runtime_array_config_allowed' => true,
+            'environment_variables_allowed' => true,
+            'config_repository_allowed' => true,
+            'json_metadata_exception' => true,
+            'json_allowed_uses' => [
+                'manifest',
+                'deploy_history',
+                'audit_report',
+                'release_metadata',
+                'dashboard_export',
+                'machine_readable_policy',
+            ],
+            'json_for_secret_configuration_allowed' => false,
+            'prohibited_patterns' => [
+                '.env*',
+                '*.ini',
+                '*.conf',
+                '*.yaml',
+                '*.yml',
+                'config.php',
+                '*.config.php',
+            ],
+            'tooling_exceptions' => [
+                'Dockerfile.xserver',
+                'docker-compose.xserver.yml',
+            ],
+            'removed_files' => [
+                '.env.xserver.example',
+                'config/xserver/apache/000-default.conf',
+                'config/xserver/apache/xserver-profile.conf',
+                'config/xserver/php.ini',
+            ],
+            'required_verifications' => [
+                'no_env_files',
+                'no_framework_ini_conf_yaml_config',
+                'json_metadata_exception',
+                'config_repository_runtime_only',
+                'official_debug_test',
+            ],
+        ];
+    }
+
+    public static function dashboardEnabled(): bool
+    {
+        return self::env('ADLAIRE_DASHBOARD_ENABLED', false) === true;
+    }
+
+    public static function dashboardTokenConfigured(): bool
+    {
+        $token = getenv('ADLAIRE_DASHBOARD_TOKEN');
+        return is_string($token) && $token !== '';
+    }
+
     public static function autonomousAuditReport(): array
     {
         return [
@@ -1647,13 +1812,38 @@ final class Adlaire
     {
         return [
             'version' => self::version(),
-            'public_api_fixed' => true,
-            'kernel_api_fixed' => true,
-            'extension_contract_fixed' => true,
-            'autonomous_module_contract_fixed' => true,
-            'policy_api_fixed' => true,
-            'breaking_changes_forbidden' => true,
+            'stable_snapshot' => true,
+            'compatibility_guaranteed' => false,
+            'future_compatibility_required' => false,
+            'breaking_changes_allowed' => true,
+            'deployment_system_compatibility_guaranteed' => true,
+            'deployment_system_breaking_changes_allowed' => false,
             'official_debug_test_required' => true,
+        ];
+    }
+
+    public static function deploymentSystemCompatibilityPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'scope' => 'deployment system only',
+            'core_file' => 'DeploymentCore.php',
+            'compatibility_guaranteed' => true,
+            'breaking_changes_allowed' => false,
+            'stable_release_compatibility' => true,
+            'public_entrypoint_retained' => true,
+            'root_placement_retained' => true,
+            'single_file_core_retained' => true,
+            'manifest_contract_retained' => true,
+            'readiness_contract_retained' => true,
+            'rollback_contract_retained' => true,
+            'framework_core_compatibility_guaranteed' => false,
+            'non_deployment_breaking_changes_allowed' => true,
+            'required_verifications' => [
+                'deployment_core_lint',
+                'official_debug_test',
+                'release_requirement_matrix',
+            ],
         ];
     }
 
@@ -1678,7 +1868,7 @@ final class Adlaire
         ];
     }
 
-    public static function compatibilityProfiles(): array
+    public static function releaseProfiles(): array
     {
         return [
             'minimal' => ['php' => '>=8.3', 'files' => '10 files'],
@@ -1696,10 +1886,10 @@ final class Adlaire
             'production_provider' => 'Xserver rental server',
             'production_environment' => 'Xserver shared rental server',
             'production_equivalent_testing_required' => true,
-            'local_test_environment' => 'Docker php:8.3-apache with Xserver compatibility profile',
+            'local_test_environment' => 'Docker php:8.3-apache profile',
             'php_requirement' => '>=8.3',
-            'php_profile' => 'PHP 8.3.x compatible',
-            'web_server_profile' => 'Apache compatible shared hosting',
+            'php_profile' => 'PHP 8.3.x',
+            'web_server_profile' => 'Apache shared hosting',
             'document_root' => 'public_html',
             'htaccess_required' => true,
             'composer_required' => false,
@@ -1707,7 +1897,7 @@ final class Adlaire
             'shell_access_optional' => true,
             'database_profile' => [
                 'sqlite_for_local_debug' => true,
-                'mysql_compatible_production' => true,
+                'mysql_compatible_production' => false,
                 'libsql_optional' => true,
             ],
             'deployment_profile' => [
@@ -1726,12 +1916,94 @@ final class Adlaire
         ];
     }
 
+    public static function databaseRuntimeHardeningPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'SQLite / libSQL Runtime Hardening',
+            'mysql_support_planned' => false,
+            'supported_database_profiles' => [
+                'sqlite-memory',
+                'sqlite-file',
+                'libsql-http',
+                'libsql-websocket',
+            ],
+            'sqlite_profile' => [
+                'foreign_keys_enabled_by_default' => true,
+                'busy_timeout_ms_default' => 5000,
+                'wal_for_file_databases_by_default' => true,
+                'memory_database_wal_disabled' => true,
+                'synchronous_default_for_wal' => 'NORMAL',
+            ],
+            'libsql_profile' => [
+                'http_timeout_configurable' => true,
+                'http_retries_configurable' => true,
+                'token_required_profile_available' => true,
+                'websocket_http_fallback_audited' => true,
+                'libsql_extension_optional' => true,
+            ],
+            'configuration_profile' => [
+                'database_from_config_available' => true,
+                'config_repository_runtime_only' => true,
+                'named_connections_retained' => true,
+                'connect_add_connection_mixing_forbidden' => true,
+            ],
+            'required_verifications' => [
+                'sqlite_runtime_profile',
+                'database_from_config',
+                'libsql_runtime_options',
+                'official_debug_test',
+            ],
+        ];
+    }
+
+    public static function runtimeOperationsHardeningPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Runtime Operations Hardening',
+            'standard_health_available' => true,
+            'config_audit_available' => true,
+            'environment_portable' => true,
+            'provider_specific_requirement' => false,
+            'health_checks' => [
+                'php_version',
+                'runtime_environment',
+                'framework_version',
+                'database_optional',
+                'writable_paths_optional',
+            ],
+            'config_audit_checks' => [
+                'required_env',
+                'production_debug_disabled',
+                'writable_paths',
+            ],
+            'stable_release_efficiency' => [
+                'single_official_debug_command' => 'php -d phar.readonly=0 tests/debug.php',
+                'single_release_check_command' => 'sh scripts/release-check.sh',
+                'source_lint_required' => true,
+                'profile_audit_optional' => true,
+                'release_readiness_contract_required' => true,
+                'distribution_manifest_required' => true,
+            ],
+            'required_verifications' => [
+                'runtime_health',
+                'config_audit',
+                'release_efficiency_policy',
+                'official_debug_test',
+            ],
+        ];
+    }
+
     public static function migrationPolicy(): array
     {
         return [
             'from' => 'v0.30',
             'to' => self::version(),
-            'breaking_changes' => false,
+            'breaking_changes' => true,
+            'compatibility_required' => false,
+            'deployment_system_breaking_changes' => false,
+            'deployment_system_compatibility_required' => true,
             'required_tests' => ['official_debug_test'],
             'rollback_condition' => 'failed official debug test',
             'doc_update_required' => true,
@@ -1743,7 +2015,9 @@ final class Adlaire
         return [
             'extension_registry' => self::officialExtensionRegistry(),
             'signatures' => self::extensionSignatureMetadata(),
-            'compatibility_profiles' => self::compatibilityProfiles(),
+            'release_profiles' => self::releaseProfiles(),
+            'no_compatibility_policy' => self::noCompatibilityPolicy(),
+            'deployment_system_compatibility_policy' => self::deploymentSystemCompatibilityPolicy(),
             'migration_policy' => self::migrationPolicy(),
             'governance' => self::governancePolicy(),
             'stability' => self::stabilityContract(),
@@ -1756,9 +2030,10 @@ final class Adlaire
             'long_term_support' => true,
             'support_window' => 'long term stable',
             'security_fixes' => true,
-            'compatibility_fixes' => true,
+            'compatibility_fixes' => false,
             'documentation_fixes' => true,
-            'unsupported_changes' => ['breaking public API changes', 'cloud business permission changes'],
+            'unsupported_changes' => ['cloud business permission changes'],
+            'compatibility_guaranteed' => false,
         ];
     }
 
@@ -1771,24 +2046,29 @@ final class Adlaire
         ];
     }
 
-    public static function compatibilityGuarantee(): array
+    public static function noCompatibilityPolicy(): array
     {
         return [
-            'public_api' => 'fixed',
-            'kernel_api' => 'fixed',
-            'extension_contract' => 'fixed',
-            'module_contract' => 'fixed',
-            'policy_api' => 'fixed',
-            'audit_api' => 'fixed',
+            'version' => self::version(),
+            'compatibility_guaranteed' => false,
+            'stable_release_compatibility' => false,
+            'future_breaking_changes_allowed' => true,
+            'scope_exceptions' => [
+                'deployment_system' => self::deploymentSystemCompatibilityPolicy(),
+            ],
+            'migration_documentation_required' => true,
+            'release_gate' => 'current specification and official tests only',
         ];
     }
 
     public static function releaseFreezePolicy(): array
     {
         return [
-            'freeze_scope' => ['public_api', 'kernel_api', 'extension_contract', 'audit_api'],
-            'allowed_changes' => ['security_fixes', 'compatibility_fixes', 'documentation_fixes'],
-            'forbidden_changes' => ['breaking_changes', 'cloud_business_permission', 'open_contribution_enablement'],
+            'freeze_scope' => ['current_specification', 'official_tests', 'distribution_manifest'],
+            'allowed_changes' => ['security_fixes', 'breaking_changes', 'documentation_fixes'],
+            'forbidden_changes' => ['deployment_system_breaking_changes', 'cloud_business_permission', 'open_contribution_enablement'],
+            'compatibility_required' => false,
+            'deployment_system_compatibility_required' => true,
             'required_approval' => true,
             'required_tests' => ['official_debug_test'],
         ];
@@ -1800,13 +2080,17 @@ final class Adlaire
             'version' => self::version(),
             'long_term_stable' => true,
             'all_prior_contracts_included' => true,
-            'no_breaking_changes' => true,
+            'no_breaking_changes' => false,
+            'compatibility_guaranteed' => false,
+            'deployment_system_no_breaking_changes' => true,
+            'deployment_system_compatibility_guaranteed' => true,
             'official_tests_required' => true,
             'docs_are_source_of_truth' => true,
             'cloud_business_prohibition_fixed' => true,
             'non_open_contribution_fixed' => true,
             'support_policy' => self::supportPolicy(),
-            'compatibility_guarantee' => self::compatibilityGuarantee(),
+            'no_compatibility_policy' => self::noCompatibilityPolicy(),
+            'deployment_system_compatibility_policy' => self::deploymentSystemCompatibilityPolicy(),
             'release_freeze_policy' => self::releaseFreezePolicy(),
         ];
     }
@@ -1816,7 +2100,7 @@ final class Adlaire
         return [
             'version' => self::version(),
             'stable_release' => true,
-            'release_name' => 'v0.202 stable backend framework release',
+            'release_name' => 'v0.206 configuration file prohibition release',
             'backend_framework_capabilities' => [
                 'routing',
                 'middleware',
@@ -1828,14 +2112,26 @@ final class Adlaire
                 'support helpers',
                 'microkernel',
                 'Auris module integration',
+                'SQLite / libSQL runtime hardening',
+                'runtime operations hardening',
+                'operations dashboard',
+                'configuration file prohibition',
             ],
-            'no_breaking_changes' => true,
+            'no_breaking_changes' => false,
+            'breaking_changes_allowed' => true,
+            'compatibility_guaranteed' => false,
+            'deployment_system_no_breaking_changes' => true,
+            'deployment_system_compatibility_guaranteed' => true,
             'ten_file_principle' => true,
             'deployment_axis' => true,
             'official_debug_test_required' => true,
             'docker_debug_verified' => true,
             'auris_integration_policy_retained' => true,
             'cloud_business_prohibition_fixed' => true,
+            'mysql_support_planned' => false,
+            'runtime_operations_hardening' => true,
+            'operations_dashboard' => true,
+            'configuration_file_prohibition' => true,
         ];
     }
 
@@ -1952,17 +2248,29 @@ final class Adlaire
             'file_principle' => self::auditFilePrinciple() === '10 files',
             'microkernel_policy' => self::microkernelPolicy()['event_bus_available'] === true
                 && self::microkernelPolicy()['extension_manifest_available'] === true,
-            'stability_contract' => self::stabilityContract()['breaking_changes_forbidden'] === true,
+            'stability_contract' => self::stabilityContract()['stable_snapshot'] === true
+                && self::stabilityContract()['breaking_changes_allowed'] === true
+                && self::stabilityContract()['compatibility_guaranteed'] === false
+                && self::stabilityContract()['deployment_system_breaking_changes_allowed'] === false
+                && self::stabilityContract()['deployment_system_compatibility_guaranteed'] === true,
+            'deployment_system_compatibility_policy' => self::deploymentSystemCompatibilityPolicy()['compatibility_guaranteed'] === true
+                && self::deploymentSystemCompatibilityPolicy()['breaking_changes_allowed'] === false
+                && self::deploymentSystemCompatibilityPolicy()['core_file'] === 'DeploymentCore.php',
             'long_term_stability_contract' => self::longTermStabilityContract()['long_term_stable'] === true,
             'stable_release_contract' => self::stableReleaseContract()['stable_release'] === true
                 && self::stableReleaseContract()['version'] === self::version()
-                && self::stableReleaseContract()['no_breaking_changes'] === true
+                && self::stableReleaseContract()['breaking_changes_allowed'] === true
+                && self::stableReleaseContract()['compatibility_guaranteed'] === false
+                && self::stableReleaseContract()['deployment_system_no_breaking_changes'] === true
+                && self::stableReleaseContract()['deployment_system_compatibility_guaranteed'] === true
                 && self::stableReleaseContract()['ten_file_principle'] === true
                 && self::stableReleaseContract()['deployment_axis'] === true
                 && self::stableReleaseContract()['docker_debug_verified'] === true
                 && in_array('database', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('deployment', self::stableReleaseContract()['backend_framework_capabilities'], true)
-                && in_array('configuration', self::stableReleaseContract()['backend_framework_capabilities'], true),
+                && in_array('configuration', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('SQLite / libSQL runtime hardening', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && self::stableReleaseContract()['mysql_support_planned'] === false,
             'production_environment_policy' => self::productionEnvironmentPolicy()['production_provider'] === 'Xserver rental server'
                 && self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
                 && self::productionEnvironmentPolicy()['php_requirement'] === '>=8.3'
@@ -1970,6 +2278,37 @@ final class Adlaire
                 && self::productionEnvironmentPolicy()['composer_required'] === false
                 && self::productionEnvironmentPolicy()['external_service_required_for_tests'] === false
                 && in_array('xserver_profile_audit', self::productionEnvironmentPolicy()['required_verifications'], true),
+            'database_runtime_hardening_policy' => self::databaseRuntimeHardeningPolicy()['theme'] === 'SQLite / libSQL Runtime Hardening'
+                && self::databaseRuntimeHardeningPolicy()['mysql_support_planned'] === false
+                && self::databaseRuntimeHardeningPolicy()['sqlite_profile']['foreign_keys_enabled_by_default'] === true
+                && self::databaseRuntimeHardeningPolicy()['sqlite_profile']['busy_timeout_ms_default'] === 5000
+                && self::databaseRuntimeHardeningPolicy()['libsql_profile']['http_timeout_configurable'] === true
+                && self::databaseRuntimeHardeningPolicy()['libsql_profile']['http_retries_configurable'] === true
+                && self::databaseRuntimeHardeningPolicy()['configuration_profile']['database_from_config_available'] === true
+                && in_array('sqlite_runtime_profile', self::databaseRuntimeHardeningPolicy()['required_verifications'], true),
+            'runtime_operations_hardening_policy' => self::runtimeOperationsHardeningPolicy()['theme'] === 'Runtime Operations Hardening'
+                && self::runtimeOperationsHardeningPolicy()['standard_health_available'] === true
+                && self::runtimeOperationsHardeningPolicy()['config_audit_available'] === true
+                && self::runtimeOperationsHardeningPolicy()['provider_specific_requirement'] === false
+                && self::runtimeOperationsHardeningPolicy()['stable_release_efficiency']['single_release_check_command'] === 'sh scripts/release-check.sh'
+                && self::runtimeOperationsHardeningPolicy()['stable_release_efficiency']['source_lint_required'] === true
+                && self::runtimeOperationsHardeningPolicy()['stable_release_efficiency']['release_readiness_contract_required'] === true
+                && in_array('runtime_health', self::runtimeOperationsHardeningPolicy()['required_verifications'], true),
+            'dashboard_policy' => self::dashboardPolicy()['theme'] === 'Operations Dashboard'
+                && self::dashboardPolicy()['default_enabled'] === false
+                && self::dashboardPolicy()['read_only'] === true
+                && self::dashboardPolicy()['auth_required'] === true
+                && self::dashboardPolicy()['command_execution_allowed'] === false
+                && self::dashboardPolicy()['writes_allowed'] === false
+                && self::dashboardPolicy()['secret_values_exposed'] === false
+                && in_array('dashboard_auth_required', self::dashboardPolicy()['required_verifications'], true),
+            'configuration_file_policy' => self::configurationFilePolicy()['theme'] === 'Configuration File Prohibition'
+                && self::configurationFilePolicy()['framework_configuration_files_allowed'] === false
+                && self::configurationFilePolicy()['env_files_allowed'] === false
+                && self::configurationFilePolicy()['env_loader_allowed'] === false
+                && self::configurationFilePolicy()['json_metadata_exception'] === true
+                && self::configurationFilePolicy()['json_for_secret_configuration_allowed'] === false
+                && in_array('no_env_files', self::configurationFilePolicy()['required_verifications'], true),
             'deployment_axis_policy' => self::deploymentAxisPolicy()['framework_axis'] === 'deployment system'
                 && self::deploymentAxisPolicy()['architecture_changed'] === false
                 && self::deploymentAxisPolicy()['deployment_system']['core_name'] === 'Deployment Core'
@@ -2066,9 +2405,14 @@ final class Adlaire
             'distribution_manifest',
             'microkernel_policy',
             'stability_contract',
+            'deployment_system_compatibility_policy',
             'long_term_stability_contract',
             'stable_release_contract',
             'production_environment_policy',
+            'database_runtime_hardening_policy',
+            'runtime_operations_hardening_policy',
+            'dashboard_policy',
+            'configuration_file_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
         ];
@@ -2087,9 +2431,14 @@ final class Adlaire
             'distribution_manifest',
             'microkernel_policy',
             'stability_contract',
+            'deployment_system_compatibility_policy',
             'long_term_stability_contract',
             'stable_release_contract',
             'production_environment_policy',
+            'database_runtime_hardening_policy',
+            'runtime_operations_hardening_policy',
+            'dashboard_policy',
+            'configuration_file_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
         ];
@@ -2115,9 +2464,9 @@ final class Adlaire
             'deployment_axis_policy',
             'auris_integration_policy',
             'design_philosophy',
-            'compatibility',
+            'release_requirements',
             'required_verifications',
-            'breaking_change_policy',
+            'change_policy',
         ];
 
         return [
@@ -2147,7 +2496,6 @@ final class Adlaire
                 'tests/debug.php',
                 'adlaire-ecosystem.md',
             ],
-            'public_api' => self::publicApi(),
             'license_policy' => self::licensePolicy(),
             'prohibited_use_policy' => self::prohibitedUsePolicy(),
             'distribution_policy' => self::distributionPolicy(),
@@ -2159,9 +2507,14 @@ final class Adlaire
             ],
             'microkernel_policy' => self::microkernelPolicy(),
             'stability_contract' => self::stabilityContract(),
+            'deployment_system_compatibility_policy' => self::deploymentSystemCompatibilityPolicy(),
             'long_term_stability_contract' => self::longTermStabilityContract(),
             'stable_release_contract' => self::stableReleaseContract(),
             'production_environment_policy' => self::productionEnvironmentPolicy(),
+            'database_runtime_hardening_policy' => self::databaseRuntimeHardeningPolicy(),
+            'runtime_operations_hardening_policy' => self::runtimeOperationsHardeningPolicy(),
+            'dashboard_policy' => self::dashboardPolicy(),
+            'configuration_file_policy' => self::configurationFilePolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
         ];
@@ -2179,7 +2532,7 @@ final class Adlaire
             'php' => '>=8.3',
             'version_format' => 'v0.x',
             'cumulative_version' => true,
-            'formalization_version' => 'v0.202',
+            'formalization_version' => 'v0.206',
             'file_principle' => self::auditFilePrinciple(),
             'external_dependencies' => 'none; optional libSQL PHP extension only',
             'license_policy' => self::licensePolicy(),
@@ -2197,18 +2550,23 @@ final class Adlaire
             'health_report' => self::healthReport(),
             'autonomous_audit_report' => self::autonomousAuditReport(),
             'stability_contract' => self::stabilityContract(),
+            'deployment_system_compatibility_policy' => self::deploymentSystemCompatibilityPolicy(),
             'official_extension_registry' => self::officialExtensionRegistry(),
             'extension_signature_metadata' => self::extensionSignatureMetadata(),
-            'compatibility_profiles' => self::compatibilityProfiles(),
+            'release_profiles' => self::releaseProfiles(),
             'migration_policy' => self::migrationPolicy(),
             'ecosystem_audit_report' => self::ecosystemAuditReport(),
             'support_policy' => self::supportPolicy(),
             'security_fix_protocol' => self::securityFixProtocol(),
-            'compatibility_guarantee' => self::compatibilityGuarantee(),
+            'no_compatibility_policy' => self::noCompatibilityPolicy(),
             'release_freeze_policy' => self::releaseFreezePolicy(),
             'long_term_stability_contract' => self::longTermStabilityContract(),
             'stable_release_contract' => self::stableReleaseContract(),
             'production_environment_policy' => self::productionEnvironmentPolicy(),
+            'database_runtime_hardening_policy' => self::databaseRuntimeHardeningPolicy(),
+            'runtime_operations_hardening_policy' => self::runtimeOperationsHardeningPolicy(),
+            'dashboard_policy' => self::dashboardPolicy(),
+            'configuration_file_policy' => self::configurationFilePolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
             'design_philosophy' => [
@@ -2226,53 +2584,82 @@ final class Adlaire
             'official_debug_test' => 'php -d phar.readonly=0 tests/debug.php',
             'specification_ids' => self::specificationIds(),
             'test_specification_map' => self::testSpecificationMap(),
-            'compatibility_matrix' => self::compatibilityMatrix(),
+            'release_requirement_matrix' => self::releaseRequirementMatrix(),
             'required_verifications' => [
                 'php_lint',
                 'official_debug_test',
                 'xserver_profile_audit',
                 'git_diff_check',
             ],
-            'breaking_change_policy' => [
-                'public_api_removal' => 'forbidden',
-                'incompatible_argument_change' => 'forbidden',
-                'return_structure_break' => 'forbidden',
-                'exception' => 'security fix with documented reason and migration condition only',
+            'change_policy' => [
+                'breaking_changes_allowed' => true,
+                'compatibility_required' => false,
+                'deployment_system_breaking_changes_allowed' => false,
+                'deployment_system_compatibility_required' => true,
+                'migration_documentation_required' => true,
+                'exception' => 'cloud business permission and open contribution enablement remain prohibited',
             ],
         ];
     }
 
-    public static function compatibilityMatrix(): array
+    public static function releaseRequirementMatrix(): array
     {
         return [
             'php' => [
                 'requirement' => '>=8.3',
-                'compatible' => PHP_VERSION_ID >= 80300,
-            ],
-            'public_api' => [
-                'baseline' => 'v0.10',
-                'compatible' => true,
+                'passed' => PHP_VERSION_ID >= 80300,
             ],
             'formalization' => [
                 'baseline' => 'v0.11',
-                'compatible' => true,
+                'passed' => true,
             ],
             'runtime' => [
-                'official_environment' => 'local Docker php:8.3-apache with Xserver compatibility profile',
+                'official_environment' => 'local Docker php:8.3-apache profile',
                 'official_debug_test' => 'php -d phar.readonly=0 tests/debug.php',
-                'compatible' => true,
+                'passed' => true,
             ],
             'production_equivalent' => [
                 'provider' => 'Xserver rental server',
                 'profile' => self::productionEnvironmentPolicy(),
-                'compatible' => self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
+                'passed' => self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
                     && self::productionEnvironmentPolicy()['php_requirement'] === '>=8.3'
                     && self::productionEnvironmentPolicy()['composer_required'] === false,
+            ],
+            'deployment_system_compatibility' => [
+                'profile' => self::deploymentSystemCompatibilityPolicy(),
+                'passed' => self::deploymentSystemCompatibilityPolicy()['compatibility_guaranteed'] === true
+                    && self::deploymentSystemCompatibilityPolicy()['breaking_changes_allowed'] === false
+                    && self::deploymentSystemCompatibilityPolicy()['core_file'] === 'DeploymentCore.php',
             ],
             'dependencies' => [
                 'external_dependencies' => 'none',
                 'optional_dependencies' => ['libSQL PHP extension'],
-                'compatible' => true,
+                'passed' => true,
+            ],
+            'database_runtime_hardening' => [
+                'profile' => self::databaseRuntimeHardeningPolicy(),
+                'passed' => self::databaseRuntimeHardeningPolicy()['mysql_support_planned'] === false
+                    && self::databaseRuntimeHardeningPolicy()['sqlite_profile']['foreign_keys_enabled_by_default'] === true
+                    && self::databaseRuntimeHardeningPolicy()['libsql_profile']['http_timeout_configurable'] === true,
+            ],
+            'runtime_operations_hardening' => [
+                'profile' => self::runtimeOperationsHardeningPolicy(),
+                'passed' => self::runtimeOperationsHardeningPolicy()['standard_health_available'] === true
+                    && self::runtimeOperationsHardeningPolicy()['config_audit_available'] === true
+                    && self::runtimeOperationsHardeningPolicy()['provider_specific_requirement'] === false,
+            ],
+            'operations_dashboard' => [
+                'profile' => self::dashboardPolicy(),
+                'passed' => self::dashboardPolicy()['default_enabled'] === false
+                    && self::dashboardPolicy()['auth_required'] === true
+                    && self::dashboardPolicy()['read_only'] === true
+                    && self::dashboardPolicy()['secret_values_exposed'] === false,
+            ],
+            'configuration_file_policy' => [
+                'profile' => self::configurationFilePolicy(),
+                'passed' => self::configurationFilePolicy()['framework_configuration_files_allowed'] === false
+                    && self::configurationFilePolicy()['env_files_allowed'] === false
+                    && self::configurationFilePolicy()['json_metadata_exception'] === true,
             ],
         ];
     }
@@ -2308,24 +2695,76 @@ final class Adlaire
                 && ($audit['distribution_manifest']['release_readiness']['ready'] ?? false) === true,
             'file_principle' => ($audit['file_principle'] ?? null) === '10 files',
             'microkernel_policy' => ($audit['microkernel_policy']['event_bus_available'] ?? false) === true,
-            'stability_contract' => ($audit['stability_contract']['breaking_changes_forbidden'] ?? false) === true,
+            'stability_contract' => ($audit['stability_contract']['stable_snapshot'] ?? false) === true
+                && ($audit['stability_contract']['breaking_changes_allowed'] ?? false) === true
+                && ($audit['stability_contract']['compatibility_guaranteed'] ?? true) === false
+                && ($audit['stability_contract']['deployment_system_breaking_changes_allowed'] ?? true) === false
+                && ($audit['stability_contract']['deployment_system_compatibility_guaranteed'] ?? false) === true,
+            'deployment_system_compatibility_policy' => ($audit['deployment_system_compatibility_policy']['compatibility_guaranteed'] ?? false) === true
+                && ($audit['deployment_system_compatibility_policy']['breaking_changes_allowed'] ?? true) === false
+                && ($audit['deployment_system_compatibility_policy']['core_file'] ?? null) === 'DeploymentCore.php',
             'long_term_stability_contract' => ($audit['long_term_stability_contract']['long_term_stable'] ?? false) === true
-                && ($audit['long_term_stability_contract']['no_breaking_changes'] ?? false) === true,
+                && ($audit['long_term_stability_contract']['no_breaking_changes'] ?? true) === false
+                && ($audit['long_term_stability_contract']['compatibility_guaranteed'] ?? true) === false
+                && ($audit['long_term_stability_contract']['deployment_system_no_breaking_changes'] ?? false) === true
+                && ($audit['long_term_stability_contract']['deployment_system_compatibility_guaranteed'] ?? false) === true,
             'stable_release_contract' => ($audit['stable_release_contract']['stable_release'] ?? false) === true
                 && ($audit['stable_release_contract']['version'] ?? null) === self::version()
-                && ($audit['stable_release_contract']['no_breaking_changes'] ?? false) === true
+                && ($audit['stable_release_contract']['breaking_changes_allowed'] ?? false) === true
+                && ($audit['stable_release_contract']['compatibility_guaranteed'] ?? true) === false
+                && ($audit['stable_release_contract']['deployment_system_no_breaking_changes'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_system_compatibility_guaranteed'] ?? false) === true
                 && ($audit['stable_release_contract']['ten_file_principle'] ?? false) === true
                 && ($audit['stable_release_contract']['deployment_axis'] ?? false) === true
                 && ($audit['stable_release_contract']['docker_debug_verified'] ?? false) === true
                 && in_array('routing', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('database', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
-                && in_array('deployment', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true),
+                && in_array('deployment', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('SQLite / libSQL runtime hardening', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('runtime operations hardening', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('operations dashboard', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('configuration file prohibition', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && ($audit['stable_release_contract']['mysql_support_planned'] ?? true) === false
+                && ($audit['stable_release_contract']['runtime_operations_hardening'] ?? false) === true
+                && ($audit['stable_release_contract']['operations_dashboard'] ?? false) === true
+                && ($audit['stable_release_contract']['configuration_file_prohibition'] ?? false) === true,
             'production_environment_policy' => ($audit['production_environment_policy']['production_provider'] ?? null) === 'Xserver rental server'
                 && ($audit['production_environment_policy']['production_equivalent_testing_required'] ?? false) === true
                 && ($audit['production_environment_policy']['php_requirement'] ?? null) === '>=8.3'
                 && ($audit['production_environment_policy']['htaccess_required'] ?? false) === true
                 && ($audit['production_environment_policy']['composer_required'] ?? true) === false
                 && in_array('xserver_profile_audit', $audit['production_environment_policy']['required_verifications'] ?? [], true),
+            'database_runtime_hardening_policy' => ($audit['database_runtime_hardening_policy']['theme'] ?? null) === 'SQLite / libSQL Runtime Hardening'
+                && ($audit['database_runtime_hardening_policy']['mysql_support_planned'] ?? true) === false
+                && ($audit['database_runtime_hardening_policy']['sqlite_profile']['foreign_keys_enabled_by_default'] ?? false) === true
+                && ($audit['database_runtime_hardening_policy']['sqlite_profile']['busy_timeout_ms_default'] ?? null) === 5000
+                && ($audit['database_runtime_hardening_policy']['libsql_profile']['http_timeout_configurable'] ?? false) === true
+                && ($audit['database_runtime_hardening_policy']['libsql_profile']['http_retries_configurable'] ?? false) === true
+                && ($audit['database_runtime_hardening_policy']['configuration_profile']['database_from_config_available'] ?? false) === true
+                && in_array('database_from_config', $audit['database_runtime_hardening_policy']['required_verifications'] ?? [], true),
+            'runtime_operations_hardening_policy' => ($audit['runtime_operations_hardening_policy']['theme'] ?? null) === 'Runtime Operations Hardening'
+                && ($audit['runtime_operations_hardening_policy']['standard_health_available'] ?? false) === true
+                && ($audit['runtime_operations_hardening_policy']['config_audit_available'] ?? false) === true
+                && ($audit['runtime_operations_hardening_policy']['provider_specific_requirement'] ?? true) === false
+                && ($audit['runtime_operations_hardening_policy']['stable_release_efficiency']['source_lint_required'] ?? false) === true
+                && ($audit['runtime_operations_hardening_policy']['stable_release_efficiency']['release_readiness_contract_required'] ?? false) === true
+                && in_array('runtime_health', $audit['runtime_operations_hardening_policy']['required_verifications'] ?? [], true),
+            'dashboard_policy' => ($audit['dashboard_policy']['theme'] ?? null) === 'Operations Dashboard'
+                && ($audit['dashboard_policy']['default_enabled'] ?? true) === false
+                && ($audit['dashboard_policy']['auth_required'] ?? false) === true
+                && ($audit['dashboard_policy']['read_only'] ?? false) === true
+                && ($audit['dashboard_policy']['command_execution_allowed'] ?? true) === false
+                && ($audit['dashboard_policy']['writes_allowed'] ?? true) === false
+                && ($audit['dashboard_policy']['secret_values_exposed'] ?? true) === false
+                && ($audit['dashboard_policy']['json_format_available'] ?? true) === false
+                && in_array('dashboard_html_only', $audit['dashboard_policy']['required_verifications'] ?? [], true),
+            'configuration_file_policy' => ($audit['configuration_file_policy']['theme'] ?? null) === 'Configuration File Prohibition'
+                && ($audit['configuration_file_policy']['framework_configuration_files_allowed'] ?? true) === false
+                && ($audit['configuration_file_policy']['env_files_allowed'] ?? true) === false
+                && ($audit['configuration_file_policy']['env_loader_allowed'] ?? true) === false
+                && ($audit['configuration_file_policy']['json_metadata_exception'] ?? false) === true
+                && ($audit['configuration_file_policy']['json_for_secret_configuration_allowed'] ?? true) === false
+                && in_array('no_env_files', $audit['configuration_file_policy']['required_verifications'] ?? [], true),
             'deployment_axis_policy' => ($audit['deployment_axis_policy']['framework_axis'] ?? null) === 'deployment system'
                 && ($audit['deployment_axis_policy']['architecture_changed'] ?? true) === false
                 && ($audit['deployment_axis_policy']['deployment_system']['core_name'] ?? null) === 'Deployment Core'
@@ -2389,16 +2828,19 @@ final class Adlaire
                 && ($audit['design_philosophy']['modules'] ?? null) === 'specification-defined framework module architecture'
                 && ($audit['design_philosophy']['architecture_changed'] ?? true) === false
                 && ($audit['design_philosophy']['standalone_framework_usage'] ?? false) === true,
-            'compatibility' => array_reduce(
-                $audit['compatibility_matrix'] ?? [],
-                static fn(bool $carry, array $item): bool => $carry && (($item['compatible'] ?? false) === true),
+            'release_requirements' => array_reduce(
+                $audit['release_requirement_matrix'] ?? [],
+                static fn(bool $carry, array $item): bool => $carry && (($item['passed'] ?? false) === true),
                 true
             ),
             'required_verifications' => in_array('php_lint', $audit['required_verifications'] ?? [], true)
                 && in_array('official_debug_test', $audit['required_verifications'] ?? [], true)
                 && in_array('xserver_profile_audit', $audit['required_verifications'] ?? [], true)
                 && in_array('git_diff_check', $audit['required_verifications'] ?? [], true),
-            'breaking_change_policy' => ($audit['breaking_change_policy']['public_api_removal'] ?? null) === 'forbidden',
+            'change_policy' => ($audit['change_policy']['breaking_changes_allowed'] ?? false) === true
+                && ($audit['change_policy']['compatibility_required'] ?? true) === false
+                && ($audit['change_policy']['deployment_system_breaking_changes_allowed'] ?? true) === false
+                && ($audit['change_policy']['deployment_system_compatibility_required'] ?? false) === true,
         ];
 
         return [

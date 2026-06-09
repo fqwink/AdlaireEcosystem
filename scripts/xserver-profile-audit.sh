@@ -23,29 +23,42 @@ check_dir_absent() {
 
 check_file Dockerfile.xserver
 check_file docker-compose.xserver.yml
-check_file .env.xserver.example
-check_file config/xserver/apache/000-default.conf
-check_file config/xserver/apache/xserver-profile.conf
-check_file config/xserver/php.ini
 check_file public_html/.htaccess
 check_file public_html/index.php
+check_file public_html/dashboard.php
 check_file storage/.gitkeep
 check_file DeploymentCore.php
 check_file FrameworkCore/Core.php
 check_dir_absent DeploymentCore
 
-if grep -q "DocumentRoot /var/www/html/public_html" config/xserver/apache/000-default.conf; then
+if grep -q "DocumentRoot /var/www/html/public_html" Dockerfile.xserver; then
     echo "PASS document root: public_html"
 else
     echo "FAIL document root must be public_html"
     failures=$((failures + 1))
 fi
 
-if grep -q "AllowOverride All" config/xserver/apache/000-default.conf && grep -q "RewriteEngine On" public_html/.htaccess; then
+if grep -q "AllowOverride All" Dockerfile.xserver && grep -q "RewriteEngine On" public_html/.htaccess; then
     echo "PASS htaccess rewrite profile"
 else
     echo "FAIL htaccess rewrite profile"
     failures=$((failures + 1))
+fi
+
+prohibited_config=$(
+    find . \
+        \( -path './.git' -o -path './.git/*' \) -prune -o \
+        -type f \
+        \( -name '.env*' -o -name '*.ini' -o -name '*.conf' -o -name '*.yaml' -o -name '*.yml' -o -name 'config.php' -o -name '*.config.php' \) \
+        ! -path './docker-compose.xserver.yml' \
+        -print
+)
+if [ -n "$prohibited_config" ]; then
+    echo "FAIL prohibited framework configuration file found"
+    echo "$prohibited_config"
+    failures=$((failures + 1))
+else
+    echo "PASS framework configuration files prohibited"
 fi
 
 if [ -f composer.json ]; then

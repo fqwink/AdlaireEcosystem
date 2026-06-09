@@ -5,12 +5,56 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html/public_html
 
 RUN a2enmod rewrite headers \
     && sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-
-COPY config/xserver/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
-COPY config/xserver/apache/xserver-profile.conf /etc/apache2/conf-available/xserver-profile.conf
-COPY config/xserver/php.ini /usr/local/etc/php/conf.d/zz-xserver-profile.ini
-
-RUN a2enconf xserver-profile
+RUN { \
+        printf '%s\n' '<VirtualHost *:80>'; \
+        printf '%s\n' '    ServerAdmin webmaster@localhost'; \
+        printf '%s\n' '    DocumentRoot /var/www/html/public_html'; \
+        printf '%s\n' '    <Directory /var/www/html/public_html>'; \
+        printf '%s\n' '        Options -Indexes +FollowSymLinks'; \
+        printf '%s\n' '        AllowOverride All'; \
+        printf '%s\n' '        Require all granted'; \
+        printf '%s\n' '    </Directory>'; \
+        printf '%s\n' '    ErrorLog ${APACHE_LOG_DIR}/error.log'; \
+        printf '%s\n' '    CustomLog ${APACHE_LOG_DIR}/access.log combined'; \
+        printf '%s\n' '</VirtualHost>'; \
+    } > /etc/apache2/sites-available/000-default.conf \
+    && { \
+        printf '%s\n' 'ServerTokens Prod'; \
+        printf '%s\n' 'ServerSignature Off'; \
+        printf '%s\n' 'ServerName localhost'; \
+        printf '%s\n' '<Directory /var/www/html>'; \
+        printf '%s\n' '    Options -Indexes +FollowSymLinks'; \
+        printf '%s\n' '    AllowOverride None'; \
+        printf '%s\n' '    Require all denied'; \
+        printf '%s\n' '</Directory>'; \
+        printf '%s\n' '<Directory /var/www/html/public_html>'; \
+        printf '%s\n' '    Options -Indexes +FollowSymLinks'; \
+        printf '%s\n' '    AllowOverride All'; \
+        printf '%s\n' '    Require all granted'; \
+        printf '%s\n' '</Directory>'; \
+        printf '%s\n' '<FilesMatch "^\.">'; \
+        printf '%s\n' '    Require all denied'; \
+        printf '%s\n' '</FilesMatch>'; \
+    } > /etc/apache2/conf-available/xserver-profile.conf \
+    && { \
+        printf '%s\n' 'expose_php=Off'; \
+        printf '%s\n' 'display_errors=Off'; \
+        printf '%s\n' 'display_startup_errors=Off'; \
+        printf '%s\n' 'log_errors=On'; \
+        printf '%s\n' 'error_reporting=E_ALL'; \
+        printf '%s\n' 'memory_limit=256M'; \
+        printf '%s\n' 'post_max_size=64M'; \
+        printf '%s\n' 'upload_max_filesize=64M'; \
+        printf '%s\n' 'max_execution_time=30'; \
+        printf '%s\n' 'max_input_time=60'; \
+        printf '%s\n' 'default_charset=UTF-8'; \
+        printf '%s\n' 'date.timezone=Asia/Tokyo'; \
+        printf '%s\n' 'phar.readonly=0'; \
+        printf '%s\n' 'session.cookie_httponly=1'; \
+        printf '%s\n' 'session.cookie_samesite=Lax'; \
+        printf '%s\n' 'session.use_strict_mode=1'; \
+    } > /usr/local/etc/php/conf.d/zz-xserver-profile.ini \
+    && a2enconf xserver-profile
 
 WORKDIR /var/www/html
 

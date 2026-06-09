@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Database.php
  *
- * @version v0.201
+ * @version v0.203
  * @php     >= 8.3
  */
 
@@ -74,17 +74,24 @@ final class AdlaireStatement
 final class PdoDriver implements LibSqlDriver
 {
     private PDO $pdo;
+    private array $runtimeProfile = [];
 
-    public function __construct(string $path)
+    public function __construct(string $path, array $options = [])
     {
         $this->pdo = new PDO('sqlite:' . $path);
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        $this->configureSqlite($path, $options);
     }
 
     public function pdo(): PDO
     {
         return $this->pdo;
+    }
+
+    public function runtimeProfile(): array
+    {
+        return $this->runtimeProfile;
     }
 
     public function execute(string $sql, array $bindings = []): AdlaireStatement
@@ -124,6 +131,59 @@ final class PdoDriver implements LibSqlDriver
     {
         return $this->pdo->inTransaction();
     }
+
+    private function configureSqlite(string $path, array $options): void
+    {
+        $foreignKeys = $options['foreign_keys'] ?? true;
+        $busyTimeoutMs = (int)($options['busy_timeout_ms'] ?? 5000);
+        $journalMode = $options['journal_mode'] ?? ($path === ':memory:' ? null : 'WAL');
+        $synchronous = $options['synchronous'] ?? ($journalMode === null ? null : 'NORMAL');
+
+        if ($foreignKeys !== false) {
+            $this->pdo->exec('PRAGMA foreign_keys = ON');
+        }
+
+        if ($busyTimeoutMs < 0) {
+            throw new InvalidArgumentException('SQLite busy_timeout_ms must be zero or greater.');
+        }
+        $this->pdo->exec('PRAGMA busy_timeout = ' . $busyTimeoutMs);
+
+        if (is_string($journalMode) && $journalMode !== '') {
+            $this->assertPragmaToken($journalMode, 'journal_mode');
+            $this->pdo->exec('PRAGMA journal_mode = ' . strtoupper($journalMode));
+        }
+
+        if (is_string($synchronous) && $synchronous !== '') {
+            $this->assertPragmaToken($synchronous, 'synchronous');
+            $this->pdo->exec('PRAGMA synchronous = ' . strtoupper($synchronous));
+        }
+
+        $this->runtimeProfile = [
+            'driver' => 'sqlite',
+            'path' => $path,
+            'foreign_keys' => $this->pragmaValue('foreign_keys') === '1',
+            'busy_timeout_ms' => (int)$this->pragmaValue('busy_timeout'),
+            'journal_mode' => strtolower($this->pragmaValue('journal_mode')),
+            'synchronous' => $this->pragmaValue('synchronous'),
+        ];
+    }
+
+    private function pragmaValue(string $name): string
+    {
+        $statement = $this->pdo->query('PRAGMA ' . $name);
+        if (!$statement instanceof PDOStatement) {
+            return '';
+        }
+        $value = $statement->fetchColumn();
+        return is_scalar($value) ? (string)$value : '';
+    }
+
+    private function assertPragmaToken(string $value, string $name): void
+    {
+        if (preg_match('/^[A-Za-z_]+$/', $value) !== 1) {
+            throw new InvalidArgumentException("Invalid SQLite {$name}: {$value}");
+        }
+    }
 }
 
 class HttpDriver implements LibSqlDriver
@@ -132,11 +192,35 @@ class HttpDriver implements LibSqlDriver
 
     public function __construct(
         protected string $url,
-        protected ?string $token = null
+        protected ?string $token = null,
+        protected int $timeoutSeconds = 30,
+        protected int $retries = 0,
+        protected bool $tokenRequired = false
     ) {
         if (!extension_loaded('curl')) {
             throw new RuntimeException('curl extension is required for libSQL HTTP connections.');
         }
+        if ($this->timeoutSeconds < 1) {
+            throw new InvalidArgumentException('libSQL HTTP timeout_seconds must be at least 1.');
+        }
+        if ($this->retries < 0) {
+            throw new InvalidArgumentException('libSQL HTTP retries must be zero or greater.');
+        }
+        if ($this->tokenRequired && ($this->token === null || $this->token === '')) {
+            throw new InvalidArgumentException('libSQL token is required for this connection profile.');
+        }
+    }
+
+    public function runtimeProfile(): array
+    {
+        return [
+            'driver' => 'libsql-http',
+            'url' => $this->url,
+            'timeout_seconds' => $this->timeoutSeconds,
+            'retries' => $this->retries,
+            'token_configured' => $this->token !== null && $this->token !== '',
+            'token_required' => $this->tokenRequired,
+        ];
     }
 
     public function execute(string $sql, array $bindings = []): AdlaireStatement
@@ -197,16 +281,26 @@ class HttpDriver implements LibSqlDriver
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
+            CURLOPT_TIMEOUT => $this->timeoutSeconds,
         ]);
 
-        $body = curl_exec($curl);
-        $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-        $error = curl_error($curl);
+        $body = false;
+        $status = 0;
+        $error = '';
+        $attempt = 0;
+        do {
+            if ($attempt > 0) {
+                usleep(min(250000, 50000 * $attempt));
+            }
+            $body = curl_exec($curl);
+            $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+            $error = curl_error($curl);
+            $attempt++;
+        } while (($body === false || $status >= 500 || $status === 429) && $attempt <= $this->retries);
         curl_close($curl);
 
         if ($body === false || $status < 200 || $status >= 300) {
-            throw new RuntimeException('libSQL HTTP request failed: ' . ($error !== '' ? $error : (string)$body));
+            throw new RuntimeException('libSQL HTTP request failed: ' . $this->classifyFailure($status, $error, (string)$body));
         }
 
         $decoded = json_decode((string)$body, true);
@@ -214,6 +308,26 @@ class HttpDriver implements LibSqlDriver
             throw new RuntimeException('libSQL HTTP response must be JSON.');
         }
         return $decoded;
+    }
+
+    protected function classifyFailure(int $status, string $error, string $body): string
+    {
+        if ($error !== '') {
+            return 'transport error: ' . $error;
+        }
+        if ($status === 401 || $status === 403) {
+            return "authentication failed with HTTP {$status}";
+        }
+        if ($status === 429) {
+            return 'rate limited with HTTP 429';
+        }
+        if ($status >= 500) {
+            return "remote server error HTTP {$status}: {$body}";
+        }
+        if ($status >= 400) {
+            return "request rejected HTTP {$status}: {$body}";
+        }
+        return $body !== '' ? $body : 'unknown libSQL HTTP failure';
     }
 
     protected function statementFromResponse(array $response): AdlaireStatement
@@ -239,6 +353,10 @@ class HttpDriver implements LibSqlDriver
 
 final class WebSocketDriver extends HttpDriver
 {
+    public function runtimeProfile(): array
+    {
+        return array_replace(parent::runtimeProfile(), ['driver' => 'libsql-websocket']);
+    }
 }
 
 final class Database
@@ -254,15 +372,15 @@ final class Database
     private int $queryLogMaxEntries = 1000;
     private array $queryLog = [];
 
-    public function __construct(string $url, ?string $token = null)
+    public function __construct(string $url, ?string $token = null, array $options = [])
     {
-        $this->driver = $this->createDriver($url, $token);
+        $this->driver = $this->createDriver($url, $token, $options);
         if ($this->driver instanceof PdoDriver) {
             $this->pdo = $this->driver->pdo();
         }
     }
 
-    public static function addConnection(string $name, string $url, bool $default = false, ?string $token = null): self
+    public static function addConnection(string $name, string $url, bool $default = false, ?string $token = null, array $options = []): self
     {
         if (self::$usedConnect) {
             throw new RuntimeException('Database::connect() cannot be mixed with addConnection().');
@@ -271,7 +389,7 @@ final class Database
             throw new InvalidArgumentException('Connection name must not be empty.');
         }
 
-        $database = new self($url, $token);
+        $database = new self($url, $token, $options);
         self::$connections[$name] = $database;
 
         if ($default || self::$defaultConnection === null) {
@@ -302,6 +420,24 @@ final class Database
         self::$usedConnect = false;
     }
 
+    public static function fromConfig(array|object $config, ?string $name = null): self
+    {
+        $connectionName = $name ?? (string)self::configValue($config, 'name', 'default');
+        $url = self::configValue($config, 'url', self::configValue($config, 'database_url', null));
+        if (!is_string($url) || $url === '') {
+            throw new InvalidArgumentException('Database config requires url or database_url.');
+        }
+
+        $token = self::configValue($config, 'token', self::configValue($config, 'database_token', null));
+        $default = (bool)self::configValue($config, 'default', false);
+        $options = self::configValue($config, 'options', []);
+        if (!is_array($options)) {
+            throw new InvalidArgumentException('Database config options must be an array.');
+        }
+
+        return self::addConnection($connectionName, $url, $default, is_scalar($token) ? (string)$token : null, $options);
+    }
+
     public static function connect(string $path): self
     {
         if (self::$connections !== [] && !self::$usedConnect) {
@@ -322,6 +458,14 @@ final class Database
             throw new RuntimeException('PDO is only available for local SQLite connections.');
         }
         return $this->pdo;
+    }
+
+    public function runtimeProfile(): array
+    {
+        if (method_exists($this->driver, 'runtimeProfile')) {
+            return $this->driver->runtimeProfile();
+        }
+        return ['driver' => $this->driver::class];
     }
 
     public function table(string $table): QueryBuilder
@@ -452,25 +596,30 @@ final class Database
         (new Migrator($this))->rollback($directory, $steps);
     }
 
-    private function createDriver(string $url, ?string $token): LibSqlDriver
+    private function createDriver(string $url, ?string $token, array $options): LibSqlDriver
     {
         if ($url === ':memory:' || str_starts_with($url, 'file:') || !preg_match('/^[A-Za-z][A-Za-z0-9+.-]*:/', $url)) {
             $path = str_starts_with($url, 'file:') ? substr($url, 5) : $url;
             $this->assertDatabasePath($path);
-            return new PdoDriver($path);
+            return new PdoDriver($path, $options['sqlite'] ?? $options);
         }
 
+        $httpOptions = $options['libsql'] ?? $options;
+        $timeoutSeconds = (int)($httpOptions['timeout_seconds'] ?? 30);
+        $retries = (int)($httpOptions['retries'] ?? 0);
+        $tokenRequired = (bool)($httpOptions['token_required'] ?? false);
+
         if (str_starts_with($url, 'https://')) {
-            return new HttpDriver($url, $token);
+            return new HttpDriver($url, $token, $timeoutSeconds, $retries, $tokenRequired);
         }
 
         if (str_starts_with($url, 'wss://')) {
             if (extension_loaded('libsql')) {
-                return new WebSocketDriver($url, $token);
+                return new WebSocketDriver($url, $token, $timeoutSeconds, $retries, $tokenRequired);
             }
             $fallback = 'https://' . substr($url, 6);
             error_log("Adlaire WARNING: libSQL extension is not loaded. Falling back to HTTP: {$fallback}");
-            return new HttpDriver($fallback, $token);
+            return new HttpDriver($fallback, $token, $timeoutSeconds, $retries, $tokenRequired);
         }
 
         throw new InvalidArgumentException("Unsupported database URL: {$url}");
@@ -486,6 +635,17 @@ final class Database
         if ($directory !== '' && $directory !== '.' && !is_dir($directory)) {
             throw new InvalidArgumentException("Database directory does not exist: {$directory}");
         }
+    }
+
+    private static function configValue(array|object $config, string $key, mixed $default = null): mixed
+    {
+        if (is_array($config)) {
+            return $config[$key] ?? $default;
+        }
+        if (method_exists($config, 'get')) {
+            return $config->get($key, $default);
+        }
+        return property_exists($config, $key) ? $config->{$key} : $default;
     }
 }
 

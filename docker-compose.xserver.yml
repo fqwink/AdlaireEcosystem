@@ -4,8 +4,14 @@ services:
       context: .
       dockerfile: Dockerfile.xserver
     image: adlaire-ecosystem:xserver
-    env_file:
-      - .env.xserver.example
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: http://localhost:8080
+      ADLAIRE_LOG_LEVEL: INFO
+      ADLAIRE_DATABASE_URL: file:/var/www/html/storage/adlaire.sqlite
+      ADLAIRE_DATABASE_TOKEN: ""
+      ADLAIRE_TRUSTED_PROXIES: ""
     ports:
       - "8080:80"
     volumes:
