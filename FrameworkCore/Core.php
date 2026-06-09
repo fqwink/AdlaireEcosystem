@@ -3,13 +3,13 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version v0.206
+ * @version v0.230
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-const ADLAIRE_VERSION = 'v0.206';
+const ADLAIRE_VERSION = 'v0.230';
 
 if (is_file(__DIR__ . '/Extension.php')) {
     require_once __DIR__ . '/Extension.php';
@@ -208,18 +208,6 @@ final class Request
         return trim($matches[1]);
     }
 
-    public function isJson(): bool
-    {
-        $contentType = strtolower((string)$this->header('content-type', ''));
-        return str_contains($contentType, 'application/json') || str_contains($contentType, '+json');
-    }
-
-    public function expectsJson(): bool
-    {
-        $accept = strtolower((string)$this->header('accept', ''));
-        return str_contains($accept, 'application/json') || str_contains($accept, '+json');
-    }
-
     public function param(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null) {
@@ -274,15 +262,6 @@ final class Request
     private function parseBody(): mixed
     {
         $contentType = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
-
-        if (str_contains($contentType, 'application/json')) {
-            $raw = $this->rawInput();
-            if ($raw === false || $raw === '') {
-                return null;
-            }
-            $decoded = json_decode($raw, true);
-            return json_last_error() === JSON_ERROR_NONE ? $decoded : null;
-        }
 
         if (str_contains($contentType, 'application/x-www-form-urlencoded')) {
             if ($this->method === 'POST') {
@@ -395,16 +374,6 @@ final class Response
         return $this;
     }
 
-    public function cors(
-        string $origin = '*',
-        string $methods = 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-        string $headers = 'Content-Type, Authorization'
-    ): static {
-        return $this->header('Access-Control-Allow-Origin', $origin)
-            ->header('Access-Control-Allow-Methods', $methods)
-            ->header('Access-Control-Allow-Headers', $headers);
-    }
-
     public function securityHeaders(
         string $frameOptions = 'DENY',
         string $referrerPolicy = 'no-referrer',
@@ -416,42 +385,15 @@ final class Response
             ->header('Permissions-Policy', $permissionsPolicy);
     }
 
-    public function json(mixed $data, ?int $status = null): never
-    {
-        if ($status !== null) {
-            $this->status($status);
-        }
-
-        $this->sendHeaders('Content-Type: application/json; charset=utf-8');
-        $encoded = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-        if ($encoded === false) {
-            http_response_code(500);
-            echo json_encode(['error' => 'JSON encoding failed: ' . json_last_error_msg()]);
-        } else {
-            echo $encoded;
-        }
-
-        exit;
-    }
-
     public function error(string $message, int $status = 400, array $details = []): never
     {
-        $payload = ['error' => ['message' => $message, 'status' => $status]];
+        $this->status($status);
+        $this->sendHeaders('Content-Type: text/plain; charset=utf-8');
+        echo $message;
         if ($details !== []) {
-            $payload['error']['details'] = $details;
+            echo "\n" . implode("\n", array_map(static fn(mixed $value): string => (string)$value, $details));
         }
-        $this->json($payload, $status);
-    }
-
-    public function success(mixed $data, int $status = 200): never
-    {
-        $this->json(['data' => $data], $status);
-    }
-
-    public function created(mixed $data): never
-    {
-        $this->success($data, 201);
+        exit;
     }
 
     public function noContent(): never
@@ -459,11 +401,6 @@ final class Response
         $this->status(204);
         $this->sendHeaders();
         exit;
-    }
-
-    public function paginated(array $result): never
-    {
-        $this->json($result);
     }
 
     public function redirect(string $url, int $status = 302): never
@@ -1319,20 +1256,13 @@ final class Adlaire
                 ]);
             }
 
-            $payload = [
-                'error' => [
-                    'message' => $development ? $exception->getMessage() : 'Internal Server Error',
-                    'status' => 500,
-                ],
-            ];
-            if ($development) {
-                $payload['error']['class'] = $exception::class;
-                $payload['error']['trace'] = $exception->getTrace();
-            }
-
             http_response_code(500);
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo $development ? $exception->getMessage() : 'Internal Server Error';
+            if ($development) {
+                echo "\n" . $exception::class;
+                echo "\n" . $exception->getTraceAsString();
+            }
             exit(1);
         });
     }
@@ -1377,28 +1307,39 @@ final class Adlaire
     public static function specificationIds(): array
     {
         return [
-            'FrameworkCore/Core.php' => [
-                'CORE-REQ-001' => 'Request, Response, Validator, Router, and Adlaire contracts remain available.',
-                'CORE-REQ-002' => 'Configuration, environment helpers, routing inspection, security headers, version, and audit metadata are verified.',
-                'CORE-REQ-003' => 'Runtime health checks and configuration audit contracts expose portable operations diagnostics.',
-                'CORE-REQ-004' => 'Operations dashboard exposes read-only authenticated operations visibility without JSON output.',
-            ],
             'FrameworkCore/Kernel.php' => [
                 'KERNEL-REQ-001' => 'MicroKernel stores core services and exposes service lookup.',
                 'KERNEL-REQ-002' => 'MicroKernel registers extensions and boots them exactly once.',
             ],
             'FrameworkCore/Database.php' => [
-                'DB-REQ-001' => 'SQLite and libSQL connection abstractions preserve query builder behavior.',
+                'DB-REQ-001' => 'SQLite and internal libSQL API connection abstractions preserve query builder behavior.',
                 'DB-REQ-002' => 'Query guards, pagination, helper reads, migrations, and query logging are verified.',
-                'DB-REQ-003' => 'SQLite runtime hardening, Database::fromConfig(), libSQL runtime options, and no MySQL support are verified.',
+                'DB-REQ-003' => 'SQLite runtime hardening, Database::fromConfig(), internal libSQL API transport hardening, and no MySQL support are verified.',
             ],
             'FrameworkCore/Logger.php' => [
                 'LOGGER-REQ-001' => 'Structured logs mask sensitive values and preserve component and request metadata.',
                 'LOGGER-REQ-002' => 'Debug logging, rotation, HMAC warnings, and derived component loggers are verified.',
             ],
+            'FrameworkCore/Core.php' => [
+                'CORE-REQ-001' => 'Routing, request helpers, validation, responses, and security headers are verified.',
+                'CORE-REQ-002' => 'Core runtime metadata, configuration repository, response security, and release checks are verified.',
+                'CORE-REQ-003' => 'Runtime health, config audit, and release efficiency helpers are verified.',
+                'CORE-REQ-004' => 'Operations dashboard exposes read-only authenticated operations visibility without JSON output.',
+                'CORE-REQ-005' => 'Public API features, JSON response helpers, JSON request helpers, and CORS helpers are removed.',
+                'CORE-REQ-006' => 'Development workflow must define specification first, implementation plan second, and implementation third.',
+                'CORE-REQ-007' => 'Repository documentation must stay aligned with Xserver, database, configuration-file prohibition, and API-removal policies.',
+            ],
             'DeploymentCore.php' => [
                 'DEPLOY-REQ-001' => 'Deployment paths remain bounded to relative safe paths.',
                 'DEPLOY-REQ-002' => 'Configuration validation, backups, apply logging, rollback, allowlists, and history are verified.',
+                'DEPLOY-REQ-003' => 'Deployment preflight verifies DeploymentCore.php compatibility, writable directories, allowlist, lock, and history retention before execution.',
+                'DEPLOY-REQ-004' => 'Deployment plan preview classifies added, modified, unchanged, and skipped files without command execution or writes.',
+                'DEPLOY-REQ-005' => 'Deployment compatibility snapshot freezes DeploymentCore.php compatibility evidence without command execution or writes.',
+                'DEPLOY-REQ-006' => 'Deployment rollback preview classifies restore, remove, and missing files without executing rollback.',
+                'DEPLOY-REQ-007' => 'Deployment safety score evaluates deployment control evidence without command execution or writes.',
+                'DEPLOY-REQ-008' => 'Deployment control report aggregates preflight, preview, compatibility, rollback, safety, and history evidence.',
+                'DEPLOY-REQ-009' => 'Deployment control snapshots are recorded as JSON audit artifacts, not framework configuration files.',
+                'DEPLOY-REQ-010' => 'Deployment control diff and release evidence bundle compare read-only control evidence for release candidate decisions.',
             ],
             'tests/debug.php' => [
                 'TEST-REQ-001' => 'The official debug test emits OK only after all registered tests pass.',
@@ -1416,10 +1357,33 @@ final class Adlaire
                 'RELEASE-REQ-009' => 'Microkernel contracts, autonomous modules, policy decisions, audit reports, and stability contracts are exposed as formal metadata.',
                 'RELEASE-REQ-010' => 'The stable backend framework release contract is exposed and verified by release readiness.',
                 'RELEASE-REQ-011' => 'Xserver rental server production-equivalent testing is formalized and required for release readiness.',
-                'RELEASE-REQ-012' => 'The v0.203 SQLite / libSQL runtime hardening policy is exposed and verified by release readiness.',
+                'RELEASE-REQ-012' => 'The SQLite / libSQL API runtime hardening policy is exposed and verified by release readiness.',
                 'RELEASE-REQ-013' => 'The v0.204 runtime operations hardening policy streamlines stable release verification.',
                 'RELEASE-REQ-014' => 'The v0.205 operations dashboard is disabled by default, authenticated, read-only, and verified by release readiness.',
                 'RELEASE-REQ-015' => 'The v0.206 configuration file prohibition policy allows JSON metadata while forbidding framework runtime configuration files.',
+                'RELEASE-REQ-016' => 'The v0.207 deployment preflight guard preserves Deployment Core compatibility while improving release safety.',
+                'RELEASE-REQ-017' => 'The v0.208 deployment plan preview exposes read-only file change classification before deployment.',
+                'RELEASE-REQ-018' => 'The v0.209 deployment compatibility snapshot exposes read-only Deployment Core compatibility evidence before release.',
+                'RELEASE-REQ-019' => 'The v0.210 rollback preview exposes rollback impact before rollback execution.',
+                'RELEASE-REQ-020' => 'The v0.211 deployment safety score gates deployment evidence with a minimum safe threshold.',
+                'RELEASE-REQ-021' => 'The v0.212 dashboard control visibility exposes control information without execution.',
+                'RELEASE-REQ-022' => 'The v0.213 deployment history visualization exposes history summaries without writes.',
+                'RELEASE-REQ-023' => 'The v0.214 deployment control report aggregates read-only control evidence.',
+                'RELEASE-REQ-024' => 'The v0.215 stable release gate integrates readiness and deployment safety evidence.',
+                'RELEASE-REQ-025' => 'The v0.216 UI framework asset standardizes dashboard presentation without configuration files.',
+                'RELEASE-REQ-026' => 'The v0.217 deployment control snapshot records release evidence as JSON audit artifact.',
+                'RELEASE-REQ-027' => 'The v0.218 safety score details expose severity and deduction reasons.',
+                'RELEASE-REQ-028' => 'The v0.219 rollback state preview exposes projected rollback state.',
+                'RELEASE-REQ-029' => 'The v0.220 dashboard release gate view exposes release gate information without execution.',
+                'RELEASE-REQ-030' => 'The v0.221 deployment timeline view exposes control events in order.',
+                'RELEASE-REQ-031' => 'The v0.222 UI framework expansion standardizes dashboard UI components.',
+                'RELEASE-REQ-032' => 'The v0.223 release evidence bundle aggregates release candidate evidence.',
+                'RELEASE-REQ-033' => 'The v0.224 deployment control diff compares previous and current control evidence.',
+                'RELEASE-REQ-034' => 'The v0.225 stable release candidate gate fixes RC readiness inputs.',
+                'RELEASE-REQ-035' => 'The v0.227 libSQL API hardening release keeps public API removal while strengthening internal libSQL API transport.',
+                'RELEASE-REQ-036' => 'The v0.228 specification-first workflow release makes specification, implementation planning, and implementation order mandatory.',
+                'RELEASE-REQ-037' => 'The v0.229 repository-wide specification-first workflow release applies the development order to the entire repository.',
+                'RELEASE-REQ-038' => 'The v0.230 repository documentation consistency release rejects stale Xserver MySQL and env-file guidance.',
             ],
         ];
     }
@@ -1432,9 +1396,30 @@ final class Adlaire
             'runtime_operations_hardening' => ['CORE-REQ-003', 'RELEASE-REQ-013'],
             'operations_dashboard' => ['CORE-REQ-004', 'RELEASE-REQ-014'],
             'configuration_file_policy' => ['CORE-REQ-002', 'RELEASE-REQ-015'],
+            'deployment_preflight_policy' => ['DEPLOY-REQ-003', 'RELEASE-REQ-016'],
+            'deployment_plan_preview_policy' => ['DEPLOY-REQ-004', 'RELEASE-REQ-017'],
+            'deployment_compatibility_snapshot_policy' => ['DEPLOY-REQ-005', 'RELEASE-REQ-018'],
+            'deployment_rollback_preview_policy' => ['DEPLOY-REQ-006', 'RELEASE-REQ-019'],
+            'deployment_safety_score_policy' => ['DEPLOY-REQ-007', 'RELEASE-REQ-020'],
+            'dashboard_control_visibility_policy' => ['CORE-REQ-004', 'RELEASE-REQ-021'],
+            'deployment_history_visualization_policy' => ['DEPLOY-REQ-008', 'RELEASE-REQ-022'],
+            'deployment_control_report_policy' => ['DEPLOY-REQ-008', 'RELEASE-REQ-023'],
+            'stable_release_gate_policy' => ['RELEASE-REQ-024'],
+            'ui_framework_policy' => ['CORE-REQ-004', 'RELEASE-REQ-025'],
+            'deployment_control_snapshot_policy' => ['DEPLOY-REQ-009', 'RELEASE-REQ-026'],
+            'deployment_safety_score_details_policy' => ['DEPLOY-REQ-007', 'RELEASE-REQ-027'],
+            'rollback_state_preview_policy' => ['DEPLOY-REQ-006', 'RELEASE-REQ-028'],
+            'dashboard_release_gate_view_policy' => ['CORE-REQ-004', 'RELEASE-REQ-029'],
+            'deployment_timeline_policy' => ['DEPLOY-REQ-008', 'RELEASE-REQ-030'],
+            'ui_framework_expansion_policy' => ['CORE-REQ-004', 'RELEASE-REQ-031'],
+            'release_evidence_bundle_policy' => ['DEPLOY-REQ-010', 'RELEASE-REQ-032'],
+            'deployment_control_diff_policy' => ['DEPLOY-REQ-010', 'RELEASE-REQ-033'],
+            'stable_release_candidate_gate_policy' => ['RELEASE-REQ-034'],
+            'api_removal_policy' => ['CORE-REQ-005', 'RELEASE-REQ-035'],
+            'documentation_consistency_policy' => ['CORE-REQ-007', 'RELEASE-REQ-038'],
             'adlaire_audit' => ['CORE-REQ-002', 'TEST-REQ-001', 'TEST-REQ-002', 'RELEASE-REQ-001', 'RELEASE-REQ-002'],
             'release_readiness' => ['RELEASE-REQ-001', 'RELEASE-REQ-002', 'RELEASE-REQ-003'],
-            'license_governance' => ['RELEASE-REQ-003', 'RELEASE-REQ-004'],
+            'license_governance' => ['RELEASE-REQ-003', 'RELEASE-REQ-004', 'CORE-REQ-006', 'RELEASE-REQ-036', 'RELEASE-REQ-037'],
             'official_metadata' => ['RELEASE-REQ-004', 'RELEASE-REQ-005'],
             'specification_integrity' => ['RELEASE-REQ-006'],
             'specification_drift' => ['RELEASE-REQ-007'],
@@ -1449,7 +1434,7 @@ final class Adlaire
             'response_security' => ['CORE-REQ-002'],
             'database' => ['DB-REQ-001', 'DB-REQ-002', 'DB-REQ-003'],
             'logger' => ['LOGGER-REQ-001', 'LOGGER-REQ-002'],
-            'deployer_config' => ['DEPLOY-REQ-001', 'DEPLOY-REQ-002'],
+            'deployer_config' => ['DEPLOY-REQ-001', 'DEPLOY-REQ-002', 'DEPLOY-REQ-003', 'DEPLOY-REQ-004', 'DEPLOY-REQ-005', 'DEPLOY-REQ-006', 'DEPLOY-REQ-007', 'DEPLOY-REQ-008', 'DEPLOY-REQ-009', 'DEPLOY-REQ-010'],
         ];
     }
 
@@ -1486,6 +1471,55 @@ final class Adlaire
             'release_decision' => 'approval required',
             'official_changes' => 'specification, audit, and release gate approval required',
             'external_patch_adoption_guaranteed' => false,
+            'development_workflow_order' => ['specification', 'implementation_plan', 'implementation'],
+            'implementation_without_specification_allowed' => false,
+            'implementation_without_plan_allowed' => false,
+        ];
+    }
+
+    public static function developmentWorkflowPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Specification-First Development Workflow',
+            'highest_absolute_principle' => true,
+            'required_order' => [
+                'specification',
+                'implementation_plan',
+                'implementation',
+            ],
+            'specification_required_before_plan' => true,
+            'plan_required_before_implementation' => true,
+            'implementation_without_specification_allowed' => false,
+            'implementation_without_plan_allowed' => false,
+            'applies_to' => [
+                'design',
+                'implementation',
+                'bug_fix',
+                'test',
+                'debug',
+                'documentation_update',
+                'release',
+            ],
+            'repository_scope' => [
+                'DeploymentCore.php',
+                'FrameworkCore',
+                'public_html',
+                'scripts',
+                'tests',
+                'storage',
+                'Dockerfile.xserver',
+                'docker-compose.xserver.yml',
+                'adlaire-ecosystem.md',
+            ],
+            'repository_wide' => true,
+            'exempt_paths' => [],
+            'required_verifications' => [
+                'workflow_order_documented',
+                'repository_scope_documented',
+                'workflow_policy_audited',
+                'official_debug_test',
+            ],
         ];
     }
 
@@ -1714,6 +1748,9 @@ final class Adlaire
                 'health',
                 'config_audit',
                 'release_readiness',
+                'deployment_control',
+                'safety_score',
+                'deploy_history',
                 'distribution',
                 'database',
                 'security',
@@ -1774,6 +1811,365 @@ final class Adlaire
                 'json_metadata_exception',
                 'config_repository_runtime_only',
                 'official_debug_test',
+            ],
+        ];
+    }
+
+    public static function deploymentPreflightPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Preflight Guard',
+            'scope' => 'deployment system only',
+            'component' => 'DeploymentCore.php',
+            'compatibility_guaranteed' => true,
+            'breaking_changes_allowed' => false,
+            'preflight_method' => 'Deployer::preflight()',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'network_access_allowed' => false,
+            'checks' => [
+                'deployment_core_compatible',
+                'target_dir_exists',
+                'target_dir_writable',
+                'work_dir_exists',
+                'work_dir_writable',
+                'backup_dir_exists',
+                'backup_dir_writable',
+                'log_dir_writable',
+                'deploy_allowlist_configured',
+                'lock_available',
+                'history_retention_valid',
+            ],
+            'required_verifications' => [
+                'deployment_preflight_ready',
+                'deployment_core_compatibility_retained',
+                'official_debug_test',
+            ],
+        ];
+    }
+
+    public static function deploymentPlanPreviewPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Plan Preview',
+            'scope' => 'deployment system only',
+            'component' => 'DeploymentCore.php',
+            'preview_method' => 'Deployer::planPreview()',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'network_access_allowed' => false,
+            'classifications' => ['added', 'modified', 'unchanged', 'skipped'],
+            'deployment_core_change_detected' => true,
+            'deploy_allowlist_applied' => true,
+            'required_verifications' => [
+                'deployment_plan_preview_classification',
+                'deployment_plan_preview_read_only',
+                'deployment_core_change_detection',
+                'official_debug_test',
+            ],
+        ];
+    }
+
+    public static function deploymentCompatibilitySnapshotPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Compatibility Snapshot',
+            'scope' => 'deployment system only',
+            'component' => 'DeploymentCore.php',
+            'snapshot_method' => 'Deployer::compatibilitySnapshot()',
+            'compatibility_guaranteed' => true,
+            'breaking_changes_allowed' => false,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'network_access_allowed' => false,
+            'snapshot_evidence' => [
+                'deployment_core_component',
+                'deployment_axis_retained',
+                'architecture_unchanged',
+                'preflight_ready',
+                'plan_preview_read_only',
+            ],
+            'required_verifications' => [
+                'deployment_compatibility_snapshot_ready',
+                'deployment_core_compatibility_retained',
+                'deployment_snapshot_read_only',
+                'official_debug_test',
+            ],
+        ];
+    }
+
+    public static function deploymentRollbackPreviewPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Rollback Preview',
+            'scope' => 'deployment system only',
+            'component' => 'DeploymentCore.php',
+            'preview_method' => 'Deployer::rollbackPreview()',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'classifications' => ['restore', 'remove', 'missing'],
+            'required_verifications' => ['rollback_preview_read_only', 'rollback_preview_classification', 'official_debug_test'],
+        ];
+    }
+
+    public static function deploymentSafetyScorePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Safety Score',
+            'scope' => 'deployment system only',
+            'component' => 'DeploymentCore.php',
+            'score_method' => 'Deployer::deploymentSafetyScore()',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'minimum_release_score' => 70,
+            'grades' => ['safe', 'review', 'blocked'],
+            'inputs' => ['compatibility_snapshot', 'rollback_preview', 'plan_preview'],
+            'required_verifications' => ['deployment_safety_score_ready', 'deployment_safety_score_read_only', 'official_debug_test'],
+        ];
+    }
+
+    public static function dashboardControlVisibilityPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Dashboard Control Visibility',
+            'scope' => 'dashboard visibility only',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'sections' => ['deployment_control', 'safety_score', 'release_gate'],
+            'required_verifications' => ['dashboard_control_visibility', 'dashboard_html_only', 'official_debug_test'],
+        ];
+    }
+
+    public static function deploymentHistoryVisualizationPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment History Visualization',
+            'scope' => 'deployment system history visibility',
+            'history_method' => 'Deployer::deploymentHistorySummary()',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'sections' => ['deploy_history', 'history_summary', 'latest_snapshot'],
+            'required_verifications' => ['deployment_history_summary', 'dashboard_history_visibility', 'official_debug_test'],
+        ];
+    }
+
+    public static function deploymentControlReportPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Control Report',
+            'scope' => 'deployment system control visibility',
+            'report_method' => 'Deployer::deploymentControlReport()',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'sections' => ['preflight', 'plan_preview', 'compatibility_snapshot', 'rollback_preview', 'safety_score', 'history'],
+            'required_verifications' => ['deployment_control_report_ready', 'deployment_control_report_read_only', 'official_debug_test'],
+        ];
+    }
+
+    public static function stableReleaseGatePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Stable Release Gate',
+            'scope' => 'stable release integrated decision',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'required_inputs' => ['release_readiness', 'deployment_safety_score', 'compatibility_snapshot', 'rollback_preview'],
+            'minimum_deployment_safety_score' => 70,
+            'required_verifications' => ['stable_release_gate_ready', 'release_readiness', 'official_debug_test'],
+        ];
+    }
+
+    public static function uiFrameworkPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Adlaire UI Framework',
+            'scope' => 'dashboard presentation only',
+            'asset' => 'public_html/assets/adlaire-ui.css',
+            'configuration_files_allowed' => false,
+            'json_metadata_exception_retained' => true,
+            'read_only_dashboard_required' => true,
+            'required_verifications' => ['ui_asset_present', 'dashboard_uses_ui_asset', 'official_debug_test'],
+        ];
+    }
+
+    public static function deploymentControlSnapshotPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Control Snapshot',
+            'snapshot_method' => 'Deployer::recordDeploymentControlSnapshot()',
+            'configuration_files_allowed' => false,
+            'json_audit_artifact_allowed' => true,
+            'writes_allowed' => true,
+            'required_verifications' => ['deployment_control_snapshot_recorded', 'json_audit_artifact_only', 'official_debug_test'],
+        ];
+    }
+
+    public static function deploymentSafetyScoreDetailsPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Safety Score Details',
+            'details_method' => 'Deployer::deploymentSafetyScoreDetails()',
+            'read_only' => true,
+            'severity_levels' => ['medium', 'high', 'critical'],
+            'required_verifications' => ['safety_score_details', 'official_debug_test'],
+        ];
+    }
+
+    public static function rollbackStatePreviewPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Rollback State Preview',
+            'preview_method' => 'Deployer::rollbackStatePreview()',
+            'read_only' => true,
+            'projected_state_available' => true,
+            'required_verifications' => ['rollback_state_preview', 'official_debug_test'],
+        ];
+    }
+
+    public static function dashboardReleaseGateViewPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Dashboard Release Gate View',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'sections' => ['release_gate', 'rc_status', 'safety_score'],
+            'required_verifications' => ['dashboard_release_gate_view', 'dashboard_html_only', 'official_debug_test'],
+        ];
+    }
+
+    public static function deploymentTimelinePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Timeline View',
+            'read_only' => true,
+            'events' => ['preflight', 'plan_preview', 'compatibility_snapshot', 'rollback_preview', 'safety_score', 'release_gate'],
+            'required_verifications' => ['deployment_timeline_view', 'official_debug_test'],
+        ];
+    }
+
+    public static function uiFrameworkExpansionPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Adlaire UI Framework Expansion',
+            'asset' => 'public_html/assets/adlaire-ui.css',
+            'components' => ['table', 'badge', 'details', 'section', 'status_layout'],
+            'configuration_files_allowed' => false,
+            'required_verifications' => ['ui_components_available', 'official_debug_test'],
+        ];
+    }
+
+    public static function releaseEvidenceBundlePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Release Evidence Bundle',
+            'bundle_method' => 'Deployer::releaseEvidenceBundle()',
+            'read_only' => true,
+            'required_evidence' => ['control_report', 'release_gate_inputs'],
+            'required_verifications' => ['release_evidence_bundle', 'official_debug_test'],
+        ];
+    }
+
+    public static function deploymentControlDiffPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Control Diff',
+            'diff_method' => 'Deployer::deploymentControlDiff()',
+            'read_only' => true,
+            'sections' => ['preflight', 'compatibility_snapshot', 'rollback_preview', 'safety_score'],
+            'required_verifications' => ['deployment_control_diff', 'official_debug_test'],
+        ];
+    }
+
+    public static function stableReleaseCandidateGatePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Stable Release Candidate Gate',
+            'gate_method' => 'Deployer::stableReleaseCandidateGate()',
+            'read_only' => true,
+            'minimum_deployment_safety_score' => 70,
+            'required_inputs' => ['compatibility_snapshot_ready', 'rollback_preview_ready', 'deployment_safety_score'],
+            'required_verifications' => ['stable_release_candidate_gate', 'official_debug_test'],
+        ];
+    }
+
+    public static function apiRemovalPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'API Removal',
+            'public_api_available' => false,
+            'json_response_available' => false,
+            'json_request_parsing_available' => false,
+            'cors_available' => false,
+            'response_helpers_removed' => ['json', 'success', 'created', 'paginated'],
+            'request_helpers_removed' => ['isJson', 'expectsJson'],
+            'json_metadata_exception_retained' => true,
+            'json_audit_artifacts_allowed' => true,
+            'internal_libsql_api_allowed' => true,
+            'required_verifications' => [
+                'no_response_json_method',
+                'no_cors_method',
+                'no_public_json_output',
+                'internal_libsql_api_only',
+                'official_debug_test',
+            ],
+        ];
+    }
+
+    public static function documentationConsistencyPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Repository Documentation Consistency',
+            'xserver_required' => false,
+            'mysql_support_planned' => false,
+            'database_axis' => ['sqlite', 'internal_libsql_api_transport'],
+            'framework_configuration_files_allowed' => false,
+            'json_configuration_files_allowed' => false,
+            'json_metadata_exception_retained' => true,
+            'public_api_available' => false,
+            'stale_terms_rejected' => [
+                'mysql-compatible',
+                'ignored deployment-specific env file',
+            ],
+            'checked_documents' => [
+                'docs/xserver-production-equivalent.md',
+                'adlaire-ecosystem.md',
+            ],
+            'release_check_script' => 'scripts/release-check.sh',
+            'required_verifications' => [
+                'xserver_documentation_consistency',
+                'no_stale_mysql_guidance',
+                'no_stale_env_file_guidance',
+                'official_debug_test',
+                'release_check',
             ],
         ];
     }
@@ -1898,7 +2294,7 @@ final class Adlaire
             'database_profile' => [
                 'sqlite_for_local_debug' => true,
                 'mysql_compatible_production' => false,
-                'libsql_optional' => true,
+                'internal_libsql_api_transport' => true,
             ],
             'deployment_profile' => [
                 'root_deployment_core' => 'DeploymentCore.php',
@@ -1920,13 +2316,13 @@ final class Adlaire
     {
         return [
             'version' => self::version(),
-            'theme' => 'SQLite / libSQL Runtime Hardening',
+            'theme' => 'SQLite / libSQL API Runtime Hardening',
             'mysql_support_planned' => false,
             'supported_database_profiles' => [
                 'sqlite-memory',
                 'sqlite-file',
-                'libsql-http',
-                'libsql-websocket',
+                'libsql-api',
+                'libsql-websocket-fallback',
             ],
             'sqlite_profile' => [
                 'foreign_keys_enabled_by_default' => true,
@@ -1935,12 +2331,17 @@ final class Adlaire
                 'memory_database_wal_disabled' => true,
                 'synchronous_default_for_wal' => 'NORMAL',
             ],
-            'libsql_profile' => [
-                'http_timeout_configurable' => true,
-                'http_retries_configurable' => true,
-                'token_required_profile_available' => true,
-                'websocket_http_fallback_audited' => true,
-                'libsql_extension_optional' => true,
+            'api_transport_profile' => [
+                'public_api_available' => false,
+                'internal_libsql_api_available' => true,
+                'http_database_transport_available' => true,
+                'websocket_database_transport_available' => true,
+                'json_database_transport_available' => true,
+                'token_database_profile_available' => true,
+                'timeout_configurable' => true,
+                'retries_configurable' => true,
+                'custom_transport_for_tests' => true,
+                'consistency_profile_available' => true,
             ],
             'configuration_profile' => [
                 'database_from_config_available' => true,
@@ -1951,7 +2352,8 @@ final class Adlaire
             'required_verifications' => [
                 'sqlite_runtime_profile',
                 'database_from_config',
-                'libsql_runtime_options',
+                'internal_libsql_api_transport',
+                'libsql_api_options',
                 'official_debug_test',
             ],
         ];
@@ -2100,7 +2502,7 @@ final class Adlaire
         return [
             'version' => self::version(),
             'stable_release' => true,
-            'release_name' => 'v0.206 configuration file prohibition release',
+            'release_name' => 'v0.230 repository documentation consistency release',
             'backend_framework_capabilities' => [
                 'routing',
                 'middleware',
@@ -2112,10 +2514,31 @@ final class Adlaire
                 'support helpers',
                 'microkernel',
                 'Auris module integration',
-                'SQLite / libSQL runtime hardening',
+                'SQLite / libSQL API runtime hardening',
                 'runtime operations hardening',
                 'operations dashboard',
                 'configuration file prohibition',
+                'deployment preflight guard',
+                'deployment plan preview',
+                'deployment compatibility snapshot',
+                'deployment rollback preview',
+                'deployment safety score',
+                'dashboard control visibility',
+                'deployment history visualization',
+                'deployment control report',
+                'stable release gate',
+                'Adlaire UI framework',
+                'deployment control snapshot',
+                'deployment safety score details',
+                'rollback state preview',
+                'dashboard release gate view',
+                'deployment timeline view',
+                'Adlaire UI framework expansion',
+                'release evidence bundle',
+                'deployment control diff',
+                'stable release candidate gate',
+                'API removal',
+                'specification-first workflow',
             ],
             'no_breaking_changes' => false,
             'breaking_changes_allowed' => true,
@@ -2132,6 +2555,27 @@ final class Adlaire
             'runtime_operations_hardening' => true,
             'operations_dashboard' => true,
             'configuration_file_prohibition' => true,
+            'deployment_preflight_guard' => true,
+            'deployment_plan_preview' => true,
+            'deployment_compatibility_snapshot' => true,
+            'deployment_rollback_preview' => true,
+            'deployment_safety_score' => true,
+            'dashboard_control_visibility' => true,
+            'deployment_history_visualization' => true,
+            'deployment_control_report' => true,
+            'stable_release_gate' => true,
+            'adlaire_ui_framework' => true,
+            'deployment_control_snapshot' => true,
+            'deployment_safety_score_details' => true,
+            'rollback_state_preview' => true,
+            'dashboard_release_gate_view' => true,
+            'deployment_timeline_view' => true,
+            'adlaire_ui_framework_expansion' => true,
+            'release_evidence_bundle' => true,
+            'deployment_control_diff' => true,
+            'stable_release_candidate_gate' => true,
+            'api_removal' => true,
+            'specification_first_workflow' => true,
         ];
     }
 
@@ -2242,6 +2686,18 @@ final class Adlaire
             'cloud_business_boundary' => self::cloudBusinessBoundary()['use'] === 'prohibited'
                 && in_array('SaaS', self::cloudBusinessBoundary()['prohibited_categories'], true),
             'governance_policy' => self::governancePolicy()['open_contribution'] === false,
+            'development_workflow_policy' => self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
+                && self::developmentWorkflowPolicy()['required_order'] === ['specification', 'implementation_plan', 'implementation']
+                && self::developmentWorkflowPolicy()['specification_required_before_plan'] === true
+                && self::developmentWorkflowPolicy()['plan_required_before_implementation'] === true
+                && self::developmentWorkflowPolicy()['implementation_without_specification_allowed'] === false
+                && self::developmentWorkflowPolicy()['implementation_without_plan_allowed'] === false
+                && self::developmentWorkflowPolicy()['repository_wide'] === true
+                && in_array('DeploymentCore.php', self::developmentWorkflowPolicy()['repository_scope'], true)
+                && in_array('FrameworkCore', self::developmentWorkflowPolicy()['repository_scope'], true)
+                && in_array('public_html', self::developmentWorkflowPolicy()['repository_scope'], true)
+                && in_array('tests', self::developmentWorkflowPolicy()['repository_scope'], true)
+                && self::developmentWorkflowPolicy()['exempt_paths'] === [],
             'distribution_policy' => self::distributionPolicy()['unofficial_distribution_may_claim_official'] === false,
             'official_metadata' => self::officialMetadata()['version'] === self::version()
                 && self::officialMetadata()['release_readiness_required'] === true,
@@ -2269,7 +2725,7 @@ final class Adlaire
                 && in_array('database', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('deployment', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('configuration', self::stableReleaseContract()['backend_framework_capabilities'], true)
-                && in_array('SQLite / libSQL runtime hardening', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('SQLite / libSQL API runtime hardening', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && self::stableReleaseContract()['mysql_support_planned'] === false,
             'production_environment_policy' => self::productionEnvironmentPolicy()['production_provider'] === 'Xserver rental server'
                 && self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
@@ -2278,12 +2734,14 @@ final class Adlaire
                 && self::productionEnvironmentPolicy()['composer_required'] === false
                 && self::productionEnvironmentPolicy()['external_service_required_for_tests'] === false
                 && in_array('xserver_profile_audit', self::productionEnvironmentPolicy()['required_verifications'], true),
-            'database_runtime_hardening_policy' => self::databaseRuntimeHardeningPolicy()['theme'] === 'SQLite / libSQL Runtime Hardening'
+            'database_runtime_hardening_policy' => self::databaseRuntimeHardeningPolicy()['theme'] === 'SQLite / libSQL API Runtime Hardening'
                 && self::databaseRuntimeHardeningPolicy()['mysql_support_planned'] === false
                 && self::databaseRuntimeHardeningPolicy()['sqlite_profile']['foreign_keys_enabled_by_default'] === true
                 && self::databaseRuntimeHardeningPolicy()['sqlite_profile']['busy_timeout_ms_default'] === 5000
-                && self::databaseRuntimeHardeningPolicy()['libsql_profile']['http_timeout_configurable'] === true
-                && self::databaseRuntimeHardeningPolicy()['libsql_profile']['http_retries_configurable'] === true
+                && self::databaseRuntimeHardeningPolicy()['api_transport_profile']['public_api_available'] === false
+                && self::databaseRuntimeHardeningPolicy()['api_transport_profile']['internal_libsql_api_available'] === true
+                && self::databaseRuntimeHardeningPolicy()['api_transport_profile']['timeout_configurable'] === true
+                && self::databaseRuntimeHardeningPolicy()['api_transport_profile']['retries_configurable'] === true
                 && self::databaseRuntimeHardeningPolicy()['configuration_profile']['database_from_config_available'] === true
                 && in_array('sqlite_runtime_profile', self::databaseRuntimeHardeningPolicy()['required_verifications'], true),
             'runtime_operations_hardening_policy' => self::runtimeOperationsHardeningPolicy()['theme'] === 'Runtime Operations Hardening'
@@ -2309,6 +2767,89 @@ final class Adlaire
                 && self::configurationFilePolicy()['json_metadata_exception'] === true
                 && self::configurationFilePolicy()['json_for_secret_configuration_allowed'] === false
                 && in_array('no_env_files', self::configurationFilePolicy()['required_verifications'], true),
+            'deployment_preflight_policy' => self::deploymentPreflightPolicy()['theme'] === 'Deployment Preflight Guard'
+                && self::deploymentPreflightPolicy()['compatibility_guaranteed'] === true
+                && self::deploymentPreflightPolicy()['breaking_changes_allowed'] === false
+                && self::deploymentPreflightPolicy()['read_only'] === true
+                && self::deploymentPreflightPolicy()['command_execution_allowed'] === false
+                && in_array('deployment_preflight_ready', self::deploymentPreflightPolicy()['required_verifications'], true),
+            'deployment_plan_preview_policy' => self::deploymentPlanPreviewPolicy()['theme'] === 'Deployment Plan Preview'
+                && self::deploymentPlanPreviewPolicy()['read_only'] === true
+                && self::deploymentPlanPreviewPolicy()['command_execution_allowed'] === false
+                && self::deploymentPlanPreviewPolicy()['writes_allowed'] === false
+                && in_array('modified', self::deploymentPlanPreviewPolicy()['classifications'], true)
+                && in_array('deployment_plan_preview_classification', self::deploymentPlanPreviewPolicy()['required_verifications'], true),
+            'deployment_compatibility_snapshot_policy' => self::deploymentCompatibilitySnapshotPolicy()['theme'] === 'Deployment Compatibility Snapshot'
+                && self::deploymentCompatibilitySnapshotPolicy()['compatibility_guaranteed'] === true
+                && self::deploymentCompatibilitySnapshotPolicy()['breaking_changes_allowed'] === false
+                && self::deploymentCompatibilitySnapshotPolicy()['read_only'] === true
+                && self::deploymentCompatibilitySnapshotPolicy()['command_execution_allowed'] === false
+                && self::deploymentCompatibilitySnapshotPolicy()['writes_allowed'] === false
+                && in_array('deployment_compatibility_snapshot_ready', self::deploymentCompatibilitySnapshotPolicy()['required_verifications'], true),
+            'deployment_rollback_preview_policy' => self::deploymentRollbackPreviewPolicy()['theme'] === 'Deployment Rollback Preview'
+                && self::deploymentRollbackPreviewPolicy()['read_only'] === true
+                && self::deploymentRollbackPreviewPolicy()['command_execution_allowed'] === false
+                && self::deploymentRollbackPreviewPolicy()['writes_allowed'] === false
+                && in_array('restore', self::deploymentRollbackPreviewPolicy()['classifications'], true),
+            'deployment_safety_score_policy' => self::deploymentSafetyScorePolicy()['theme'] === 'Deployment Safety Score'
+                && self::deploymentSafetyScorePolicy()['minimum_release_score'] === 70
+                && self::deploymentSafetyScorePolicy()['read_only'] === true
+                && self::deploymentSafetyScorePolicy()['command_execution_allowed'] === false,
+            'dashboard_control_visibility_policy' => self::dashboardControlVisibilityPolicy()['theme'] === 'Dashboard Control Visibility'
+                && self::dashboardControlVisibilityPolicy()['read_only'] === true
+                && in_array('deployment_control', self::dashboardControlVisibilityPolicy()['sections'], true),
+            'deployment_history_visualization_policy' => self::deploymentHistoryVisualizationPolicy()['theme'] === 'Deployment History Visualization'
+                && self::deploymentHistoryVisualizationPolicy()['read_only'] === true
+                && in_array('deploy_history', self::deploymentHistoryVisualizationPolicy()['sections'], true),
+            'deployment_control_report_policy' => self::deploymentControlReportPolicy()['theme'] === 'Deployment Control Report'
+                && self::deploymentControlReportPolicy()['read_only'] === true
+                && in_array('safety_score', self::deploymentControlReportPolicy()['sections'], true),
+            'stable_release_gate_policy' => self::stableReleaseGatePolicy()['theme'] === 'Stable Release Gate'
+                && self::stableReleaseGatePolicy()['minimum_deployment_safety_score'] === 70
+                && self::stableReleaseGatePolicy()['read_only'] === true,
+            'ui_framework_policy' => self::uiFrameworkPolicy()['theme'] === 'Adlaire UI Framework'
+                && self::uiFrameworkPolicy()['configuration_files_allowed'] === false
+                && self::uiFrameworkPolicy()['asset'] === 'public_html/assets/adlaire-ui.css',
+            'deployment_control_snapshot_policy' => self::deploymentControlSnapshotPolicy()['theme'] === 'Deployment Control Snapshot'
+                && self::deploymentControlSnapshotPolicy()['configuration_files_allowed'] === false
+                && self::deploymentControlSnapshotPolicy()['json_audit_artifact_allowed'] === true,
+            'deployment_safety_score_details_policy' => self::deploymentSafetyScoreDetailsPolicy()['theme'] === 'Deployment Safety Score Details'
+                && self::deploymentSafetyScoreDetailsPolicy()['read_only'] === true
+                && in_array('critical', self::deploymentSafetyScoreDetailsPolicy()['severity_levels'], true),
+            'rollback_state_preview_policy' => self::rollbackStatePreviewPolicy()['theme'] === 'Rollback State Preview'
+                && self::rollbackStatePreviewPolicy()['read_only'] === true
+                && self::rollbackStatePreviewPolicy()['projected_state_available'] === true,
+            'dashboard_release_gate_view_policy' => self::dashboardReleaseGateViewPolicy()['theme'] === 'Dashboard Release Gate View'
+                && self::dashboardReleaseGateViewPolicy()['read_only'] === true
+                && in_array('release_gate', self::dashboardReleaseGateViewPolicy()['sections'], true),
+            'deployment_timeline_policy' => self::deploymentTimelinePolicy()['theme'] === 'Deployment Timeline View'
+                && self::deploymentTimelinePolicy()['read_only'] === true
+                && in_array('release_gate', self::deploymentTimelinePolicy()['events'], true),
+            'ui_framework_expansion_policy' => self::uiFrameworkExpansionPolicy()['theme'] === 'Adlaire UI Framework Expansion'
+                && self::uiFrameworkExpansionPolicy()['configuration_files_allowed'] === false
+                && in_array('status_layout', self::uiFrameworkExpansionPolicy()['components'], true),
+            'release_evidence_bundle_policy' => self::releaseEvidenceBundlePolicy()['theme'] === 'Release Evidence Bundle'
+                && self::releaseEvidenceBundlePolicy()['read_only'] === true
+                && in_array('control_report', self::releaseEvidenceBundlePolicy()['required_evidence'], true),
+            'deployment_control_diff_policy' => self::deploymentControlDiffPolicy()['theme'] === 'Deployment Control Diff'
+                && self::deploymentControlDiffPolicy()['read_only'] === true
+                && in_array('safety_score', self::deploymentControlDiffPolicy()['sections'], true),
+            'stable_release_candidate_gate_policy' => self::stableReleaseCandidateGatePolicy()['theme'] === 'Stable Release Candidate Gate'
+                && self::stableReleaseCandidateGatePolicy()['minimum_deployment_safety_score'] === 70
+                && self::stableReleaseCandidateGatePolicy()['read_only'] === true,
+            'api_removal_policy' => self::apiRemovalPolicy()['theme'] === 'API Removal'
+                && self::apiRemovalPolicy()['public_api_available'] === false
+                && self::apiRemovalPolicy()['json_response_available'] === false
+                && self::apiRemovalPolicy()['json_request_parsing_available'] === false
+                && self::apiRemovalPolicy()['cors_available'] === false
+                && self::apiRemovalPolicy()['json_metadata_exception_retained'] === true
+                && self::apiRemovalPolicy()['internal_libsql_api_allowed'] === true,
+            'development_workflow_policy' => self::developmentWorkflowPolicy()['theme'] === 'Specification-First Development Workflow'
+                && self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
+                && self::developmentWorkflowPolicy()['required_order'] === ['specification', 'implementation_plan', 'implementation']
+                && self::developmentWorkflowPolicy()['implementation_without_specification_allowed'] === false
+                && self::developmentWorkflowPolicy()['implementation_without_plan_allowed'] === false
+                && self::developmentWorkflowPolicy()['repository_wide'] === true,
             'deployment_axis_policy' => self::deploymentAxisPolicy()['framework_axis'] === 'deployment system'
                 && self::deploymentAxisPolicy()['architecture_changed'] === false
                 && self::deploymentAxisPolicy()['deployment_system']['core_name'] === 'Deployment Core'
@@ -2396,6 +2937,7 @@ final class Adlaire
             'license_policy',
             'prohibited_use_policy',
             'governance_policy',
+            'development_workflow_policy',
             'official_release_policy',
             'distribution_policy',
             'cloud_business_boundary',
@@ -2413,6 +2955,27 @@ final class Adlaire
             'runtime_operations_hardening_policy',
             'dashboard_policy',
             'configuration_file_policy',
+            'deployment_preflight_policy',
+            'deployment_plan_preview_policy',
+            'deployment_compatibility_snapshot_policy',
+            'deployment_rollback_preview_policy',
+            'deployment_safety_score_policy',
+            'dashboard_control_visibility_policy',
+            'deployment_history_visualization_policy',
+            'deployment_control_report_policy',
+            'stable_release_gate_policy',
+            'ui_framework_policy',
+            'deployment_control_snapshot_policy',
+            'deployment_safety_score_details_policy',
+            'rollback_state_preview_policy',
+            'dashboard_release_gate_view_policy',
+            'deployment_timeline_policy',
+            'ui_framework_expansion_policy',
+            'release_evidence_bundle_policy',
+            'deployment_control_diff_policy',
+            'stable_release_candidate_gate_policy',
+            'api_removal_policy',
+            'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
         ];
@@ -2422,6 +2985,7 @@ final class Adlaire
             'license_policy',
             'prohibited_use_policy',
             'governance_policy',
+            'development_workflow_policy',
             'official_release_policy',
             'distribution_policy',
             'cloud_business_boundary',
@@ -2439,6 +3003,27 @@ final class Adlaire
             'runtime_operations_hardening_policy',
             'dashboard_policy',
             'configuration_file_policy',
+            'deployment_preflight_policy',
+            'deployment_plan_preview_policy',
+            'deployment_compatibility_snapshot_policy',
+            'deployment_rollback_preview_policy',
+            'deployment_safety_score_policy',
+            'dashboard_control_visibility_policy',
+            'deployment_history_visualization_policy',
+            'deployment_control_report_policy',
+            'stable_release_gate_policy',
+            'ui_framework_policy',
+            'deployment_control_snapshot_policy',
+            'deployment_safety_score_details_policy',
+            'rollback_state_preview_policy',
+            'dashboard_release_gate_view_policy',
+            'deployment_timeline_policy',
+            'ui_framework_expansion_policy',
+            'release_evidence_bundle_policy',
+            'deployment_control_diff_policy',
+            'stable_release_candidate_gate_policy',
+            'api_removal_policy',
+            'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
         ];
@@ -2448,6 +3033,7 @@ final class Adlaire
             'license_policy',
             'prohibited_use_policy',
             'governance_policy',
+            'development_workflow_policy',
             'official_release_policy',
             'distribution_policy',
             'cloud_business_boundary',
@@ -2493,6 +3079,7 @@ final class Adlaire
                 'FrameworkCore/Config.php',
                 'FrameworkCore/Middleware.php',
                 'FrameworkCore/Support.php',
+                'public_html/assets/adlaire-ui.css',
                 'tests/debug.php',
                 'adlaire-ecosystem.md',
             ],
@@ -2515,6 +3102,28 @@ final class Adlaire
             'runtime_operations_hardening_policy' => self::runtimeOperationsHardeningPolicy(),
             'dashboard_policy' => self::dashboardPolicy(),
             'configuration_file_policy' => self::configurationFilePolicy(),
+            'deployment_preflight_policy' => self::deploymentPreflightPolicy(),
+            'deployment_plan_preview_policy' => self::deploymentPlanPreviewPolicy(),
+            'deployment_compatibility_snapshot_policy' => self::deploymentCompatibilitySnapshotPolicy(),
+            'deployment_rollback_preview_policy' => self::deploymentRollbackPreviewPolicy(),
+            'deployment_safety_score_policy' => self::deploymentSafetyScorePolicy(),
+            'dashboard_control_visibility_policy' => self::dashboardControlVisibilityPolicy(),
+            'deployment_history_visualization_policy' => self::deploymentHistoryVisualizationPolicy(),
+            'deployment_control_report_policy' => self::deploymentControlReportPolicy(),
+            'stable_release_gate_policy' => self::stableReleaseGatePolicy(),
+            'ui_framework_policy' => self::uiFrameworkPolicy(),
+            'deployment_control_snapshot_policy' => self::deploymentControlSnapshotPolicy(),
+            'deployment_safety_score_details_policy' => self::deploymentSafetyScoreDetailsPolicy(),
+            'rollback_state_preview_policy' => self::rollbackStatePreviewPolicy(),
+            'dashboard_release_gate_view_policy' => self::dashboardReleaseGateViewPolicy(),
+            'deployment_timeline_policy' => self::deploymentTimelinePolicy(),
+            'ui_framework_expansion_policy' => self::uiFrameworkExpansionPolicy(),
+            'release_evidence_bundle_policy' => self::releaseEvidenceBundlePolicy(),
+            'deployment_control_diff_policy' => self::deploymentControlDiffPolicy(),
+            'stable_release_candidate_gate_policy' => self::stableReleaseCandidateGatePolicy(),
+            'api_removal_policy' => self::apiRemovalPolicy(),
+            'documentation_consistency_policy' => self::documentationConsistencyPolicy(),
+            'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
         ];
@@ -2532,9 +3141,9 @@ final class Adlaire
             'php' => '>=8.3',
             'version_format' => 'v0.x',
             'cumulative_version' => true,
-            'formalization_version' => 'v0.206',
+            'formalization_version' => 'v0.230',
             'file_principle' => self::auditFilePrinciple(),
-            'external_dependencies' => 'none; optional libSQL PHP extension only',
+            'external_dependencies' => 'none',
             'license_policy' => self::licensePolicy(),
             'prohibited_use_policy' => self::prohibitedUsePolicy(),
             'governance_policy' => self::governancePolicy(),
@@ -2567,6 +3176,28 @@ final class Adlaire
             'runtime_operations_hardening_policy' => self::runtimeOperationsHardeningPolicy(),
             'dashboard_policy' => self::dashboardPolicy(),
             'configuration_file_policy' => self::configurationFilePolicy(),
+            'deployment_preflight_policy' => self::deploymentPreflightPolicy(),
+            'deployment_plan_preview_policy' => self::deploymentPlanPreviewPolicy(),
+            'deployment_compatibility_snapshot_policy' => self::deploymentCompatibilitySnapshotPolicy(),
+            'deployment_rollback_preview_policy' => self::deploymentRollbackPreviewPolicy(),
+            'deployment_safety_score_policy' => self::deploymentSafetyScorePolicy(),
+            'dashboard_control_visibility_policy' => self::dashboardControlVisibilityPolicy(),
+            'deployment_history_visualization_policy' => self::deploymentHistoryVisualizationPolicy(),
+            'deployment_control_report_policy' => self::deploymentControlReportPolicy(),
+            'stable_release_gate_policy' => self::stableReleaseGatePolicy(),
+            'ui_framework_policy' => self::uiFrameworkPolicy(),
+            'deployment_control_snapshot_policy' => self::deploymentControlSnapshotPolicy(),
+            'deployment_safety_score_details_policy' => self::deploymentSafetyScoreDetailsPolicy(),
+            'rollback_state_preview_policy' => self::rollbackStatePreviewPolicy(),
+            'dashboard_release_gate_view_policy' => self::dashboardReleaseGateViewPolicy(),
+            'deployment_timeline_policy' => self::deploymentTimelinePolicy(),
+            'ui_framework_expansion_policy' => self::uiFrameworkExpansionPolicy(),
+            'release_evidence_bundle_policy' => self::releaseEvidenceBundlePolicy(),
+            'deployment_control_diff_policy' => self::deploymentControlDiffPolicy(),
+            'stable_release_candidate_gate_policy' => self::stableReleaseCandidateGatePolicy(),
+            'api_removal_policy' => self::apiRemovalPolicy(),
+            'documentation_consistency_policy' => self::documentationConsistencyPolicy(),
+            'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
             'design_philosophy' => [
@@ -2633,14 +3264,16 @@ final class Adlaire
             ],
             'dependencies' => [
                 'external_dependencies' => 'none',
-                'optional_dependencies' => ['libSQL PHP extension'],
+                'optional_dependencies' => ['curl extension for live libSQL API only'],
                 'passed' => true,
             ],
             'database_runtime_hardening' => [
                 'profile' => self::databaseRuntimeHardeningPolicy(),
                 'passed' => self::databaseRuntimeHardeningPolicy()['mysql_support_planned'] === false
                     && self::databaseRuntimeHardeningPolicy()['sqlite_profile']['foreign_keys_enabled_by_default'] === true
-                    && self::databaseRuntimeHardeningPolicy()['libsql_profile']['http_timeout_configurable'] === true,
+                    && self::databaseRuntimeHardeningPolicy()['api_transport_profile']['public_api_available'] === false
+                    && self::databaseRuntimeHardeningPolicy()['api_transport_profile']['internal_libsql_api_available'] === true
+                    && self::databaseRuntimeHardeningPolicy()['api_transport_profile']['custom_transport_for_tests'] === true,
             ],
             'runtime_operations_hardening' => [
                 'profile' => self::runtimeOperationsHardeningPolicy(),
@@ -2660,6 +3293,137 @@ final class Adlaire
                 'passed' => self::configurationFilePolicy()['framework_configuration_files_allowed'] === false
                     && self::configurationFilePolicy()['env_files_allowed'] === false
                     && self::configurationFilePolicy()['json_metadata_exception'] === true,
+            ],
+            'deployment_preflight_policy' => [
+                'profile' => self::deploymentPreflightPolicy(),
+                'passed' => self::deploymentPreflightPolicy()['compatibility_guaranteed'] === true
+                    && self::deploymentPreflightPolicy()['breaking_changes_allowed'] === false
+                    && self::deploymentPreflightPolicy()['read_only'] === true
+                    && self::deploymentPreflightPolicy()['command_execution_allowed'] === false,
+            ],
+            'deployment_plan_preview_policy' => [
+                'profile' => self::deploymentPlanPreviewPolicy(),
+                'passed' => self::deploymentPlanPreviewPolicy()['read_only'] === true
+                    && self::deploymentPlanPreviewPolicy()['command_execution_allowed'] === false
+                    && self::deploymentPlanPreviewPolicy()['writes_allowed'] === false
+                    && in_array('added', self::deploymentPlanPreviewPolicy()['classifications'], true)
+                    && in_array('skipped', self::deploymentPlanPreviewPolicy()['classifications'], true),
+            ],
+            'deployment_compatibility_snapshot_policy' => [
+                'profile' => self::deploymentCompatibilitySnapshotPolicy(),
+                'passed' => self::deploymentCompatibilitySnapshotPolicy()['compatibility_guaranteed'] === true
+                    && self::deploymentCompatibilitySnapshotPolicy()['breaking_changes_allowed'] === false
+                    && self::deploymentCompatibilitySnapshotPolicy()['read_only'] === true
+                    && self::deploymentCompatibilitySnapshotPolicy()['command_execution_allowed'] === false
+                    && self::deploymentCompatibilitySnapshotPolicy()['writes_allowed'] === false,
+            ],
+            'deployment_rollback_preview_policy' => [
+                'profile' => self::deploymentRollbackPreviewPolicy(),
+                'passed' => self::deploymentRollbackPreviewPolicy()['read_only'] === true
+                    && self::deploymentRollbackPreviewPolicy()['command_execution_allowed'] === false
+                    && self::deploymentRollbackPreviewPolicy()['writes_allowed'] === false,
+            ],
+            'deployment_safety_score_policy' => [
+                'profile' => self::deploymentSafetyScorePolicy(),
+                'passed' => self::deploymentSafetyScorePolicy()['minimum_release_score'] === 70
+                    && self::deploymentSafetyScorePolicy()['read_only'] === true,
+            ],
+            'dashboard_control_visibility_policy' => [
+                'profile' => self::dashboardControlVisibilityPolicy(),
+                'passed' => self::dashboardControlVisibilityPolicy()['read_only'] === true
+                    && in_array('deployment_control', self::dashboardControlVisibilityPolicy()['sections'], true),
+            ],
+            'deployment_history_visualization_policy' => [
+                'profile' => self::deploymentHistoryVisualizationPolicy(),
+                'passed' => self::deploymentHistoryVisualizationPolicy()['read_only'] === true
+                    && in_array('deploy_history', self::deploymentHistoryVisualizationPolicy()['sections'], true),
+            ],
+            'deployment_control_report_policy' => [
+                'profile' => self::deploymentControlReportPolicy(),
+                'passed' => self::deploymentControlReportPolicy()['read_only'] === true
+                    && in_array('rollback_preview', self::deploymentControlReportPolicy()['sections'], true),
+            ],
+            'stable_release_gate_policy' => [
+                'profile' => self::stableReleaseGatePolicy(),
+                'passed' => self::stableReleaseGatePolicy()['minimum_deployment_safety_score'] === 70
+                    && self::stableReleaseGatePolicy()['read_only'] === true,
+            ],
+            'ui_framework_policy' => [
+                'profile' => self::uiFrameworkPolicy(),
+                'passed' => self::uiFrameworkPolicy()['configuration_files_allowed'] === false
+                    && self::uiFrameworkPolicy()['asset'] === 'public_html/assets/adlaire-ui.css',
+            ],
+            'deployment_control_snapshot_policy' => [
+                'profile' => self::deploymentControlSnapshotPolicy(),
+                'passed' => self::deploymentControlSnapshotPolicy()['configuration_files_allowed'] === false
+                    && self::deploymentControlSnapshotPolicy()['json_audit_artifact_allowed'] === true,
+            ],
+            'deployment_safety_score_details_policy' => [
+                'profile' => self::deploymentSafetyScoreDetailsPolicy(),
+                'passed' => self::deploymentSafetyScoreDetailsPolicy()['read_only'] === true
+                    && in_array('critical', self::deploymentSafetyScoreDetailsPolicy()['severity_levels'], true),
+            ],
+            'rollback_state_preview_policy' => [
+                'profile' => self::rollbackStatePreviewPolicy(),
+                'passed' => self::rollbackStatePreviewPolicy()['read_only'] === true
+                    && self::rollbackStatePreviewPolicy()['projected_state_available'] === true,
+            ],
+            'dashboard_release_gate_view_policy' => [
+                'profile' => self::dashboardReleaseGateViewPolicy(),
+                'passed' => self::dashboardReleaseGateViewPolicy()['read_only'] === true
+                    && in_array('release_gate', self::dashboardReleaseGateViewPolicy()['sections'], true),
+            ],
+            'deployment_timeline_policy' => [
+                'profile' => self::deploymentTimelinePolicy(),
+                'passed' => self::deploymentTimelinePolicy()['read_only'] === true
+                    && in_array('release_gate', self::deploymentTimelinePolicy()['events'], true),
+            ],
+            'ui_framework_expansion_policy' => [
+                'profile' => self::uiFrameworkExpansionPolicy(),
+                'passed' => self::uiFrameworkExpansionPolicy()['configuration_files_allowed'] === false
+                    && in_array('table', self::uiFrameworkExpansionPolicy()['components'], true),
+            ],
+            'release_evidence_bundle_policy' => [
+                'profile' => self::releaseEvidenceBundlePolicy(),
+                'passed' => self::releaseEvidenceBundlePolicy()['read_only'] === true
+                    && in_array('release_gate_inputs', self::releaseEvidenceBundlePolicy()['required_evidence'], true),
+            ],
+            'deployment_control_diff_policy' => [
+                'profile' => self::deploymentControlDiffPolicy(),
+                'passed' => self::deploymentControlDiffPolicy()['read_only'] === true
+                    && in_array('safety_score', self::deploymentControlDiffPolicy()['sections'], true),
+            ],
+            'stable_release_candidate_gate_policy' => [
+                'profile' => self::stableReleaseCandidateGatePolicy(),
+                'passed' => self::stableReleaseCandidateGatePolicy()['minimum_deployment_safety_score'] === 70
+                    && self::stableReleaseCandidateGatePolicy()['read_only'] === true,
+            ],
+            'api_removal_policy' => [
+                'profile' => self::apiRemovalPolicy(),
+                'passed' => self::apiRemovalPolicy()['public_api_available'] === false
+                    && self::apiRemovalPolicy()['json_response_available'] === false
+                    && self::apiRemovalPolicy()['json_request_parsing_available'] === false
+                    && self::apiRemovalPolicy()['cors_available'] === false
+                    && self::apiRemovalPolicy()['json_metadata_exception_retained'] === true
+                    && self::apiRemovalPolicy()['internal_libsql_api_allowed'] === true,
+            ],
+            'documentation_consistency_policy' => [
+                'profile' => self::documentationConsistencyPolicy(),
+                'passed' => self::documentationConsistencyPolicy()['xserver_required'] === false
+                    && self::documentationConsistencyPolicy()['mysql_support_planned'] === false
+                    && self::documentationConsistencyPolicy()['framework_configuration_files_allowed'] === false
+                    && self::documentationConsistencyPolicy()['json_configuration_files_allowed'] === false
+                    && self::documentationConsistencyPolicy()['public_api_available'] === false
+                    && in_array('docs/xserver-production-equivalent.md', self::documentationConsistencyPolicy()['checked_documents'], true),
+            ],
+            'development_workflow_policy' => [
+                'profile' => self::developmentWorkflowPolicy(),
+                'passed' => self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
+                    && self::developmentWorkflowPolicy()['required_order'] === ['specification', 'implementation_plan', 'implementation']
+                    && self::developmentWorkflowPolicy()['specification_required_before_plan'] === true
+                    && self::developmentWorkflowPolicy()['plan_required_before_implementation'] === true
+                    && self::developmentWorkflowPolicy()['repository_wide'] === true
+                    && self::developmentWorkflowPolicy()['exempt_paths'] === [],
             ],
         ];
     }
@@ -2720,26 +3484,69 @@ final class Adlaire
                 && in_array('routing', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('database', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('deployment', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
-                && in_array('SQLite / libSQL runtime hardening', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('SQLite / libSQL API runtime hardening', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('runtime operations hardening', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('operations dashboard', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('configuration file prohibition', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment preflight guard', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment plan preview', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment compatibility snapshot', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment rollback preview', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment safety score', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('dashboard control visibility', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment history visualization', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment control report', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('stable release gate', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('Adlaire UI framework', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment control snapshot', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment safety score details', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('rollback state preview', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('dashboard release gate view', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment timeline view', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('Adlaire UI framework expansion', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('release evidence bundle', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment control diff', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('stable release candidate gate', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('API removal', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('specification-first workflow', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && ($audit['stable_release_contract']['mysql_support_planned'] ?? true) === false
                 && ($audit['stable_release_contract']['runtime_operations_hardening'] ?? false) === true
                 && ($audit['stable_release_contract']['operations_dashboard'] ?? false) === true
-                && ($audit['stable_release_contract']['configuration_file_prohibition'] ?? false) === true,
+                && ($audit['stable_release_contract']['configuration_file_prohibition'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_preflight_guard'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_plan_preview'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_compatibility_snapshot'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_rollback_preview'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_safety_score'] ?? false) === true
+                && ($audit['stable_release_contract']['dashboard_control_visibility'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_history_visualization'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_control_report'] ?? false) === true
+                && ($audit['stable_release_contract']['stable_release_gate'] ?? false) === true
+                && ($audit['stable_release_contract']['adlaire_ui_framework'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_control_snapshot'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_safety_score_details'] ?? false) === true
+                && ($audit['stable_release_contract']['rollback_state_preview'] ?? false) === true
+                && ($audit['stable_release_contract']['dashboard_release_gate_view'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_timeline_view'] ?? false) === true
+                && ($audit['stable_release_contract']['adlaire_ui_framework_expansion'] ?? false) === true
+                && ($audit['stable_release_contract']['release_evidence_bundle'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_control_diff'] ?? false) === true
+                && ($audit['stable_release_contract']['stable_release_candidate_gate'] ?? false) === true
+                && ($audit['stable_release_contract']['api_removal'] ?? false) === true
+                && ($audit['stable_release_contract']['specification_first_workflow'] ?? false) === true,
             'production_environment_policy' => ($audit['production_environment_policy']['production_provider'] ?? null) === 'Xserver rental server'
                 && ($audit['production_environment_policy']['production_equivalent_testing_required'] ?? false) === true
                 && ($audit['production_environment_policy']['php_requirement'] ?? null) === '>=8.3'
                 && ($audit['production_environment_policy']['htaccess_required'] ?? false) === true
                 && ($audit['production_environment_policy']['composer_required'] ?? true) === false
                 && in_array('xserver_profile_audit', $audit['production_environment_policy']['required_verifications'] ?? [], true),
-            'database_runtime_hardening_policy' => ($audit['database_runtime_hardening_policy']['theme'] ?? null) === 'SQLite / libSQL Runtime Hardening'
+            'database_runtime_hardening_policy' => ($audit['database_runtime_hardening_policy']['theme'] ?? null) === 'SQLite / libSQL API Runtime Hardening'
                 && ($audit['database_runtime_hardening_policy']['mysql_support_planned'] ?? true) === false
                 && ($audit['database_runtime_hardening_policy']['sqlite_profile']['foreign_keys_enabled_by_default'] ?? false) === true
                 && ($audit['database_runtime_hardening_policy']['sqlite_profile']['busy_timeout_ms_default'] ?? null) === 5000
-                && ($audit['database_runtime_hardening_policy']['libsql_profile']['http_timeout_configurable'] ?? false) === true
-                && ($audit['database_runtime_hardening_policy']['libsql_profile']['http_retries_configurable'] ?? false) === true
+                && ($audit['database_runtime_hardening_policy']['api_transport_profile']['public_api_available'] ?? true) === false
+                && ($audit['database_runtime_hardening_policy']['api_transport_profile']['internal_libsql_api_available'] ?? false) === true
+                && ($audit['database_runtime_hardening_policy']['api_transport_profile']['custom_transport_for_tests'] ?? false) === true
                 && ($audit['database_runtime_hardening_policy']['configuration_profile']['database_from_config_available'] ?? false) === true
                 && in_array('database_from_config', $audit['database_runtime_hardening_policy']['required_verifications'] ?? [], true),
             'runtime_operations_hardening_policy' => ($audit['runtime_operations_hardening_policy']['theme'] ?? null) === 'Runtime Operations Hardening'
@@ -2765,6 +3572,96 @@ final class Adlaire
                 && ($audit['configuration_file_policy']['json_metadata_exception'] ?? false) === true
                 && ($audit['configuration_file_policy']['json_for_secret_configuration_allowed'] ?? true) === false
                 && in_array('no_env_files', $audit['configuration_file_policy']['required_verifications'] ?? [], true),
+            'deployment_preflight_policy' => ($audit['deployment_preflight_policy']['theme'] ?? null) === 'Deployment Preflight Guard'
+                && ($audit['deployment_preflight_policy']['compatibility_guaranteed'] ?? false) === true
+                && ($audit['deployment_preflight_policy']['breaking_changes_allowed'] ?? true) === false
+                && ($audit['deployment_preflight_policy']['read_only'] ?? false) === true
+                && ($audit['deployment_preflight_policy']['command_execution_allowed'] ?? true) === false
+                && in_array('deployment_preflight_ready', $audit['deployment_preflight_policy']['required_verifications'] ?? [], true),
+            'deployment_plan_preview_policy' => ($audit['deployment_plan_preview_policy']['theme'] ?? null) === 'Deployment Plan Preview'
+                && ($audit['deployment_plan_preview_policy']['read_only'] ?? false) === true
+                && ($audit['deployment_plan_preview_policy']['command_execution_allowed'] ?? true) === false
+                && ($audit['deployment_plan_preview_policy']['writes_allowed'] ?? true) === false
+                && in_array('deployment_plan_preview_classification', $audit['deployment_plan_preview_policy']['required_verifications'] ?? [], true),
+            'deployment_compatibility_snapshot_policy' => ($audit['deployment_compatibility_snapshot_policy']['theme'] ?? null) === 'Deployment Compatibility Snapshot'
+                && ($audit['deployment_compatibility_snapshot_policy']['compatibility_guaranteed'] ?? false) === true
+                && ($audit['deployment_compatibility_snapshot_policy']['breaking_changes_allowed'] ?? true) === false
+                && ($audit['deployment_compatibility_snapshot_policy']['read_only'] ?? false) === true
+                && ($audit['deployment_compatibility_snapshot_policy']['command_execution_allowed'] ?? true) === false
+                && ($audit['deployment_compatibility_snapshot_policy']['writes_allowed'] ?? true) === false
+                && in_array('deployment_compatibility_snapshot_ready', $audit['deployment_compatibility_snapshot_policy']['required_verifications'] ?? [], true),
+            'deployment_rollback_preview_policy' => ($audit['deployment_rollback_preview_policy']['theme'] ?? null) === 'Deployment Rollback Preview'
+                && ($audit['deployment_rollback_preview_policy']['read_only'] ?? false) === true
+                && ($audit['deployment_rollback_preview_policy']['command_execution_allowed'] ?? true) === false
+                && ($audit['deployment_rollback_preview_policy']['writes_allowed'] ?? true) === false,
+            'deployment_safety_score_policy' => ($audit['deployment_safety_score_policy']['theme'] ?? null) === 'Deployment Safety Score'
+                && ($audit['deployment_safety_score_policy']['minimum_release_score'] ?? null) === 70
+                && ($audit['deployment_safety_score_policy']['read_only'] ?? false) === true,
+            'dashboard_control_visibility_policy' => ($audit['dashboard_control_visibility_policy']['theme'] ?? null) === 'Dashboard Control Visibility'
+                && ($audit['dashboard_control_visibility_policy']['read_only'] ?? false) === true
+                && in_array('deployment_control', $audit['dashboard_control_visibility_policy']['sections'] ?? [], true),
+            'deployment_history_visualization_policy' => ($audit['deployment_history_visualization_policy']['theme'] ?? null) === 'Deployment History Visualization'
+                && ($audit['deployment_history_visualization_policy']['read_only'] ?? false) === true
+                && in_array('deploy_history', $audit['deployment_history_visualization_policy']['sections'] ?? [], true),
+            'deployment_control_report_policy' => ($audit['deployment_control_report_policy']['theme'] ?? null) === 'Deployment Control Report'
+                && ($audit['deployment_control_report_policy']['read_only'] ?? false) === true
+                && in_array('safety_score', $audit['deployment_control_report_policy']['sections'] ?? [], true),
+            'stable_release_gate_policy' => ($audit['stable_release_gate_policy']['theme'] ?? null) === 'Stable Release Gate'
+                && ($audit['stable_release_gate_policy']['minimum_deployment_safety_score'] ?? null) === 70
+                && ($audit['stable_release_gate_policy']['read_only'] ?? false) === true,
+            'ui_framework_policy' => ($audit['ui_framework_policy']['theme'] ?? null) === 'Adlaire UI Framework'
+                && ($audit['ui_framework_policy']['configuration_files_allowed'] ?? true) === false
+                && ($audit['ui_framework_policy']['asset'] ?? null) === 'public_html/assets/adlaire-ui.css',
+            'deployment_control_snapshot_policy' => ($audit['deployment_control_snapshot_policy']['theme'] ?? null) === 'Deployment Control Snapshot'
+                && ($audit['deployment_control_snapshot_policy']['configuration_files_allowed'] ?? true) === false
+                && ($audit['deployment_control_snapshot_policy']['json_audit_artifact_allowed'] ?? false) === true,
+            'deployment_safety_score_details_policy' => ($audit['deployment_safety_score_details_policy']['theme'] ?? null) === 'Deployment Safety Score Details'
+                && ($audit['deployment_safety_score_details_policy']['read_only'] ?? false) === true
+                && in_array('critical', $audit['deployment_safety_score_details_policy']['severity_levels'] ?? [], true),
+            'rollback_state_preview_policy' => ($audit['rollback_state_preview_policy']['theme'] ?? null) === 'Rollback State Preview'
+                && ($audit['rollback_state_preview_policy']['read_only'] ?? false) === true
+                && ($audit['rollback_state_preview_policy']['projected_state_available'] ?? false) === true,
+            'dashboard_release_gate_view_policy' => ($audit['dashboard_release_gate_view_policy']['theme'] ?? null) === 'Dashboard Release Gate View'
+                && ($audit['dashboard_release_gate_view_policy']['read_only'] ?? false) === true
+                && in_array('release_gate', $audit['dashboard_release_gate_view_policy']['sections'] ?? [], true),
+            'deployment_timeline_policy' => ($audit['deployment_timeline_policy']['theme'] ?? null) === 'Deployment Timeline View'
+                && ($audit['deployment_timeline_policy']['read_only'] ?? false) === true
+                && in_array('release_gate', $audit['deployment_timeline_policy']['events'] ?? [], true),
+            'ui_framework_expansion_policy' => ($audit['ui_framework_expansion_policy']['theme'] ?? null) === 'Adlaire UI Framework Expansion'
+                && ($audit['ui_framework_expansion_policy']['configuration_files_allowed'] ?? true) === false
+                && in_array('status_layout', $audit['ui_framework_expansion_policy']['components'] ?? [], true),
+            'release_evidence_bundle_policy' => ($audit['release_evidence_bundle_policy']['theme'] ?? null) === 'Release Evidence Bundle'
+                && ($audit['release_evidence_bundle_policy']['read_only'] ?? false) === true
+                && in_array('control_report', $audit['release_evidence_bundle_policy']['required_evidence'] ?? [], true),
+            'deployment_control_diff_policy' => ($audit['deployment_control_diff_policy']['theme'] ?? null) === 'Deployment Control Diff'
+                && ($audit['deployment_control_diff_policy']['read_only'] ?? false) === true
+                && in_array('safety_score', $audit['deployment_control_diff_policy']['sections'] ?? [], true),
+            'stable_release_candidate_gate_policy' => ($audit['stable_release_candidate_gate_policy']['theme'] ?? null) === 'Stable Release Candidate Gate'
+                && ($audit['stable_release_candidate_gate_policy']['minimum_deployment_safety_score'] ?? null) === 70
+                && ($audit['stable_release_candidate_gate_policy']['read_only'] ?? false) === true,
+            'api_removal_policy' => ($audit['api_removal_policy']['theme'] ?? null) === 'API Removal'
+                && ($audit['api_removal_policy']['public_api_available'] ?? true) === false
+                && ($audit['api_removal_policy']['json_response_available'] ?? true) === false
+                && ($audit['api_removal_policy']['json_request_parsing_available'] ?? true) === false
+                && ($audit['api_removal_policy']['cors_available'] ?? true) === false
+                && ($audit['api_removal_policy']['json_metadata_exception_retained'] ?? false) === true
+                && ($audit['api_removal_policy']['internal_libsql_api_allowed'] ?? false) === true,
+            'documentation_consistency_policy' => ($audit['documentation_consistency_policy']['theme'] ?? null) === 'Repository Documentation Consistency'
+                && ($audit['documentation_consistency_policy']['xserver_required'] ?? true) === false
+                && ($audit['documentation_consistency_policy']['mysql_support_planned'] ?? true) === false
+                && ($audit['documentation_consistency_policy']['framework_configuration_files_allowed'] ?? true) === false
+                && ($audit['documentation_consistency_policy']['json_configuration_files_allowed'] ?? true) === false
+                && ($audit['documentation_consistency_policy']['public_api_available'] ?? true) === false
+                && in_array('docs/xserver-production-equivalent.md', $audit['documentation_consistency_policy']['checked_documents'] ?? [], true),
+            'development_workflow_policy' => ($audit['development_workflow_policy']['theme'] ?? null) === 'Specification-First Development Workflow'
+                && ($audit['development_workflow_policy']['highest_absolute_principle'] ?? false) === true
+                && ($audit['development_workflow_policy']['required_order'] ?? []) === ['specification', 'implementation_plan', 'implementation']
+                && ($audit['development_workflow_policy']['specification_required_before_plan'] ?? false) === true
+                && ($audit['development_workflow_policy']['plan_required_before_implementation'] ?? false) === true
+                && ($audit['development_workflow_policy']['implementation_without_specification_allowed'] ?? true) === false
+                && ($audit['development_workflow_policy']['implementation_without_plan_allowed'] ?? true) === false
+                && ($audit['development_workflow_policy']['repository_wide'] ?? false) === true
+                && ($audit['development_workflow_policy']['exempt_paths'] ?? ['not-empty']) === [],
             'deployment_axis_policy' => ($audit['deployment_axis_policy']['framework_axis'] ?? null) === 'deployment system'
                 && ($audit['deployment_axis_policy']['architecture_changed'] ?? true) === false
                 && ($audit['deployment_axis_policy']['deployment_system']['core_name'] ?? null) === 'Deployment Core'

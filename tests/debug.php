@@ -108,13 +108,6 @@ function test_request_helpers(): void
     assert_same('token-123', $request->bearerToken(), 'bearer token should parse authorization header');
     assert_same('127.0.0.1', $request->ip(), 'untrusted proxy should not override remote address');
 
-    $jsonRequest = make_request('POST', '/json', [
-        'CONTENT_TYPE' => 'application/json',
-        'HTTP_ACCEPT' => 'application/json',
-    ]);
-    assert_true($jsonRequest->isJson(), 'request should detect JSON content type');
-    assert_true($jsonRequest->expectsJson(), 'request should detect JSON accept header');
-
     Request::setTrustedProxies(['127.0.0.1']);
     $trusted = make_request('GET', '/users/42?active=1', [
         'HTTP_X_FORWARDED_FOR' => '203.0.113.10, 10.0.0.1',
@@ -243,13 +236,13 @@ function test_core_config(): void
 
 function test_adlaire_audit(): void
 {
-    assert_same('v0.206', Adlaire::version(), 'Adlaire version should follow cumulative v0.x release format');
+    assert_same('v0.230', Adlaire::version(), 'Adlaire version should follow cumulative v0.x release format');
     $audit = Adlaire::audit();
-    assert_same('v0.206', $audit['version'] ?? null, 'audit should include version');
+    assert_same('v0.230', $audit['version'] ?? null, 'audit should include version');
     assert_same('>=8.3', $audit['php'] ?? null, 'audit should include PHP requirement');
     assert_same('v0.x', $audit['version_format'] ?? null, 'audit should include cumulative version format');
     assert_same(true, $audit['cumulative_version'] ?? null, 'audit should mark cumulative versions');
-    assert_same('v0.206', $audit['formalization_version'] ?? null, 'audit should include formalization version');
+    assert_same('v0.230', $audit['formalization_version'] ?? null, 'audit should include formalization version');
     assert_same('10 files', $audit['file_principle'] ?? null, 'audit should include 10-file principle');
     assert_same('php -d phar.readonly=0 tests/debug.php', $audit['official_debug_test'] ?? null, 'audit should include official debug test command');
 
@@ -304,6 +297,26 @@ function test_license_governance(): void
     assert_same('approved maintainers only', $governance['development_participation'] ?? null, 'governance policy should limit development participation');
     assert_same('approval required', $governance['specification_changes'] ?? null, 'governance policy should require approval for specification changes');
     assert_same(false, $governance['external_patch_adoption_guaranteed'] ?? null, 'governance policy should not guarantee external patch adoption');
+    assert_same(['specification', 'implementation_plan', 'implementation'], $governance['development_workflow_order'] ?? null, 'governance policy should define development workflow order');
+    assert_same(false, $governance['implementation_without_specification_allowed'] ?? null, 'governance policy should forbid implementation without specification');
+    assert_same(false, $governance['implementation_without_plan_allowed'] ?? null, 'governance policy should forbid implementation without plan');
+
+    $workflow = Adlaire::developmentWorkflowPolicy();
+    assert_same('v0.230', $workflow['version'] ?? null, 'development workflow policy should include version');
+    assert_same('Specification-First Development Workflow', $workflow['theme'] ?? null, 'development workflow policy should define theme');
+    assert_same(true, $workflow['highest_absolute_principle'] ?? null, 'development workflow should be highest absolute principle');
+    assert_same(['specification', 'implementation_plan', 'implementation'], $workflow['required_order'] ?? null, 'development workflow should define required order');
+    assert_same(true, $workflow['specification_required_before_plan'] ?? null, 'development workflow should require specification before plan');
+    assert_same(true, $workflow['plan_required_before_implementation'] ?? null, 'development workflow should require plan before implementation');
+    assert_same(false, $workflow['implementation_without_specification_allowed'] ?? null, 'development workflow should forbid implementation without specification');
+    assert_same(false, $workflow['implementation_without_plan_allowed'] ?? null, 'development workflow should forbid implementation without plan');
+    assert_true(in_array('documentation_update', $workflow['applies_to'] ?? [], true), 'development workflow should apply to documentation updates');
+    assert_same(true, $workflow['repository_wide'] ?? null, 'development workflow should apply repository-wide');
+    foreach (['DeploymentCore.php', 'FrameworkCore', 'public_html', 'scripts', 'tests', 'storage', 'Dockerfile.xserver', 'docker-compose.xserver.yml', 'adlaire-ecosystem.md'] as $scope) {
+        assert_true(in_array($scope, $workflow['repository_scope'] ?? [], true), "development workflow should include repository scope: {$scope}");
+    }
+    assert_same([], $workflow['exempt_paths'] ?? null, 'development workflow should define no exempt paths');
+    assert_true(in_array('repository_scope_documented', $workflow['required_verifications'] ?? [], true), 'development workflow should require repository scope documentation');
 
     $officialRelease = Adlaire::officialReleasePolicy();
     assert_same(true, $officialRelease['specification_compliance'] ?? null, 'official release policy should require specification compliance');
@@ -314,6 +327,7 @@ function test_license_governance(): void
     assert_same($license, $audit['license_policy'] ?? null, 'audit should include license policy');
     assert_same($prohibited, $audit['prohibited_use_policy'] ?? null, 'audit should include prohibited use policy');
     assert_same($governance, $audit['governance_policy'] ?? null, 'audit should include governance policy');
+    assert_same($workflow, $audit['development_workflow_policy'] ?? null, 'audit should include development workflow policy');
     assert_same($officialRelease, $audit['official_release_policy'] ?? null, 'audit should include official release policy');
 }
 
@@ -339,7 +353,7 @@ function test_release_readiness(): void
     assert_same($requirements, $audit['release_requirement_matrix'] ?? null, 'audit should include release requirement matrix');
 
     $readiness = Adlaire::releaseReadiness();
-    assert_same('v0.206', $readiness['version'] ?? null, 'release readiness should include current version');
+    assert_same('v0.230', $readiness['version'] ?? null, 'release readiness should include current version');
     assert_same(true, $readiness['ready'] ?? null, 'release readiness should be ready when all checks pass');
     foreach ($readiness['checks'] ?? [] as $name => $passed) {
         assert_same(true, $passed, "release readiness check should pass: {$name}");
@@ -349,7 +363,7 @@ function test_release_readiness(): void
 function test_deployment_axis_policy(): void
 {
     $policy = Adlaire::deploymentAxisPolicy();
-    assert_same('v0.206', $policy['version'] ?? null, 'deployment axis policy should include version');
+    assert_same('v0.230', $policy['version'] ?? null, 'deployment axis policy should include version');
     assert_same('deployment system', $policy['framework_axis'] ?? null, 'deployment axis policy should set deployment system as axis');
     assert_same(false, $policy['architecture_changed'] ?? null, 'deployment axis policy should not change architecture');
     assert_same(
@@ -420,7 +434,7 @@ function test_deployment_axis_policy(): void
 function test_auris_integration_policy(): void
 {
     $policy = Adlaire::aurisIntegrationPolicy();
-    assert_same('v0.206', $policy['version'] ?? null, 'Auris integration policy should include version');
+    assert_same('v0.230', $policy['version'] ?? null, 'Auris integration policy should include version');
     assert_same(true, $policy['future_integration'] ?? null, 'Auris integration policy should mark future integration');
     assert_same('Auris', $policy['target_system'] ?? null, 'Auris integration policy should identify target system');
     assert_same('https://github.com/fqwink/Auris', $policy['target_repository'] ?? null, 'Auris integration policy should identify target repository');
@@ -517,7 +531,7 @@ function test_official_metadata(): void
     assert_true(in_array('managed runtime environment', $boundary['prohibited_categories'] ?? [], true), 'cloud boundary should include managed runtime');
 
     $metadata = Adlaire::officialMetadata();
-    assert_same('v0.206', $metadata['version'] ?? null, 'official metadata should include version');
+    assert_same('v0.230', $metadata['version'] ?? null, 'official metadata should include version');
     assert_same(Adlaire::licensePolicy(), $metadata['license_policy'] ?? null, 'official metadata should include license policy');
     assert_same($distribution, $metadata['distribution_policy'] ?? null, 'official metadata should include distribution policy');
     assert_same($boundary, $metadata['cloud_business_boundary'] ?? null, 'official metadata should include cloud boundary');
@@ -563,7 +577,7 @@ function test_specification_drift(): void
 function test_distribution_manifest(): void
 {
     $manifest = Adlaire::distributionManifest();
-    assert_same('v0.206', $manifest['version'] ?? null, 'distribution manifest should include version');
+    assert_same('v0.230', $manifest['version'] ?? null, 'distribution manifest should include version');
     foreach (['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'DeploymentCore.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php', 'tests/debug.php', 'adlaire-ecosystem.md'] as $file) {
         assert_true(in_array($file, $manifest['files'] ?? [], true), "distribution manifest should include file: {$file}");
     }
@@ -644,7 +658,7 @@ function test_autonomous_system(): void
     assert_same(false, Adlaire::stabilityContract()['deployment_system_breaking_changes_allowed'] ?? null, 'stability contract should protect deployment system');
     assert_same(true, Adlaire::stabilityContract()['deployment_system_compatibility_guaranteed'] ?? null, 'stability contract should guarantee deployment system compatibility');
     $report = Adlaire::autonomousAuditReport();
-    assert_same('v0.206', $report['version'] ?? null, 'autonomous audit report should include version');
+    assert_same('v0.230', $report['version'] ?? null, 'autonomous audit report should include version');
     assert_true(isset($report['policies']['cloud_business_use']), 'autonomous audit report should include policies');
 }
 
@@ -690,7 +704,7 @@ function test_long_term_stability(): void
     assert_same(true, $freeze['deployment_system_compatibility_required'] ?? null, 'release freeze should require deployment system compatibility');
 
     $lts = Adlaire::longTermStabilityContract();
-    assert_same('v0.206', $lts['version'] ?? null, 'long term stability contract should include version');
+    assert_same('v0.230', $lts['version'] ?? null, 'long term stability contract should include version');
     assert_same(true, $lts['long_term_stable'] ?? null, 'long term stability contract should mark stable');
     assert_same(false, $lts['no_breaking_changes'] ?? null, 'long term stability contract should not forbid breaking changes');
     assert_same(false, $lts['compatibility_guaranteed'] ?? null, 'long term stability contract should not guarantee compatibility');
@@ -708,10 +722,10 @@ function test_long_term_stability(): void
 function test_stable_release_contract(): void
 {
     $contract = Adlaire::stableReleaseContract();
-    assert_same('v0.206', $contract['version'] ?? null, 'stable release contract should include version');
+    assert_same('v0.230', $contract['version'] ?? null, 'stable release contract should include version');
     assert_same(true, $contract['stable_release'] ?? null, 'stable release contract should mark stable release');
-    assert_same('v0.206 configuration file prohibition release', $contract['release_name'] ?? null, 'stable release contract should name release');
-    foreach (['routing', 'middleware', 'validation', 'database', 'logging', 'deployment', 'configuration', 'support helpers', 'microkernel', 'Auris module integration', 'SQLite / libSQL runtime hardening', 'runtime operations hardening', 'operations dashboard', 'configuration file prohibition'] as $capability) {
+    assert_same('v0.230 repository documentation consistency release', $contract['release_name'] ?? null, 'stable release contract should name release');
+    foreach (['routing', 'middleware', 'validation', 'database', 'logging', 'deployment', 'configuration', 'support helpers', 'microkernel', 'Auris module integration', 'SQLite / libSQL API runtime hardening', 'runtime operations hardening', 'operations dashboard', 'configuration file prohibition', 'deployment preflight guard', 'deployment plan preview', 'deployment compatibility snapshot', 'deployment rollback preview', 'deployment safety score', 'dashboard control visibility', 'deployment history visualization', 'deployment control report', 'stable release gate', 'Adlaire UI framework', 'deployment control snapshot', 'deployment safety score details', 'rollback state preview', 'dashboard release gate view', 'deployment timeline view', 'Adlaire UI framework expansion', 'release evidence bundle', 'deployment control diff', 'stable release candidate gate', 'API removal', 'specification-first workflow'] as $capability) {
         assert_true(in_array($capability, $contract['backend_framework_capabilities'] ?? [], true), "stable release contract should include capability: {$capability}");
     }
     assert_same(false, $contract['no_breaking_changes'] ?? null, 'stable release contract should not forbid breaking changes');
@@ -726,6 +740,27 @@ function test_stable_release_contract(): void
     assert_same(true, $contract['runtime_operations_hardening'] ?? null, 'stable release contract should include runtime operations hardening');
     assert_same(true, $contract['operations_dashboard'] ?? null, 'stable release contract should include operations dashboard');
     assert_same(true, $contract['configuration_file_prohibition'] ?? null, 'stable release contract should include configuration file prohibition');
+    assert_same(true, $contract['deployment_preflight_guard'] ?? null, 'stable release contract should include deployment preflight guard');
+    assert_same(true, $contract['deployment_plan_preview'] ?? null, 'stable release contract should include deployment plan preview');
+    assert_same(true, $contract['deployment_compatibility_snapshot'] ?? null, 'stable release contract should include deployment compatibility snapshot');
+    assert_same(true, $contract['deployment_rollback_preview'] ?? null, 'stable release contract should include deployment rollback preview');
+    assert_same(true, $contract['deployment_safety_score'] ?? null, 'stable release contract should include deployment safety score');
+    assert_same(true, $contract['dashboard_control_visibility'] ?? null, 'stable release contract should include dashboard control visibility');
+    assert_same(true, $contract['deployment_history_visualization'] ?? null, 'stable release contract should include deployment history visualization');
+    assert_same(true, $contract['deployment_control_report'] ?? null, 'stable release contract should include deployment control report');
+    assert_same(true, $contract['stable_release_gate'] ?? null, 'stable release contract should include stable release gate');
+    assert_same(true, $contract['adlaire_ui_framework'] ?? null, 'stable release contract should include UI framework');
+    assert_same(true, $contract['deployment_control_snapshot'] ?? null, 'stable release contract should include deployment control snapshot');
+    assert_same(true, $contract['deployment_safety_score_details'] ?? null, 'stable release contract should include deployment safety score details');
+    assert_same(true, $contract['rollback_state_preview'] ?? null, 'stable release contract should include rollback state preview');
+    assert_same(true, $contract['dashboard_release_gate_view'] ?? null, 'stable release contract should include dashboard release gate view');
+    assert_same(true, $contract['deployment_timeline_view'] ?? null, 'stable release contract should include deployment timeline view');
+    assert_same(true, $contract['adlaire_ui_framework_expansion'] ?? null, 'stable release contract should include UI framework expansion');
+    assert_same(true, $contract['release_evidence_bundle'] ?? null, 'stable release contract should include release evidence bundle');
+    assert_same(true, $contract['deployment_control_diff'] ?? null, 'stable release contract should include deployment control diff');
+    assert_same(true, $contract['stable_release_candidate_gate'] ?? null, 'stable release contract should include stable release candidate gate');
+    assert_same(true, $contract['api_removal'] ?? null, 'stable release contract should include API removal');
+    assert_same(true, $contract['specification_first_workflow'] ?? null, 'stable release contract should include specification-first workflow');
 
     $audit = Adlaire::audit();
     assert_same($contract, $audit['stable_release_contract'] ?? null, 'audit should include stable release contract');
@@ -737,7 +772,7 @@ function test_stable_release_contract(): void
 function test_production_equivalent_environment(): void
 {
     $policy = Adlaire::productionEnvironmentPolicy();
-    assert_same('v0.206', $policy['version'] ?? null, 'production environment policy should include version');
+    assert_same('v0.230', $policy['version'] ?? null, 'production environment policy should include version');
     assert_same('Xserver rental server', $policy['production_provider'] ?? null, 'production environment policy should identify Xserver');
     assert_same('Xserver shared rental server', $policy['production_environment'] ?? null, 'production environment policy should identify rental server environment');
     assert_same(true, $policy['production_equivalent_testing_required'] ?? null, 'production-equivalent testing should be required');
@@ -775,16 +810,20 @@ function test_production_equivalent_environment(): void
 function test_database_runtime_hardening_policy(): void
 {
     $policy = Adlaire::databaseRuntimeHardeningPolicy();
-    assert_same('v0.206', $policy['version'] ?? null, 'database hardening policy should include version');
-    assert_same('SQLite / libSQL Runtime Hardening', $policy['theme'] ?? null, 'database hardening policy should define theme');
+    assert_same('v0.230', $policy['version'] ?? null, 'database hardening policy should include version');
+    assert_same('SQLite / libSQL API Runtime Hardening', $policy['theme'] ?? null, 'database hardening policy should define theme');
     assert_same(false, $policy['mysql_support_planned'] ?? null, 'database hardening policy should not plan MySQL support');
     assert_true(in_array('sqlite-file', $policy['supported_database_profiles'] ?? [], true), 'database hardening policy should support SQLite file profile');
-    assert_true(in_array('libsql-http', $policy['supported_database_profiles'] ?? [], true), 'database hardening policy should support libSQL HTTP profile');
+    assert_true(in_array('libsql-api', $policy['supported_database_profiles'] ?? [], true), 'database hardening policy should support internal libSQL API profile');
+    assert_true(in_array('libsql-websocket-fallback', $policy['supported_database_profiles'] ?? [], true), 'database hardening policy should support libSQL websocket fallback profile');
     assert_same(true, $policy['sqlite_profile']['foreign_keys_enabled_by_default'] ?? null, 'SQLite hardening should enable foreign keys by default');
     assert_same(5000, $policy['sqlite_profile']['busy_timeout_ms_default'] ?? null, 'SQLite hardening should define busy timeout default');
     assert_same(true, $policy['sqlite_profile']['wal_for_file_databases_by_default'] ?? null, 'SQLite hardening should use WAL for file databases');
-    assert_same(true, $policy['libsql_profile']['http_timeout_configurable'] ?? null, 'libSQL hardening should make timeout configurable');
-    assert_same(true, $policy['libsql_profile']['http_retries_configurable'] ?? null, 'libSQL hardening should make retries configurable');
+    assert_same(false, $policy['api_transport_profile']['public_api_available'] ?? null, 'database hardening should not expose public API');
+    assert_same(true, $policy['api_transport_profile']['internal_libsql_api_available'] ?? null, 'database hardening should expose internal libSQL API');
+    assert_same(true, $policy['api_transport_profile']['timeout_configurable'] ?? null, 'libSQL API hardening should make timeout configurable');
+    assert_same(true, $policy['api_transport_profile']['retries_configurable'] ?? null, 'libSQL API hardening should make retries configurable');
+    assert_same(true, $policy['api_transport_profile']['custom_transport_for_tests'] ?? null, 'libSQL API hardening should provide test transport hook');
     assert_same(true, $policy['configuration_profile']['database_from_config_available'] ?? null, 'database hardening should expose fromConfig');
     assert_true(in_array('database_from_config', $policy['required_verifications'] ?? [], true), 'database hardening should require fromConfig verification');
 
@@ -810,7 +849,7 @@ function test_runtime_operations_hardening(): void
 
     $health = Adlaire::health(['writable_paths' => ['tmp' => $tmp]]);
     assert_same('ok', $health['status'] ?? null, 'runtime health should pass basic checks');
-    assert_same('v0.206', $health['version'] ?? null, 'runtime health should include version');
+    assert_same('v0.230', $health['version'] ?? null, 'runtime health should include version');
     assert_same('ok', $health['checks']['php']['status'] ?? null, 'runtime health should check PHP');
     assert_same('production', $health['checks']['runtime']['environment'] ?? null, 'runtime health should include APP_ENV');
     assert_same('ok', $health['checks']['writable_paths']['tmp']['status'] ?? null, 'runtime health should check writable paths');
@@ -833,7 +872,7 @@ function test_runtime_operations_hardening(): void
     putenv('ADLAIRE_REQUIRED');
 
     $policy = Adlaire::runtimeOperationsHardeningPolicy();
-    assert_same('v0.206', $policy['version'] ?? null, 'runtime operations policy should include version');
+    assert_same('v0.230', $policy['version'] ?? null, 'runtime operations policy should include version');
     assert_same('Runtime Operations Hardening', $policy['theme'] ?? null, 'runtime operations policy should define theme');
     assert_same(true, $policy['standard_health_available'] ?? null, 'runtime operations should expose standard health');
     assert_same(true, $policy['config_audit_available'] ?? null, 'runtime operations should expose config audit');
@@ -861,7 +900,7 @@ function test_operations_dashboard(): void
     putenv('ADLAIRE_DASHBOARD_TOKEN');
 
     $policy = Adlaire::dashboardPolicy();
-    assert_same('v0.206', $policy['version'] ?? null, 'dashboard policy should include version');
+    assert_same('v0.230', $policy['version'] ?? null, 'dashboard policy should include version');
     assert_same('Operations Dashboard', $policy['theme'] ?? null, 'dashboard policy should define theme');
     assert_same(false, $policy['default_enabled'] ?? null, 'dashboard should be disabled by default');
     assert_same(true, $policy['read_only'] ?? null, 'dashboard should be read only');
@@ -872,6 +911,11 @@ function test_operations_dashboard(): void
     assert_same(false, $policy['secret_values_exposed'] ?? null, 'dashboard should not expose secrets');
     assert_same(false, $policy['json_format_available'] ?? null, 'dashboard should not expose JSON output');
     assert_true(in_array('dashboard_html_only', $policy['required_verifications'] ?? [], true), 'dashboard policy should require HTML-only verification');
+    assert_true(in_array('deployment_control', $policy['sections'] ?? [], true), 'dashboard policy should include deployment control section');
+    assert_true(in_array('safety_score', $policy['sections'] ?? [], true), 'dashboard policy should include safety score section');
+    assert_true(in_array('deploy_history', $policy['sections'] ?? [], true), 'dashboard policy should include deploy history section');
+    assert_true(is_file(__DIR__ . '/../public_html/assets/adlaire-ui.css'), 'dashboard UI stylesheet should exist');
+    assert_true(str_contains((string)file_get_contents(__DIR__ . '/../public_html/dashboard.php'), '/assets/adlaire-ui.css'), 'dashboard should load UI stylesheet');
     assert_same(false, Adlaire::dashboardEnabled(), 'dashboard should be disabled without env flag');
     assert_same(false, Adlaire::dashboardTokenConfigured(), 'dashboard token should be absent by default');
 
@@ -899,7 +943,7 @@ function test_operations_dashboard(): void
 function test_configuration_file_policy(): void
 {
     $policy = Adlaire::configurationFilePolicy();
-    assert_same('v0.206', $policy['version'] ?? null, 'configuration file policy should include version');
+    assert_same('v0.230', $policy['version'] ?? null, 'configuration file policy should include version');
     assert_same('Configuration File Prohibition', $policy['theme'] ?? null, 'configuration file policy should define theme');
     assert_same(false, $policy['framework_configuration_files_allowed'] ?? null, 'framework configuration files should be prohibited');
     assert_same(false, $policy['env_files_allowed'] ?? null, 'env files should be prohibited');
@@ -931,6 +975,224 @@ function test_configuration_file_policy(): void
     $readiness = Adlaire::releaseReadiness();
     assert_same(true, $readiness['checks']['configuration_file_policy'] ?? null, 'release readiness should include configuration file policy');
     assert_same($policy, Adlaire::distributionManifest()['configuration_file_policy'] ?? null, 'distribution manifest should include configuration file policy');
+}
+
+function test_deployment_preflight_policy(): void
+{
+    $policy = Adlaire::deploymentPreflightPolicy();
+    assert_same('v0.230', $policy['version'] ?? null, 'deployment preflight policy should include version');
+    assert_same('Deployment Preflight Guard', $policy['theme'] ?? null, 'deployment preflight policy should define theme');
+    assert_same('DeploymentCore.php', $policy['component'] ?? null, 'deployment preflight should target DeploymentCore');
+    assert_same(true, $policy['compatibility_guaranteed'] ?? null, 'deployment preflight should guarantee deployment compatibility');
+    assert_same(false, $policy['breaking_changes_allowed'] ?? null, 'deployment preflight should forbid deployment breaking changes');
+    assert_same(true, $policy['read_only'] ?? null, 'deployment preflight should be read only');
+    assert_same(false, $policy['command_execution_allowed'] ?? null, 'deployment preflight should avoid command execution');
+    assert_true(in_array('deploy_allowlist_configured', $policy['checks'] ?? [], true), 'deployment preflight should check deploy allowlist');
+    assert_true(in_array('deployment_preflight_ready', $policy['required_verifications'] ?? [], true), 'deployment preflight should require readiness verification');
+
+    $requirements = Adlaire::releaseRequirementMatrix();
+    assert_same($policy, $requirements['deployment_preflight_policy']['profile'] ?? null, 'release requirement matrix should include deployment preflight policy');
+    assert_same(true, $requirements['deployment_preflight_policy']['passed'] ?? null, 'deployment preflight requirement should pass');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['deployment_preflight_policy'] ?? null, 'audit should include deployment preflight policy');
+    assert_same(true, $audit['specification_integrity']['checks']['deployment_preflight_policy'] ?? null, 'specification integrity should include deployment preflight policy');
+
+    $readiness = Adlaire::releaseReadiness();
+    assert_same(true, $readiness['checks']['deployment_preflight_policy'] ?? null, 'release readiness should include deployment preflight policy');
+    assert_same($policy, Adlaire::distributionManifest()['deployment_preflight_policy'] ?? null, 'distribution manifest should include deployment preflight policy');
+}
+
+function test_deployment_plan_preview_policy(): void
+{
+    $policy = Adlaire::deploymentPlanPreviewPolicy();
+    assert_same('v0.230', $policy['version'] ?? null, 'deployment plan preview policy should include version');
+    assert_same('Deployment Plan Preview', $policy['theme'] ?? null, 'deployment plan preview policy should define theme');
+    assert_same('DeploymentCore.php', $policy['component'] ?? null, 'deployment plan preview should target DeploymentCore');
+    assert_same(true, $policy['read_only'] ?? null, 'deployment plan preview should be read only');
+    assert_same(false, $policy['command_execution_allowed'] ?? null, 'deployment plan preview should avoid command execution');
+    assert_same(false, $policy['writes_allowed'] ?? null, 'deployment plan preview should avoid writes');
+    assert_true(in_array('added', $policy['classifications'] ?? [], true), 'deployment plan preview should classify added files');
+    assert_true(in_array('modified', $policy['classifications'] ?? [], true), 'deployment plan preview should classify modified files');
+    assert_true(in_array('skipped', $policy['classifications'] ?? [], true), 'deployment plan preview should classify skipped files');
+
+    $requirements = Adlaire::releaseRequirementMatrix();
+    assert_same($policy, $requirements['deployment_plan_preview_policy']['profile'] ?? null, 'release requirement matrix should include deployment plan preview policy');
+    assert_same(true, $requirements['deployment_plan_preview_policy']['passed'] ?? null, 'deployment plan preview requirement should pass');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['deployment_plan_preview_policy'] ?? null, 'audit should include deployment plan preview policy');
+    assert_same(true, $audit['specification_integrity']['checks']['deployment_plan_preview_policy'] ?? null, 'specification integrity should include deployment plan preview policy');
+
+    $readiness = Adlaire::releaseReadiness();
+    assert_same(true, $readiness['checks']['deployment_plan_preview_policy'] ?? null, 'release readiness should include deployment plan preview policy');
+    assert_same($policy, Adlaire::distributionManifest()['deployment_plan_preview_policy'] ?? null, 'distribution manifest should include deployment plan preview policy');
+}
+
+function test_deployment_compatibility_snapshot_policy(): void
+{
+    $policy = Adlaire::deploymentCompatibilitySnapshotPolicy();
+    assert_same('v0.230', $policy['version'] ?? null, 'deployment compatibility snapshot policy should include version');
+    assert_same('Deployment Compatibility Snapshot', $policy['theme'] ?? null, 'deployment compatibility snapshot policy should define theme');
+    assert_same('DeploymentCore.php', $policy['component'] ?? null, 'deployment compatibility snapshot should target DeploymentCore');
+    assert_same(true, $policy['compatibility_guaranteed'] ?? null, 'deployment compatibility snapshot should guarantee deployment compatibility');
+    assert_same(false, $policy['breaking_changes_allowed'] ?? null, 'deployment compatibility snapshot should forbid deployment breaking changes');
+    assert_same(true, $policy['read_only'] ?? null, 'deployment compatibility snapshot should be read only');
+    assert_same(false, $policy['command_execution_allowed'] ?? null, 'deployment compatibility snapshot should avoid command execution');
+    assert_same(false, $policy['writes_allowed'] ?? null, 'deployment compatibility snapshot should avoid writes');
+    assert_true(in_array('deployment_core_component', $policy['snapshot_evidence'] ?? [], true), 'deployment compatibility snapshot should include component evidence');
+    assert_true(in_array('preflight_ready', $policy['snapshot_evidence'] ?? [], true), 'deployment compatibility snapshot should include preflight evidence');
+    assert_true(in_array('deployment_compatibility_snapshot_ready', $policy['required_verifications'] ?? [], true), 'deployment compatibility snapshot should require readiness verification');
+
+    $requirements = Adlaire::releaseRequirementMatrix();
+    assert_same($policy, $requirements['deployment_compatibility_snapshot_policy']['profile'] ?? null, 'release requirement matrix should include deployment compatibility snapshot policy');
+    assert_same(true, $requirements['deployment_compatibility_snapshot_policy']['passed'] ?? null, 'deployment compatibility snapshot requirement should pass');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['deployment_compatibility_snapshot_policy'] ?? null, 'audit should include deployment compatibility snapshot policy');
+    assert_same(true, $audit['specification_integrity']['checks']['deployment_compatibility_snapshot_policy'] ?? null, 'specification integrity should include deployment compatibility snapshot policy');
+
+    $readiness = Adlaire::releaseReadiness();
+    assert_same(true, $readiness['checks']['deployment_compatibility_snapshot_policy'] ?? null, 'release readiness should include deployment compatibility snapshot policy');
+    assert_same($policy, Adlaire::distributionManifest()['deployment_compatibility_snapshot_policy'] ?? null, 'distribution manifest should include deployment compatibility snapshot policy');
+}
+
+function assert_policy_release_connection(string $key, array $policy): void
+{
+    $requirements = Adlaire::releaseRequirementMatrix();
+    assert_same($policy, $requirements[$key]['profile'] ?? null, "release requirement matrix should include policy: {$key}");
+    assert_same(true, $requirements[$key]['passed'] ?? null, "release requirement should pass: {$key}");
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit[$key] ?? null, "audit should include policy: {$key}");
+    assert_same(true, $audit['specification_integrity']['checks'][$key] ?? null, "specification integrity should include policy: {$key}");
+
+    $readiness = Adlaire::releaseReadiness();
+    assert_same(true, $readiness['checks'][$key] ?? null, "release readiness should include policy: {$key}");
+    assert_same($policy, Adlaire::distributionManifest()[$key] ?? null, "distribution manifest should include policy: {$key}");
+}
+
+function test_deployment_control_policy_suite(): void
+{
+    $rollback = Adlaire::deploymentRollbackPreviewPolicy();
+    assert_same('v0.230', $rollback['version'] ?? null, 'rollback preview policy should include version');
+    assert_same('Deployment Rollback Preview', $rollback['theme'] ?? null, 'rollback preview policy should define theme');
+    assert_same(true, $rollback['read_only'] ?? null, 'rollback preview policy should be read only');
+    assert_true(in_array('restore', $rollback['classifications'] ?? [], true), 'rollback preview should classify restore files');
+    assert_policy_release_connection('deployment_rollback_preview_policy', $rollback);
+
+    $score = Adlaire::deploymentSafetyScorePolicy();
+    assert_same('Deployment Safety Score', $score['theme'] ?? null, 'safety score policy should define theme');
+    assert_same(70, $score['minimum_release_score'] ?? null, 'safety score policy should define minimum score');
+    assert_true(in_array('safe', $score['grades'] ?? [], true), 'safety score policy should define safe grade');
+    assert_policy_release_connection('deployment_safety_score_policy', $score);
+
+    $control = Adlaire::dashboardControlVisibilityPolicy();
+    assert_same('Dashboard Control Visibility', $control['theme'] ?? null, 'dashboard control policy should define theme');
+    assert_true(in_array('deployment_control', $control['sections'] ?? [], true), 'dashboard control policy should include deployment control section');
+    assert_policy_release_connection('dashboard_control_visibility_policy', $control);
+
+    $history = Adlaire::deploymentHistoryVisualizationPolicy();
+    assert_same('Deployment History Visualization', $history['theme'] ?? null, 'history visualization policy should define theme');
+    assert_true(in_array('deploy_history', $history['sections'] ?? [], true), 'history visualization policy should include deploy history');
+    assert_policy_release_connection('deployment_history_visualization_policy', $history);
+
+    $report = Adlaire::deploymentControlReportPolicy();
+    assert_same('Deployment Control Report', $report['theme'] ?? null, 'control report policy should define theme');
+    assert_true(in_array('safety_score', $report['sections'] ?? [], true), 'control report should include safety score');
+    assert_policy_release_connection('deployment_control_report_policy', $report);
+
+    $gate = Adlaire::stableReleaseGatePolicy();
+    assert_same('Stable Release Gate', $gate['theme'] ?? null, 'stable release gate policy should define theme');
+    assert_same(70, $gate['minimum_deployment_safety_score'] ?? null, 'stable release gate should define minimum score');
+    assert_policy_release_connection('stable_release_gate_policy', $gate);
+
+    $ui = Adlaire::uiFrameworkPolicy();
+    assert_same('Adlaire UI Framework', $ui['theme'] ?? null, 'UI framework policy should define theme');
+    assert_same('public_html/assets/adlaire-ui.css', $ui['asset'] ?? null, 'UI framework policy should define asset');
+    assert_same(false, $ui['configuration_files_allowed'] ?? null, 'UI framework should not allow configuration files');
+    assert_policy_release_connection('ui_framework_policy', $ui);
+
+    $controlSnapshot = Adlaire::deploymentControlSnapshotPolicy();
+    assert_same('Deployment Control Snapshot', $controlSnapshot['theme'] ?? null, 'control snapshot policy should define theme');
+    assert_same(true, $controlSnapshot['json_audit_artifact_allowed'] ?? null, 'control snapshot should allow JSON audit artifact');
+    assert_same(false, $controlSnapshot['configuration_files_allowed'] ?? null, 'control snapshot should not allow configuration files');
+    assert_policy_release_connection('deployment_control_snapshot_policy', $controlSnapshot);
+
+    $scoreDetails = Adlaire::deploymentSafetyScoreDetailsPolicy();
+    assert_same('Deployment Safety Score Details', $scoreDetails['theme'] ?? null, 'score details policy should define theme');
+    assert_true(in_array('critical', $scoreDetails['severity_levels'] ?? [], true), 'score details should define severity levels');
+    assert_policy_release_connection('deployment_safety_score_details_policy', $scoreDetails);
+
+    $rollbackState = Adlaire::rollbackStatePreviewPolicy();
+    assert_same('Rollback State Preview', $rollbackState['theme'] ?? null, 'rollback state policy should define theme');
+    assert_same(true, $rollbackState['projected_state_available'] ?? null, 'rollback state policy should expose projected state');
+    assert_policy_release_connection('rollback_state_preview_policy', $rollbackState);
+
+    $releaseGateView = Adlaire::dashboardReleaseGateViewPolicy();
+    assert_same('Dashboard Release Gate View', $releaseGateView['theme'] ?? null, 'dashboard release gate policy should define theme');
+    assert_true(in_array('release_gate', $releaseGateView['sections'] ?? [], true), 'dashboard release gate should include release gate section');
+    assert_policy_release_connection('dashboard_release_gate_view_policy', $releaseGateView);
+
+    $timeline = Adlaire::deploymentTimelinePolicy();
+    assert_same('Deployment Timeline View', $timeline['theme'] ?? null, 'deployment timeline policy should define theme');
+    assert_true(in_array('preflight', $timeline['events'] ?? [], true), 'deployment timeline should include preflight');
+    assert_policy_release_connection('deployment_timeline_policy', $timeline);
+
+    $uiExpansion = Adlaire::uiFrameworkExpansionPolicy();
+    assert_same('Adlaire UI Framework Expansion', $uiExpansion['theme'] ?? null, 'UI expansion policy should define theme');
+    assert_true(in_array('status_layout', $uiExpansion['components'] ?? [], true), 'UI expansion should include status layout');
+    assert_policy_release_connection('ui_framework_expansion_policy', $uiExpansion);
+
+    $bundle = Adlaire::releaseEvidenceBundlePolicy();
+    assert_same('Release Evidence Bundle', $bundle['theme'] ?? null, 'release evidence bundle policy should define theme');
+    assert_true(in_array('control_report', $bundle['required_evidence'] ?? [], true), 'release evidence bundle should include control report');
+    assert_policy_release_connection('release_evidence_bundle_policy', $bundle);
+
+    $diff = Adlaire::deploymentControlDiffPolicy();
+    assert_same('Deployment Control Diff', $diff['theme'] ?? null, 'deployment control diff policy should define theme');
+    assert_true(in_array('safety_score', $diff['sections'] ?? [], true), 'deployment control diff should include safety score');
+    assert_policy_release_connection('deployment_control_diff_policy', $diff);
+
+    $candidate = Adlaire::stableReleaseCandidateGatePolicy();
+    assert_same('Stable Release Candidate Gate', $candidate['theme'] ?? null, 'stable release candidate gate policy should define theme');
+    assert_same(70, $candidate['minimum_deployment_safety_score'] ?? null, 'stable release candidate gate should define minimum score');
+    assert_policy_release_connection('stable_release_candidate_gate_policy', $candidate);
+
+    $apiRemoval = Adlaire::apiRemovalPolicy();
+    assert_same('API Removal', $apiRemoval['theme'] ?? null, 'API removal policy should define theme');
+    assert_same(false, $apiRemoval['public_api_available'] ?? null, 'API removal should disable public API');
+    assert_same(false, $apiRemoval['json_response_available'] ?? null, 'API removal should disable JSON responses');
+    assert_same(false, $apiRemoval['json_request_parsing_available'] ?? null, 'API removal should disable JSON request parsing');
+    assert_same(false, $apiRemoval['cors_available'] ?? null, 'API removal should disable CORS');
+    assert_same(true, $apiRemoval['json_metadata_exception_retained'] ?? null, 'API removal should retain JSON metadata exception');
+    assert_same(true, $apiRemoval['internal_libsql_api_allowed'] ?? null, 'API removal should allow internal libSQL API transport');
+    assert_same(false, method_exists(Response::class, 'json'), 'Response::json should be removed');
+    assert_same(false, method_exists(Response::class, 'success'), 'Response::success should be removed');
+    assert_same(false, method_exists(Response::class, 'paginated'), 'Response::paginated should be removed');
+    assert_same(false, method_exists(Response::class, 'cors'), 'Response::cors should be removed');
+    assert_same(false, method_exists(Request::class, 'isJson'), 'Request::isJson should be removed');
+    assert_same(false, method_exists(Request::class, 'expectsJson'), 'Request::expectsJson should be removed');
+    assert_policy_release_connection('api_removal_policy', $apiRemoval);
+
+    $documentation = Adlaire::documentationConsistencyPolicy();
+    assert_same('Repository Documentation Consistency', $documentation['theme'] ?? null, 'documentation consistency policy should define theme');
+    assert_same(false, $documentation['xserver_required'] ?? null, 'documentation consistency should not require Xserver');
+    assert_same(false, $documentation['mysql_support_planned'] ?? null, 'documentation consistency should not plan MySQL');
+    assert_true(in_array('sqlite', $documentation['database_axis'] ?? [], true), 'documentation consistency should keep SQLite axis');
+    assert_true(in_array('internal_libsql_api_transport', $documentation['database_axis'] ?? [], true), 'documentation consistency should keep internal libSQL API transport axis');
+    assert_same(false, $documentation['framework_configuration_files_allowed'] ?? null, 'documentation consistency should prohibit framework configuration files');
+    assert_same(false, $documentation['json_configuration_files_allowed'] ?? null, 'documentation consistency should not allow JSON configuration files');
+    assert_same(false, $documentation['public_api_available'] ?? null, 'documentation consistency should not restore public API');
+    assert_true(in_array('docs/xserver-production-equivalent.md', $documentation['checked_documents'] ?? [], true), 'documentation consistency should check Xserver profile document');
+
+    $document = file_get_contents(__DIR__ . '/../docs/xserver-production-equivalent.md');
+    assert_true($document !== false, 'Xserver profile document should be readable');
+    assert_same(false, stripos($document, 'mysql-compatible') !== false, 'Xserver profile document should not contain stale MySQL-compatible guidance');
+    assert_same(false, stripos($document, 'ignored deployment-specific env file') !== false, 'Xserver profile document should not allow ignored env files');
+    assert_true(stripos($document, 'MySQL support is not planned') !== false, 'Xserver profile document should state MySQL is not planned');
+    assert_true(stripos($document, 'Framework configuration files') !== false, 'Xserver profile document should document configuration file prohibition');
+    assert_policy_release_connection('documentation_consistency_policy', $documentation);
 }
 
 function test_router(): void
@@ -1176,6 +1438,48 @@ function test_database(): void
         throw new DebugTestFailure('MySQL DSN should not be supported');
     } catch (InvalidArgumentException) {
     }
+
+    $captured = [];
+    $libsql = new Database('https://db.example.com', 'token-123', [
+        'timeout_seconds' => 7,
+        'retries' => 1,
+        'token_required' => true,
+        'consistency' => 'eventual',
+        'transport' => static function (string $endpoint, string $payload, array $headers, int $timeout) use (&$captured): array {
+            $captured = compact('endpoint', 'payload', 'headers', 'timeout');
+            return [
+                'status' => 200,
+                'body' => '{"results":[{"columns":["name"],"rows":[["libsql-api"]],"affected_row_count":1}]}',
+            ];
+        },
+    ]);
+    $libsqlProfile = $libsql->runtimeProfile();
+    assert_same('libsql-api', $libsqlProfile['driver'] ?? null, 'libSQL API runtime profile should identify driver');
+    assert_same(7, $libsqlProfile['timeout_seconds'] ?? null, 'libSQL API timeout should be configurable');
+    assert_same(1, $libsqlProfile['retries'] ?? null, 'libSQL API retries should be configurable');
+    assert_same(true, $libsqlProfile['token_required'] ?? null, 'libSQL API token required profile should be retained');
+    assert_same('eventual', $libsqlProfile['consistency'] ?? null, 'libSQL API consistency should be configurable');
+    assert_same('libsql-api', $libsql->statement('SELECT ?', ['libsql-api'])->fetch()['name'] ?? null, 'libSQL API response should map rows to columns');
+    assert_same('https://db.example.com/v2/pipeline', $captured['endpoint'] ?? null, 'libSQL API should target pipeline endpoint');
+    assert_same(7, $captured['timeout'] ?? null, 'libSQL API transport should receive timeout');
+    assert_true(in_array('Authorization: Bearer token-123', $captured['headers'] ?? [], true), 'libSQL API transport should send bearer token');
+    $payload = json_decode((string)($captured['payload'] ?? ''), true);
+    assert_same('SELECT ?', $payload['statements'][0]['q'] ?? null, 'libSQL API payload should include SQL');
+    assert_same(['libsql-api'], $payload['statements'][0]['params'] ?? null, 'libSQL API payload should include bindings');
+
+    $fallback = new Database('wss://db.example.com', null, [
+        'transport' => static fn(): array => ['status' => 200, 'body' => '{"results":[{"columns":[],"rows":[]}]}'],
+    ]);
+    assert_same('libsql-websocket-fallback', $fallback->runtimeProfile()['driver'] ?? null, 'wss libSQL URL should use API fallback profile');
+
+    try {
+        new Database('https://db.example.com', null, [
+            'token_required' => true,
+            'transport' => static fn(): array => ['status' => 200, 'body' => '{}'],
+        ]);
+        throw new DebugTestFailure('libSQL API token_required should reject missing token');
+    } catch (InvalidArgumentException) {
+    }
 }
 
 function test_logger(): void
@@ -1308,6 +1612,60 @@ function test_deployer_config(): void
         assert_same(true, $passed, "deployer readiness check should pass: {$name}");
     }
 
+    $preflight = $deployer->preflight();
+    assert_same(true, $preflight['ready'] ?? null, 'deployer preflight should pass for prepared config');
+    assert_same('DeploymentCore.php', $preflight['component'] ?? null, 'deployer preflight should identify DeploymentCore');
+    assert_same(true, $preflight['compatibility_guaranteed'] ?? null, 'deployer preflight should guarantee deployment compatibility');
+    assert_same(false, $preflight['breaking_changes_allowed'] ?? null, 'deployer preflight should forbid deployment breaking changes');
+    assert_same(true, $preflight['checks']['deploy_allowlist_configured'] ?? null, 'deployer preflight should require deploy allowlist');
+    assert_same(true, $preflight['checks']['lock_available'] ?? null, 'deployer preflight should verify lock availability');
+
+    $previewSource = $base . '/source_preview';
+    if (!is_dir($previewSource)) {
+        assert_true(mkdir($previewSource, 0775, true) || is_dir($previewSource), 'deployment preview source should be created');
+    }
+    assert_true(file_put_contents($base . '/target/modified.php', '<?php echo "old";') !== false, 'preview modified target should be prepared');
+    assert_true(file_put_contents($base . '/target/unchanged.php', '<?php echo "same";') !== false, 'preview unchanged target should be prepared');
+    assert_true(file_put_contents($previewSource . '/added.php', '<?php echo "added";') !== false, 'preview added source should be prepared');
+    assert_true(file_put_contents($previewSource . '/modified.php', '<?php echo "new";') !== false, 'preview modified source should be prepared');
+    assert_true(file_put_contents($previewSource . '/unchanged.php', '<?php echo "same";') !== false, 'preview unchanged source should be prepared');
+    assert_true(file_put_contents($previewSource . '/notes.txt', 'skip') !== false, 'preview skipped source should be prepared');
+    assert_true(file_put_contents($previewSource . '/DeploymentCore.php', '<?php echo "core";') !== false, 'preview deployment core source should be prepared');
+
+    $plan = $deployer->planPreview($previewSource);
+    assert_same(true, $plan['ready'] ?? null, 'deployment plan preview should be ready');
+    assert_same(true, $plan['read_only'] ?? null, 'deployment plan preview should be read only');
+    assert_same(false, $plan['command_execution_allowed'] ?? null, 'deployment plan preview should avoid command execution');
+    assert_same(false, $plan['writes_allowed'] ?? null, 'deployment plan preview should avoid writes');
+    assert_same('DeploymentCore.php', $plan['component'] ?? null, 'deployment plan preview should identify DeploymentCore');
+    assert_same(true, $plan['deployment_core_change_detected'] ?? null, 'deployment plan preview should detect DeploymentCore changes');
+    assert_true(in_array('added.php', $plan['files']['added'] ?? [], true), 'deployment plan preview should classify added files');
+    assert_true(in_array('DeploymentCore.php', $plan['files']['added'] ?? [], true), 'deployment plan preview should classify added DeploymentCore file');
+    assert_true(in_array('modified.php', $plan['files']['modified'] ?? [], true), 'deployment plan preview should classify modified files');
+    assert_true(in_array('unchanged.php', $plan['files']['unchanged'] ?? [], true), 'deployment plan preview should classify unchanged files');
+    assert_true(in_array('notes.txt', $plan['files']['skipped'] ?? [], true), 'deployment plan preview should classify skipped files');
+    assert_same(2, $plan['summary']['added'] ?? null, 'deployment plan preview should count added files');
+    assert_same(1, $plan['summary']['modified'] ?? null, 'deployment plan preview should count modified files');
+    assert_same(1, $plan['summary']['unchanged'] ?? null, 'deployment plan preview should count unchanged files');
+    assert_same(1, $plan['summary']['skipped'] ?? null, 'deployment plan preview should count skipped files');
+    assert_same(3, $plan['summary']['changes'] ?? null, 'deployment plan preview should count change files');
+
+    $snapshot = $deployer->compatibilitySnapshot($previewSource);
+    assert_same(true, $snapshot['ready'] ?? null, 'deployment compatibility snapshot should be ready');
+    assert_same(true, $snapshot['read_only'] ?? null, 'deployment compatibility snapshot should be read only');
+    assert_same(false, $snapshot['command_execution_allowed'] ?? null, 'deployment compatibility snapshot should avoid command execution');
+    assert_same(false, $snapshot['writes_allowed'] ?? null, 'deployment compatibility snapshot should avoid writes');
+    assert_same('DeploymentCore.php', $snapshot['component'] ?? null, 'deployment compatibility snapshot should identify DeploymentCore');
+    assert_same(true, $snapshot['compatibility_guaranteed'] ?? null, 'deployment compatibility snapshot should guarantee deployment compatibility');
+    assert_same(false, $snapshot['breaking_changes_allowed'] ?? null, 'deployment compatibility snapshot should forbid deployment breaking changes');
+    assert_same(true, $snapshot['deployment_core_change_detected'] ?? null, 'deployment compatibility snapshot should preserve DeploymentCore change evidence');
+    assert_same(true, $snapshot['checks']['deployment_core_component'] ?? null, 'deployment compatibility snapshot should check component');
+    assert_same(true, $snapshot['checks']['deployment_axis_retained'] ?? null, 'deployment compatibility snapshot should check deployment axis');
+    assert_same(true, $snapshot['checks']['architecture_unchanged'] ?? null, 'deployment compatibility snapshot should check unchanged architecture');
+    assert_same(true, $snapshot['checks']['preflight_ready'] ?? null, 'deployment compatibility snapshot should check preflight readiness');
+    assert_same(true, $snapshot['checks']['plan_preview_read_only'] ?? null, 'deployment compatibility snapshot should check plan preview read-only status');
+    assert_same($plan['summary'], $snapshot['plan_summary'] ?? null, 'deployment compatibility snapshot should include plan summary evidence');
+
     $targetFile = $base . '/target/current.txt';
     assert_true(file_put_contents($targetFile, 'current') !== false, 'target file should be prepared');
     $snapshot = $base . '/backup/20000101_000000_previous';
@@ -1319,6 +1677,58 @@ function test_deployer_config(): void
         'files' => ['current.txt'],
     ], JSON_THROW_ON_ERROR)) !== false, 'previous snapshot manifest should be written');
     assert_true(file_put_contents($snapshot . '/current.txt', 'old') !== false, 'previous snapshot file should be written');
+
+    $rollbackPreview = $deployer->rollbackPreview();
+    assert_same(true, $rollbackPreview['ready'] ?? null, 'rollback preview should be ready when snapshot exists');
+    assert_same(true, $rollbackPreview['read_only'] ?? null, 'rollback preview should be read only');
+    assert_same(false, $rollbackPreview['command_execution_allowed'] ?? null, 'rollback preview should avoid command execution');
+    assert_same(false, $rollbackPreview['writes_allowed'] ?? null, 'rollback preview should avoid writes');
+    assert_true(in_array('current.txt', $rollbackPreview['files']['restore'] ?? [], true), 'rollback preview should classify restore files');
+    assert_true(in_array('modified.php', $rollbackPreview['files']['remove'] ?? [], true), 'rollback preview should classify remove files');
+
+    $safety = $deployer->deploymentSafetyScore($previewSource);
+    assert_same(true, $safety['read_only'] ?? null, 'deployment safety score should be read only');
+    assert_same(false, $safety['command_execution_allowed'] ?? null, 'deployment safety score should avoid command execution');
+    assert_same(false, $safety['writes_allowed'] ?? null, 'deployment safety score should avoid writes');
+    assert_true(($safety['score'] ?? 0) >= 70, 'deployment safety score should pass minimum threshold');
+    assert_same(true, $safety['compatibility_snapshot_ready'] ?? null, 'deployment safety score should include compatibility evidence');
+    assert_same(true, $safety['rollback_preview_ready'] ?? null, 'deployment safety score should include rollback evidence');
+
+    $controlReport = $deployer->deploymentControlReport($previewSource);
+    assert_same('v0.230', $controlReport['version'] ?? null, 'deployment control report should include version');
+    assert_same(true, $controlReport['read_only'] ?? null, 'deployment control report should be read only');
+    assert_same(false, $controlReport['command_execution_allowed'] ?? null, 'deployment control report should avoid command execution');
+    assert_same(false, $controlReport['writes_allowed'] ?? null, 'deployment control report should avoid writes');
+    assert_true(isset($controlReport['preflight'], $controlReport['plan_preview'], $controlReport['compatibility_snapshot'], $controlReport['rollback_preview'], $controlReport['safety_score'], $controlReport['history']), 'deployment control report should include all control sections');
+    assert_true(isset($controlReport['safety_score_details']), 'deployment control report should include safety score details');
+
+    $scoreDetails = $deployer->deploymentSafetyScoreDetails($previewSource);
+    assert_same(true, $scoreDetails['read_only'] ?? null, 'deployment safety score details should be read only');
+    assert_same($safety['score'], $scoreDetails['score'] ?? null, 'deployment safety score details should include score');
+
+    $statePreview = $deployer->rollbackStatePreview();
+    assert_same(true, $statePreview['read_only'] ?? null, 'rollback state preview should be read only');
+    assert_same(true, $statePreview['ready'] ?? null, 'rollback state preview should be ready');
+    assert_same(1, $statePreview['projected_state']['restored_files'] ?? null, 'rollback state preview should count restored files');
+
+    $controlDiff = $deployer->deploymentControlDiff($controlReport, $previewSource);
+    assert_same(true, $controlDiff['read_only'] ?? null, 'deployment control diff should be read only');
+    assert_same(0, $controlDiff['summary']['changes'] ?? null, 'deployment control diff should be empty against same report');
+
+    $evidence = $deployer->releaseEvidenceBundle($previewSource);
+    assert_same('v0.230', $evidence['version'] ?? null, 'release evidence bundle should include version');
+    assert_same(true, $evidence['read_only'] ?? null, 'release evidence bundle should be read only');
+    assert_true(isset($evidence['evidence']['control_report'], $evidence['evidence']['release_gate_inputs']), 'release evidence bundle should include required evidence');
+
+    $candidateGate = $deployer->stableReleaseCandidateGate($previewSource);
+    assert_same(true, $candidateGate['rc_ready'] ?? null, 'stable release candidate gate should pass prepared deployment evidence');
+    assert_same('release-candidate', $candidateGate['grade'] ?? null, 'stable release candidate gate should expose release candidate grade');
+
+    $recorded = $deployer->recordDeploymentControlSnapshot($previewSource);
+    assert_same(true, $recorded['recorded'] ?? null, 'deployment control snapshot should be recorded');
+    assert_same(true, $recorded['audit_artifact'] ?? null, 'deployment control snapshot should be an audit artifact');
+    assert_same(false, $recorded['configuration_file'] ?? null, 'deployment control snapshot should not be a configuration file');
+    assert_true(is_file($base . '/backup/deployment_control_snapshots.jsonl'), 'deployment control snapshot JSONL should be written');
 
     $failingConfig = DeployConfig::fromArray([
         'repository' => '/definitely/missing/repository.git',
@@ -1377,6 +1787,11 @@ function test_deployer_config(): void
     $lastHistory = json_decode((string)end($historyLines), true, flags: JSON_THROW_ON_ERROR);
     assert_same('deploy', $lastHistory['phase'] ?? null, 'deploy history should include phase');
     assert_same('completed', $lastHistory['status'] ?? null, 'deploy history should include status');
+
+    $history = $initialDeployer->deploymentHistorySummary();
+    assert_same(true, $history['read_only'] ?? null, 'deploy history summary should be read only');
+    assert_same(1, $history['summary']['total'] ?? null, 'deploy history summary should include total entries');
+    assert_same(1, $history['summary']['completed'] ?? null, 'deploy history summary should include completed entries');
 }
 
 $tests = [
@@ -1401,6 +1816,10 @@ $tests = [
     'runtime_operations_hardening' => test_runtime_operations_hardening(...),
     'operations_dashboard' => test_operations_dashboard(...),
     'configuration_file_policy' => test_configuration_file_policy(...),
+    'deployment_preflight_policy' => test_deployment_preflight_policy(...),
+    'deployment_plan_preview_policy' => test_deployment_plan_preview_policy(...),
+    'deployment_compatibility_snapshot_policy' => test_deployment_compatibility_snapshot_policy(...),
+    'deployment_control_policy_suite' => test_deployment_control_policy_suite(...),
     'validator' => test_validator(...),
     'router' => test_router(...),
     'general_framework_support' => test_general_framework_support(...),

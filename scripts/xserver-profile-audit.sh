@@ -26,6 +26,7 @@ check_file docker-compose.xserver.yml
 check_file public_html/.htaccess
 check_file public_html/index.php
 check_file public_html/dashboard.php
+check_file public_html/assets/adlaire-ui.css
 check_file storage/.gitkeep
 check_file DeploymentCore.php
 check_file FrameworkCore/Core.php

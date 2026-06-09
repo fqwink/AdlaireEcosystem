@@ -116,6 +116,13 @@ function dashboard_collect_data(): array
                 'ready' => $releaseReadiness['ready'] ?? false,
                 'checks' => $releaseReadiness['checks'] ?? [],
             ],
+            'deployment_control' => [
+                'control_visibility' => Adlaire::dashboardControlVisibilityPolicy(),
+                'control_report' => Adlaire::deploymentControlReportPolicy(),
+                'stable_release_gate' => Adlaire::stableReleaseGatePolicy(),
+            ],
+            'safety_score' => Adlaire::deploymentSafetyScorePolicy(),
+            'deploy_history' => Adlaire::deploymentHistoryVisualizationPolicy(),
             'distribution' => [
                 'version' => $distribution['version'] ?? Adlaire::version(),
                 'files' => $distribution['files'] ?? [],
@@ -151,22 +158,7 @@ $sections = $data['sections'];
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Adlaire Operations Dashboard</title>
-<style>
-body{margin:0;background:#f7f8fa;color:#1d2430;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-header{padding:24px 32px;background:#ffffff;border-bottom:1px solid #d9dee7}
-main{padding:24px 32px;display:grid;gap:18px}
-h1{font-size:24px;margin:0 0 8px}
-h2{font-size:17px;margin:0 0 12px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-section{background:#ffffff;border:1px solid #d9dee7;border-radius:8px;padding:18px}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{padding:8px;border-top:1px solid #edf0f4;text-align:left;vertical-align:top}
-th{width:34%;color:#526070;font-weight:600}
-pre{white-space:pre-wrap;margin:0;font-size:12px}
-.badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700}
-.ok{background:#dff5e7;color:#126b35}.failed{background:#fde2e1;color:#9d1c16}.warning{background:#fff2cc;color:#765200}
-details{margin-top:10px}summary{cursor:pointer;font-weight:600}
-</style>
+<link rel="stylesheet" href="/assets/adlaire-ui.css">
 </head>
 <body>
 <header>
@@ -181,6 +173,9 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 <section><h2>Health</h2><?= dashboard_table($sections['health']['checks'] ?? []) ?></section>
 <section><h2>Config Audit</h2><?= dashboard_table(['valid' => $sections['config_audit']['valid'] ?? false, 'checks' => $sections['config_audit']['checks'] ?? [], 'details' => $sections['config_audit']['details'] ?? []]) ?></section>
 <section><h2>Release Readiness</h2><?= dashboard_table(['ready' => $sections['release_readiness']['ready'] ?? false, 'checks' => $sections['release_readiness']['checks'] ?? []]) ?></section>
+<section><h2>Deployment Control</h2><?= dashboard_table($sections['deployment_control']) ?></section>
+<section><h2>Safety Score</h2><?= dashboard_table($sections['safety_score']) ?></section>
+<section><h2>Deploy History</h2><?= dashboard_table($sections['deploy_history']) ?></section>
 <section><h2>Database</h2><?= dashboard_table($sections['database']) ?></section>
 <section><h2>Distribution</h2><details open><summary>Files</summary><?= dashboard_table(['files' => $sections['distribution']['files'] ?? []]) ?></details><details><summary>Required Verifications</summary><?= dashboard_table(['required_verifications' => $sections['distribution']['required_verifications'] ?? []]) ?></details></section>
 </main>

@@ -9,20 +9,19 @@ Adlaire::init();
 $router = new Router();
 
 $router->get('/', static function (Request $request, Response $response): never {
-    $response->json([
-        'service' => 'Adlaire Ecosystem',
-        'version' => Adlaire::version(),
-        'environment' => Adlaire::env('APP_ENV', 'production'),
-        'production_provider' => Adlaire::productionEnvironmentPolicy()['production_provider'],
-    ]);
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Adlaire Ecosystem</title></head><body>';
+    echo '<h1>Adlaire Ecosystem</h1>';
+    echo '<p>Version: ' . htmlspecialchars(Adlaire::version(), ENT_QUOTES, 'UTF-8') . '</p>';
+    echo '<p>Environment: ' . htmlspecialchars((string)Adlaire::env('APP_ENV', 'production'), ENT_QUOTES, 'UTF-8') . '</p>';
+    echo '</body></html>';
+    exit;
 });
 
 $router->get('/health', static function (Request $request, Response $response): never {
-    $response->json([
-        'status' => 'ok',
-        'php' => PHP_VERSION,
-        'document_root' => basename((string)($_SERVER['DOCUMENT_ROOT'] ?? '')),
-    ]);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'ok';
+    exit;
 });
 
 $router->dispatch(new Request(), new Response());

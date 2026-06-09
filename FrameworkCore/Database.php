@@ -3,22 +3,24 @@
 /**
  * Adlaire Ecosystem - Database.php
  *
- * @version v0.203
+ * @version v0.229
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
 if (PHP_VERSION_ID < 80300) {
-    echo json_encode(['error' => 'Adlaire Ecosystem requires PHP 8.3 or higher. Current version: ' . PHP_VERSION]);
+    echo 'Adlaire Ecosystem requires PHP 8.3 or higher. Current version: ' . PHP_VERSION;
     exit(1);
 }
 
-interface LibSqlDriver
+interface DatabaseDriver
 {
     public function execute(string $sql, array $bindings = []): AdlaireStatement;
 
     public function exec(string $sql): void;
+
+    public function runtimeProfile(): array;
 
     public function beginTransaction(): void;
 
@@ -71,7 +73,7 @@ final class AdlaireStatement
     }
 }
 
-final class PdoDriver implements LibSqlDriver
+final class PdoDriver implements DatabaseDriver
 {
     private PDO $pdo;
     private array $runtimeProfile = [];
@@ -186,47 +188,72 @@ final class PdoDriver implements LibSqlDriver
     }
 }
 
-class HttpDriver implements LibSqlDriver
+class LibSqlApiDriver implements DatabaseDriver
 {
     private bool $inTransaction = false;
+    private string $apiUrl;
+    private int $timeoutSeconds;
+    private int $retries;
+    private bool $tokenRequired;
+    private string $consistency;
+    private string $userAgent;
+    private mixed $transport;
 
     public function __construct(
-        protected string $url,
-        protected ?string $token = null,
-        protected int $timeoutSeconds = 30,
-        protected int $retries = 0,
-        protected bool $tokenRequired = false
+        private string $url,
+        private ?string $token = null,
+        array $options = []
     ) {
-        if (!extension_loaded('curl')) {
-            throw new RuntimeException('curl extension is required for libSQL HTTP connections.');
+        $apiPath = trim((string)($options['api_path'] ?? '/v2/pipeline'));
+        if ($apiPath === '') {
+            throw new InvalidArgumentException('libSQL API path must not be empty.');
+        }
+        $this->apiUrl = '/' . ltrim(rtrim($apiPath, '/'), '/');
+        $this->timeoutSeconds = (int)($options['timeout_seconds'] ?? 30);
+        $this->retries = (int)($options['retries'] ?? 0);
+        $this->tokenRequired = (bool)($options['token_required'] ?? false);
+        $this->consistency = (string)($options['consistency'] ?? 'strong');
+        $this->userAgent = (string)($options['user_agent'] ?? 'AdlaireEcosystem/libsql-api');
+        $this->transport = $options['transport'] ?? null;
+
+        if (!in_array($this->consistency, ['strong', 'eventual'], true)) {
+            throw new InvalidArgumentException('libSQL consistency must be strong or eventual.');
         }
         if ($this->timeoutSeconds < 1) {
-            throw new InvalidArgumentException('libSQL HTTP timeout_seconds must be at least 1.');
+            throw new InvalidArgumentException('libSQL API timeout_seconds must be at least 1.');
         }
         if ($this->retries < 0) {
-            throw new InvalidArgumentException('libSQL HTTP retries must be zero or greater.');
+            throw new InvalidArgumentException('libSQL API retries must be zero or greater.');
         }
         if ($this->tokenRequired && ($this->token === null || $this->token === '')) {
-            throw new InvalidArgumentException('libSQL token is required for this connection profile.');
+            throw new InvalidArgumentException('libSQL API token is required for this connection profile.');
+        }
+        if ($this->transport !== null && !is_callable($this->transport)) {
+            throw new InvalidArgumentException('libSQL API transport option must be callable.');
+        }
+        if ($this->transport === null && !extension_loaded('curl')) {
+            throw new RuntimeException('curl extension is required for libSQL API connections.');
         }
     }
 
     public function runtimeProfile(): array
     {
         return [
-            'driver' => 'libsql-http',
+            'driver' => 'libsql-api',
             'url' => $this->url,
+            'api_path' => $this->apiUrl,
             'timeout_seconds' => $this->timeoutSeconds,
             'retries' => $this->retries,
             'token_configured' => $this->token !== null && $this->token !== '',
             'token_required' => $this->tokenRequired,
+            'consistency' => $this->consistency,
+            'custom_transport' => $this->transport !== null,
         ];
     }
 
     public function execute(string $sql, array $bindings = []): AdlaireStatement
     {
-        $response = $this->request($sql, $bindings);
-        return $this->statementFromResponse($response);
+        return $this->statementFromResponse($this->request($sql, $bindings));
     }
 
     public function exec(string $sql): void
@@ -259,23 +286,62 @@ class HttpDriver implements LibSqlDriver
 
     protected function request(string $sql, array $bindings): array
     {
-        $payload = json_encode([
+        $payload = $this->encodePayload($sql, $bindings);
+        $headers = [
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'User-Agent: ' . $this->userAgent,
+            'X-Adlaire-DB-Consistency: ' . $this->consistency,
+        ];
+        if ($this->token !== null && $this->token !== '') {
+            $headers[] = 'Authorization: Bearer ' . $this->token;
+        }
+
+        $attempt = 0;
+        do {
+            if ($attempt > 0) {
+                usleep(min(250000, 50000 * $attempt));
+            }
+            $response = $this->send($payload, $headers);
+            $attempt++;
+        } while ($this->shouldRetry($response['status'], $attempt));
+
+        if ($response['status'] < 200 || $response['status'] >= 300) {
+            throw new RuntimeException('libSQL API request failed: ' . $this->classifyFailure($response['status'], $response['body']));
+        }
+
+        $decoded = json_decode($response['body'], true);
+        if (!is_array($decoded)) {
+            throw new RuntimeException('libSQL API response must be JSON.');
+        }
+        return $decoded;
+    }
+
+    private function encodePayload(string $sql, array $bindings): string
+    {
+        return json_encode([
             'statements' => [[
                 'q' => $sql,
                 'params' => array_values($bindings),
             ]],
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
 
-        $curl = curl_init(rtrim($this->url, '/') . '/v2/pipeline');
+    private function send(string $payload, array $headers): array
+    {
+        $endpoint = rtrim($this->url, '/') . $this->apiUrl;
+        if ($this->transport !== null) {
+            $result = ($this->transport)($endpoint, $payload, $headers, $this->timeoutSeconds);
+            if (!is_array($result) || !isset($result['status'], $result['body'])) {
+                throw new RuntimeException('libSQL API transport must return status and body.');
+            }
+            return ['status' => (int)$result['status'], 'body' => (string)$result['body']];
+        }
+
+        $curl = curl_init($endpoint);
         if ($curl === false) {
-            throw new RuntimeException('Failed to initialize curl.');
+            throw new RuntimeException('Failed to initialize libSQL API curl transport.');
         }
-
-        $headers = ['Content-Type: application/json'];
-        if ($this->token !== null && $this->token !== '') {
-            $headers[] = 'Authorization: Bearer ' . $this->token;
-        }
-
         curl_setopt_array($curl, [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $payload,
@@ -284,36 +350,26 @@ class HttpDriver implements LibSqlDriver
             CURLOPT_TIMEOUT => $this->timeoutSeconds,
         ]);
 
-        $body = false;
-        $status = 0;
-        $error = '';
-        $attempt = 0;
-        do {
-            if ($attempt > 0) {
-                usleep(min(250000, 50000 * $attempt));
-            }
-            $body = curl_exec($curl);
-            $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-            $error = curl_error($curl);
-            $attempt++;
-        } while (($body === false || $status >= 500 || $status === 429) && $attempt <= $this->retries);
+        $body = curl_exec($curl);
+        $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $error = curl_error($curl);
         curl_close($curl);
 
-        if ($body === false || $status < 200 || $status >= 300) {
-            throw new RuntimeException('libSQL HTTP request failed: ' . $this->classifyFailure($status, $error, (string)$body));
+        if ($body === false) {
+            return ['status' => 0, 'body' => $error !== '' ? $error : 'transport error'];
         }
-
-        $decoded = json_decode((string)$body, true);
-        if (!is_array($decoded)) {
-            throw new RuntimeException('libSQL HTTP response must be JSON.');
-        }
-        return $decoded;
+        return ['status' => (int)$status, 'body' => (string)$body];
     }
 
-    protected function classifyFailure(int $status, string $error, string $body): string
+    private function shouldRetry(int $status, int $attempt): bool
     {
-        if ($error !== '') {
-            return 'transport error: ' . $error;
+        return $attempt <= $this->retries && ($status === 0 || $status === 429 || $status >= 500);
+    }
+
+    private function classifyFailure(int $status, string $body): string
+    {
+        if ($status === 0) {
+            return 'transport error: ' . $body;
         }
         if ($status === 401 || $status === 403) {
             return "authentication failed with HTTP {$status}";
@@ -327,7 +383,7 @@ class HttpDriver implements LibSqlDriver
         if ($status >= 400) {
             return "request rejected HTTP {$status}: {$body}";
         }
-        return $body !== '' ? $body : 'unknown libSQL HTTP failure';
+        return $body !== '' ? $body : 'unknown libSQL API failure';
     }
 
     protected function statementFromResponse(array $response): AdlaireStatement
@@ -351,11 +407,11 @@ class HttpDriver implements LibSqlDriver
     }
 }
 
-final class WebSocketDriver extends HttpDriver
+final class LibSqlWebSocketDriver extends LibSqlApiDriver
 {
     public function runtimeProfile(): array
     {
-        return array_replace(parent::runtimeProfile(), ['driver' => 'libsql-websocket']);
+        return array_replace(parent::runtimeProfile(), ['driver' => 'libsql-websocket-fallback']);
     }
 }
 
@@ -364,7 +420,7 @@ final class Database
     private static array $connections = [];
     private static ?string $defaultConnection = null;
     private static bool $usedConnect = false;
-    private LibSqlDriver $driver;
+    private DatabaseDriver $driver;
     private ?PDO $pdo = null;
     private int $transactionDepth = 0;
     private bool $queryLogging = false;
@@ -462,10 +518,7 @@ final class Database
 
     public function runtimeProfile(): array
     {
-        if (method_exists($this->driver, 'runtimeProfile')) {
-            return $this->driver->runtimeProfile();
-        }
-        return ['driver' => $this->driver::class];
+        return $this->driver->runtimeProfile();
     }
 
     public function table(string $table): QueryBuilder
@@ -596,7 +649,7 @@ final class Database
         (new Migrator($this))->rollback($directory, $steps);
     }
 
-    private function createDriver(string $url, ?string $token, array $options): LibSqlDriver
+    private function createDriver(string $url, ?string $token, array $options): DatabaseDriver
     {
         if ($url === ':memory:' || str_starts_with($url, 'file:') || !preg_match('/^[A-Za-z][A-Za-z0-9+.-]*:/', $url)) {
             $path = str_starts_with($url, 'file:') ? substr($url, 5) : $url;
@@ -604,22 +657,15 @@ final class Database
             return new PdoDriver($path, $options['sqlite'] ?? $options);
         }
 
-        $httpOptions = $options['libsql'] ?? $options;
-        $timeoutSeconds = (int)($httpOptions['timeout_seconds'] ?? 30);
-        $retries = (int)($httpOptions['retries'] ?? 0);
-        $tokenRequired = (bool)($httpOptions['token_required'] ?? false);
-
+        $libSqlOptions = $options['libsql'] ?? $options;
         if (str_starts_with($url, 'https://')) {
-            return new HttpDriver($url, $token, $timeoutSeconds, $retries, $tokenRequired);
+            return new LibSqlApiDriver($url, $token, $libSqlOptions);
         }
-
+        if (str_starts_with($url, 'libsql://')) {
+            return new LibSqlApiDriver('https://' . substr($url, 9), $token, $libSqlOptions);
+        }
         if (str_starts_with($url, 'wss://')) {
-            if (extension_loaded('libsql')) {
-                return new WebSocketDriver($url, $token, $timeoutSeconds, $retries, $tokenRequired);
-            }
-            $fallback = 'https://' . substr($url, 6);
-            error_log("Adlaire WARNING: libSQL extension is not loaded. Falling back to HTTP: {$fallback}");
-            return new HttpDriver($fallback, $token, $timeoutSeconds, $retries, $tokenRequired);
+            return new LibSqlWebSocketDriver('https://' . substr($url, 6), $token, $libSqlOptions);
         }
 
         throw new InvalidArgumentException("Unsupported database URL: {$url}");

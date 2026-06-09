@@ -10,7 +10,7 @@ This profile reproduces the documented Xserver rental server production shape fo
 - Composer: not required
 - App environment: `APP_ENV=production`
 - Local database: SQLite-compatible file URL under `storage`
-- Production database: replace `ADLAIRE_DATABASE_URL` with the Xserver MySQL-compatible connection used by the application layer
+- Production database: use SQLite-compatible file URLs or internal libSQL API transport URLs through server environment variables; MySQL support is not planned
 
 ## Run
 
@@ -35,4 +35,4 @@ The audit checks the Xserver profile files, `public_html` document root, `.htacc
 
 ## Xserver Deployment Notes
 
-Upload `public_html`, `DeploymentCore.php`, `FrameworkCore`, `modules`, and the writable `storage` directory according to the deployment allowlist. Keep real credentials out of source control; use server environment variables or an ignored deployment-specific env file.
+Upload `public_html`, `DeploymentCore.php`, `FrameworkCore`, `modules`, and the writable `storage` directory according to the deployment allowlist. Keep real credentials out of source control and use server environment variables. Framework configuration files such as `.env`, `.ini`, `.conf`, `.yaml`, `.yml`, `config.php`, and `*.config.php` are prohibited; JSON is retained only for metadata, history, audit, release evidence, logs, and internal libSQL API transport payloads.

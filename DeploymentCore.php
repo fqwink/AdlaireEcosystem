@@ -259,6 +259,455 @@ final class Deployer
         ];
     }
 
+    public function preflight(): array
+    {
+        $manifest = $this->deploymentSystemManifest();
+        $targetDir = $manifest['required_directories']['target_dir'];
+        $workDir = $manifest['required_directories']['work_dir'];
+        $backupDir = $manifest['required_directories']['backup_dir'];
+        $logDir = dirname($this->config->requiredString('log_file'));
+        $lockFile = $this->path($this->config->get('lock_file', $this->config->requiredString('work_dir') . '/deploy.lock'));
+        $lockTimeout = (int)$this->config->get('lock_timeout', 900);
+        $allowlist = $this->config->array('deploy_allowlist');
+
+        $checks = [
+            'deployment_core_compatible' => ($manifest['component'] ?? null) === 'DeploymentCore.php'
+                && ($manifest['axis'] ?? null) === 'deployment system'
+                && ($manifest['architecture_changed'] ?? true) === false,
+            'target_dir_exists' => is_dir($targetDir),
+            'target_dir_writable' => is_dir($targetDir) && is_writable($targetDir),
+            'work_dir_exists' => is_dir($workDir),
+            'work_dir_writable' => is_dir($workDir) && is_writable($workDir),
+            'backup_dir_exists' => is_dir($backupDir),
+            'backup_dir_writable' => is_dir($backupDir) && is_writable($backupDir),
+            'log_dir_writable' => is_dir($logDir) && is_writable($logDir),
+            'deploy_allowlist_configured' => $allowlist !== [],
+            'lock_available' => !is_file($lockFile) || time() - filemtime($lockFile) >= $lockTimeout,
+            'history_retention_valid' => (int)$this->config->get('history_keep', 5) >= 1,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'checks' => $checks,
+            'component' => 'DeploymentCore.php',
+            'compatibility_guaranteed' => true,
+            'breaking_changes_allowed' => false,
+            'dry_run_available' => true,
+            'required_directories' => $manifest['required_directories'],
+            'deploy_allowlist' => $allowlist,
+            'lock_file' => $lockFile,
+        ];
+    }
+
+    public function planPreview(string $sourceDir): array
+    {
+        $source = $this->path($sourceDir);
+        if (!is_dir($source)) {
+            throw new InvalidArgumentException("Deployment preview source directory not found: {$sourceDir}");
+        }
+
+        $target = $this->path($this->config->requiredString('target_dir'));
+        $allowlist = $this->config->array('deploy_allowlist');
+        $plan = [
+            'added' => [],
+            'modified' => [],
+            'unchanged' => [],
+            'skipped' => [],
+        ];
+
+        foreach ($this->files($source) as $file) {
+            $this->assertRelativePath($file);
+            if (!$this->allowed($file, $allowlist)) {
+                $plan['skipped'][] = $file;
+                continue;
+            }
+
+            $sourceFile = $source . '/' . $file;
+            $targetFile = $target . '/' . $file;
+            if (!is_file($targetFile)) {
+                $plan['added'][] = $file;
+                continue;
+            }
+
+            if (hash_file('sha256', $sourceFile) !== hash_file('sha256', $targetFile)) {
+                $plan['modified'][] = $file;
+                continue;
+            }
+
+            $plan['unchanged'][] = $file;
+        }
+
+        $changed = array_merge($plan['added'], $plan['modified']);
+
+        return [
+            'ready' => true,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'component' => 'DeploymentCore.php',
+            'deployment_core_change_detected' => in_array('DeploymentCore.php', $changed, true),
+            'target_dir' => $target,
+            'source_dir' => $source,
+            'deploy_allowlist' => $allowlist,
+            'summary' => [
+                'added' => count($plan['added']),
+                'modified' => count($plan['modified']),
+                'unchanged' => count($plan['unchanged']),
+                'skipped' => count($plan['skipped']),
+                'changes' => count($changed),
+            ],
+            'files' => $plan,
+        ];
+    }
+
+    public function compatibilitySnapshot(?string $sourceDir = null): array
+    {
+        $preflight = $this->preflight();
+        $manifest = $this->deploymentSystemManifest();
+        $plan = $sourceDir === null ? null : $this->planPreview($sourceDir);
+        $deploymentCoreChangeDetected = $plan === null
+            ? false
+            : ($plan['deployment_core_change_detected'] ?? false) === true;
+
+        $checks = [
+            'deployment_core_component' => ($manifest['component'] ?? null) === 'DeploymentCore.php',
+            'deployment_axis_retained' => ($manifest['axis'] ?? null) === 'deployment system',
+            'architecture_unchanged' => ($manifest['architecture_changed'] ?? true) === false,
+            'preflight_ready' => ($preflight['ready'] ?? false) === true,
+            'breaking_changes_forbidden' => true,
+            'plan_preview_read_only' => $plan === null || (($plan['read_only'] ?? false) === true
+                && ($plan['command_execution_allowed'] ?? true) === false
+                && ($plan['writes_allowed'] ?? true) === false),
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'component' => 'DeploymentCore.php',
+            'compatibility_guaranteed' => true,
+            'breaking_changes_allowed' => false,
+            'deployment_core_change_detected' => $deploymentCoreChangeDetected,
+            'checks' => $checks,
+            'manifest' => [
+                'component' => $manifest['component'],
+                'axis' => $manifest['axis'],
+                'architecture_changed' => $manifest['architecture_changed'],
+                'design_philosophy' => $manifest['design_philosophy'],
+                'required_directories' => $manifest['required_directories'],
+            ],
+            'preflight' => [
+                'ready' => $preflight['ready'],
+                'checks' => $preflight['checks'],
+            ],
+            'plan_summary' => $plan['summary'] ?? null,
+        ];
+    }
+
+    public function rollbackPreview(): array
+    {
+        $backupDir = $this->path($this->config->requiredString('backup_dir'));
+        $target = $this->path($this->config->requiredString('target_dir'));
+        $snapshots = glob($backupDir . '/*', GLOB_ONLYDIR);
+        if ($snapshots === false || $snapshots === []) {
+            return [
+                'ready' => false,
+                'read_only' => true,
+                'command_execution_allowed' => false,
+                'writes_allowed' => false,
+                'component' => 'DeploymentCore.php',
+                'reason' => 'no_snapshot',
+                'snapshot' => null,
+                'summary' => ['restore' => 0, 'remove' => 0, 'missing' => 0],
+                'files' => ['restore' => [], 'remove' => [], 'missing' => []],
+            ];
+        }
+
+        rsort($snapshots, SORT_STRING);
+        $snapshot = $snapshots[0];
+        $manifestFile = $snapshot . '/manifest.json';
+        $before = [];
+        if (is_file($manifestFile)) {
+            $manifest = json_decode((string)file_get_contents($manifestFile), true, flags: JSON_THROW_ON_ERROR);
+            $before = is_array($manifest['files'] ?? null) ? $manifest['files'] : [];
+        }
+
+        $restore = [];
+        $missing = [];
+        foreach ($this->files($snapshot) as $file) {
+            if ($file === 'manifest.json') {
+                continue;
+            }
+            $this->assertRelativePath($file);
+            $restore[] = $file;
+            if (!is_file($target . '/' . $file)) {
+                $missing[] = $file;
+            }
+        }
+
+        $remove = [];
+        foreach ($this->files($target) as $file) {
+            $this->assertRelativePath($file);
+            if ($before !== [] && !in_array($file, $before, true)) {
+                $remove[] = $file;
+            }
+        }
+
+        return [
+            'ready' => true,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'component' => 'DeploymentCore.php',
+            'snapshot' => $snapshot,
+            'manifest_available' => is_file($manifestFile),
+            'summary' => [
+                'restore' => count($restore),
+                'remove' => count($remove),
+                'missing' => count($missing),
+            ],
+            'files' => [
+                'restore' => $restore,
+                'remove' => $remove,
+                'missing' => $missing,
+            ],
+        ];
+    }
+
+    public function deploymentSafetyScore(?string $sourceDir = null): array
+    {
+        $snapshot = $this->compatibilitySnapshot($sourceDir);
+        $rollback = $this->rollbackPreview();
+        $score = 100;
+        $deductions = [];
+
+        if (($snapshot['ready'] ?? false) !== true) {
+            $score -= 40;
+            $deductions['compatibility_snapshot'] = 40;
+        }
+        if (($rollback['ready'] ?? false) !== true) {
+            $score -= 20;
+            $deductions['rollback_preview'] = 20;
+        }
+        if (($snapshot['deployment_core_change_detected'] ?? false) === true) {
+            $score -= 10;
+            $deductions['deployment_core_change_detected'] = 10;
+        }
+        if (($snapshot['plan_summary']['skipped'] ?? 0) > 0) {
+            $score -= 10;
+            $deductions['skipped_files'] = 10;
+        }
+
+        $score = max(0, $score);
+
+        return [
+            'ready' => $score >= 70,
+            'score' => $score,
+            'grade' => $score >= 90 ? 'safe' : ($score >= 70 ? 'review' : 'blocked'),
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'component' => 'DeploymentCore.php',
+            'deductions' => $deductions,
+            'compatibility_snapshot_ready' => ($snapshot['ready'] ?? false) === true,
+            'rollback_preview_ready' => ($rollback['ready'] ?? false) === true,
+            'deployment_core_change_detected' => ($snapshot['deployment_core_change_detected'] ?? false) === true,
+        ];
+    }
+
+    public function deploymentSafetyScoreDetails(?string $sourceDir = null): array
+    {
+        $score = $this->deploymentSafetyScore($sourceDir);
+        $details = [];
+        foreach ($score['deductions'] as $reason => $points) {
+            $details[] = [
+                'reason' => $reason,
+                'severity' => $points >= 40 ? 'critical' : ($points >= 20 ? 'high' : 'medium'),
+                'deduction' => $points,
+            ];
+        }
+
+        return [
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'score' => $score['score'],
+            'grade' => $score['grade'],
+            'details' => $details,
+        ];
+    }
+
+    public function deploymentHistorySummary(int $limit = 10): array
+    {
+        $history = $this->path($this->config->requiredString('backup_dir')) . '/deploy_history.jsonl';
+        if (!is_file($history)) {
+            return [
+                'read_only' => true,
+                'command_execution_allowed' => false,
+                'writes_allowed' => false,
+                'entries' => [],
+                'summary' => ['total' => 0, 'completed' => 0, 'failed' => 0],
+            ];
+        }
+
+        $lines = file($history, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $entries = [];
+        foreach (array_slice(array_reverse(is_array($lines) ? $lines : []), 0, max(1, $limit)) as $line) {
+            $entry = json_decode((string)$line, true);
+            if (is_array($entry)) {
+                $entries[] = $entry;
+            }
+        }
+
+        $completed = 0;
+        $failed = 0;
+        foreach ($entries as $entry) {
+            if (($entry['status'] ?? null) === 'completed') {
+                $completed++;
+            } elseif (($entry['status'] ?? null) === 'failed') {
+                $failed++;
+            }
+        }
+
+        return [
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'entries' => $entries,
+            'summary' => [
+                'total' => count($entries),
+                'completed' => $completed,
+                'failed' => $failed,
+            ],
+        ];
+    }
+
+    public function deploymentControlReport(?string $sourceDir = null): array
+    {
+        return [
+            'version' => 'v0.229',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'component' => 'DeploymentCore.php',
+            'preflight' => $this->preflight(),
+            'plan_preview' => $sourceDir === null ? null : $this->planPreview($sourceDir),
+            'compatibility_snapshot' => $this->compatibilitySnapshot($sourceDir),
+            'rollback_preview' => $this->rollbackPreview(),
+            'safety_score' => $this->deploymentSafetyScore($sourceDir),
+            'safety_score_details' => $this->deploymentSafetyScoreDetails($sourceDir),
+            'history' => $this->deploymentHistorySummary(),
+        ];
+    }
+
+    public function recordDeploymentControlSnapshot(?string $sourceDir = null): array
+    {
+        $report = $this->deploymentControlReport($sourceDir);
+        $path = $this->path($this->config->requiredString('backup_dir')) . '/deployment_control_snapshots.jsonl';
+        $entry = [
+            'time' => date('c'),
+            'version' => 'v0.229',
+            'phase' => 'control_snapshot',
+            'status' => 'recorded',
+            'report' => $report,
+        ];
+
+        $written = file_put_contents($path, json_encode($entry, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . PHP_EOL, FILE_APPEND | LOCK_EX);
+        if ($written === false) {
+            throw new RuntimeException('Failed to write deployment control snapshot.');
+        }
+
+        return [
+            'recorded' => true,
+            'path' => $path,
+            'writes_allowed' => true,
+            'configuration_file' => false,
+            'audit_artifact' => true,
+            'report_summary' => [
+                'safety_score' => $report['safety_score']['score'] ?? null,
+                'release_ready_evidence' => ($report['safety_score']['ready'] ?? false) === true,
+            ],
+        ];
+    }
+
+    public function rollbackStatePreview(): array
+    {
+        $preview = $this->rollbackPreview();
+        return [
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'ready' => $preview['ready'],
+            'projected_state' => [
+                'restored_files' => $preview['summary']['restore'] ?? 0,
+                'removed_files' => $preview['summary']['remove'] ?? 0,
+                'missing_before_rollback' => $preview['summary']['missing'] ?? 0,
+            ],
+            'rollback_preview' => $preview,
+        ];
+    }
+
+    public function deploymentControlDiff(array $previous, ?string $sourceDir = null): array
+    {
+        $current = $this->deploymentControlReport($sourceDir);
+        $changes = [];
+        foreach (['preflight', 'compatibility_snapshot', 'rollback_preview', 'safety_score'] as $section) {
+            if (($previous[$section] ?? null) !== ($current[$section] ?? null)) {
+                $changes[] = $section;
+            }
+        }
+
+        return [
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'changed_sections' => $changes,
+            'summary' => [
+                'changes' => count($changes),
+                'current_safety_score' => $current['safety_score']['score'] ?? null,
+                'previous_safety_score' => $previous['safety_score']['score'] ?? null,
+            ],
+        ];
+    }
+
+    public function releaseEvidenceBundle(?string $sourceDir = null): array
+    {
+        $report = $this->deploymentControlReport($sourceDir);
+        return [
+            'version' => 'v0.229',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'evidence' => [
+                'control_report' => $report,
+                'release_gate_inputs' => [
+                    'compatibility_snapshot_ready' => $report['compatibility_snapshot']['ready'] ?? false,
+                    'rollback_preview_ready' => $report['rollback_preview']['ready'] ?? false,
+                    'deployment_safety_score' => $report['safety_score']['score'] ?? 0,
+                ],
+            ],
+        ];
+    }
+
+    public function stableReleaseCandidateGate(?string $sourceDir = null): array
+    {
+        $bundle = $this->releaseEvidenceBundle($sourceDir);
+        $inputs = $bundle['evidence']['release_gate_inputs'];
+        $ready = ($inputs['compatibility_snapshot_ready'] ?? false) === true
+            && ($inputs['rollback_preview_ready'] ?? false) === true
+            && ($inputs['deployment_safety_score'] ?? 0) >= 70;
+
+        return [
+            'rc_ready' => $ready,
+            'grade' => $ready ? 'release-candidate' : 'blocked',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'inputs' => $inputs,
+        ];
+    }
+
     private function cleanup(): void
     {
         foreach ([

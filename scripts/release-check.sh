@@ -10,4 +10,9 @@ done
 php -d phar.readonly=0 tests/debug.php
 sh scripts/xserver-profile-audit.sh
 
+if grep -Ei 'mysql-compatible|ignored deployment-specific env file' docs/xserver-production-equivalent.md >/dev/null; then
+    echo "Xserver documentation contains stale database or env-file guidance"
+    exit 1
+fi
+
 echo "Release check OK"
