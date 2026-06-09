@@ -1,0 +1,17 @@
+FROM php:8.3-apache
+
+ENV APP_ENV=production
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public_html
+
+RUN a2enmod rewrite headers \
+    && sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+COPY config/xserver/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY config/xserver/apache/xserver-profile.conf /etc/apache2/conf-available/xserver-profile.conf
+COPY config/xserver/php.ini /usr/local/etc/php/conf.d/zz-xserver-profile.ini
+
+RUN a2enconf xserver-profile
+
+WORKDIR /var/www/html
+
+EXPOSE 80

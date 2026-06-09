@@ -1,15 +1,15 @@
 <?php
 
 /**
- * Adlaire Ecosystem - Deployer.php
+ * Adlaire Ecosystem - DeploymentCore.php
  *
- * @version v0.200
+ * @version v0.202
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/Logger.php';
+require_once __DIR__ . '/FrameworkCore/Logger.php';
 
 if (PHP_VERSION_ID < 80300) {
     echo json_encode(['error' => 'Adlaire Ecosystem requires PHP 8.3 or higher. Current version: ' . PHP_VERSION]);
@@ -221,7 +221,7 @@ final class Deployer
         $config = $this->config->deploymentManifest();
 
         return [
-            'component' => 'Deployer.php',
+            'component' => 'DeploymentCore.php',
             'axis' => 'deployment system',
             'design_philosophy' => 'distributed autonomous system design philosophy',
             'architecture_changed' => false,

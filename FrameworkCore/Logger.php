@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Logger.php
  *
- * @version v0.200
+ * @version v0.201
  * @php     >= 8.3
  */
 

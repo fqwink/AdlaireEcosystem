@@ -3,13 +3,13 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version v0.200
+ * @version v0.202
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-const ADLAIRE_VERSION = 'v0.200';
+const ADLAIRE_VERSION = 'v0.202';
 
 if (is_file(__DIR__ . '/Extension.php')) {
     require_once __DIR__ . '/Extension.php';
@@ -1377,7 +1377,7 @@ final class Adlaire
     public static function publicApi(): array
     {
         return [
-            'Core.php' => [
+            'FrameworkCore/Core.php' => [
                 'Request',
                 'Response',
                 'Validator',
@@ -1385,16 +1385,16 @@ final class Adlaire
                 'RouteDefinition',
                 'Adlaire',
             ],
-            'Kernel.php' => [
+            'FrameworkCore/Kernel.php' => [
                 'MicroKernel',
             ],
-            'Extension.php' => [
+            'FrameworkCore/Extension.php' => [
                 'AdlaireExtension',
                 'AutonomousModule',
                 'PolicyRule',
                 'AurisModule',
             ],
-            'Database.php' => [
+            'FrameworkCore/Database.php' => [
                 'LibSqlDriver',
                 'AdlaireStatement',
                 'PdoDriver',
@@ -1405,20 +1405,20 @@ final class Adlaire
                 'Migration',
                 'Migrator',
             ],
-            'Deployer.php' => [
+            'DeploymentCore.php' => [
                 'DeployConfig',
                 'Deployer',
             ],
-            'Logger.php' => [
+            'FrameworkCore/Logger.php' => [
                 'Logger',
             ],
-            'Config.php' => [
+            'FrameworkCore/Config.php' => [
                 'ConfigRepository',
             ],
-            'Middleware.php' => [
+            'FrameworkCore/Middleware.php' => [
                 'MiddlewarePipeline',
             ],
-            'Support.php' => [
+            'FrameworkCore/Support.php' => [
                 'AdlaireSupport',
             ],
         ];
@@ -1427,23 +1427,23 @@ final class Adlaire
     public static function specificationIds(): array
     {
         return [
-            'Core.php' => [
+            'FrameworkCore/Core.php' => [
                 'CORE-REQ-001' => 'Request, Response, Validator, Router, and Adlaire public API remain available.',
                 'CORE-REQ-002' => 'Configuration, environment helpers, routing inspection, security headers, version, and audit metadata are verified.',
             ],
-            'Kernel.php' => [
+            'FrameworkCore/Kernel.php' => [
                 'KERNEL-REQ-001' => 'MicroKernel stores core services and exposes service lookup.',
                 'KERNEL-REQ-002' => 'MicroKernel registers extensions and boots them exactly once.',
             ],
-            'Database.php' => [
+            'FrameworkCore/Database.php' => [
                 'DB-REQ-001' => 'SQLite and libSQL connection abstractions preserve query builder behavior.',
                 'DB-REQ-002' => 'Query guards, pagination, helper reads, migrations, and query logging are verified.',
             ],
-            'Logger.php' => [
+            'FrameworkCore/Logger.php' => [
                 'LOGGER-REQ-001' => 'Structured logs mask sensitive values and preserve component and request metadata.',
                 'LOGGER-REQ-002' => 'Debug logging, rotation, HMAC warnings, and derived component loggers are verified.',
             ],
-            'Deployer.php' => [
+            'DeploymentCore.php' => [
                 'DEPLOY-REQ-001' => 'Deployment paths remain bounded to relative safe paths.',
                 'DEPLOY-REQ-002' => 'Configuration validation, backups, apply logging, rollback, allowlists, and history are verified.',
             ],
@@ -1461,7 +1461,8 @@ final class Adlaire
                 'RELEASE-REQ-007' => 'Specification drift detection reports missing tests, unknown specification IDs, missing audit keys, and missing readiness checks.',
                 'RELEASE-REQ-008' => 'Distribution manifest exposes the official release file set, public API, policies, and release gate metadata.',
                 'RELEASE-REQ-009' => 'Microkernel practical APIs, autonomous modules, policy decisions, audit reports, and stability contracts are exposed as formal metadata.',
-                'RELEASE-REQ-010' => 'The v0.200 stable backend framework release contract is exposed and verified by release readiness.',
+                'RELEASE-REQ-010' => 'The v0.202 stable backend framework release contract is exposed and verified by release readiness.',
+                'RELEASE-REQ-011' => 'Xserver rental server production-equivalent testing is formalized and required for release readiness.',
             ],
         ];
     }
@@ -1481,6 +1482,7 @@ final class Adlaire
             'microkernel' => ['KERNEL-REQ-001', 'KERNEL-REQ-002'],
             'autonomous_system' => ['KERNEL-REQ-001', 'KERNEL-REQ-002', 'RELEASE-REQ-009'],
             'stable_release_contract' => ['RELEASE-REQ-010'],
+            'production_equivalent_environment' => ['RELEASE-REQ-011'],
             'validator' => ['CORE-REQ-001'],
             'router' => ['CORE-REQ-001', 'CORE-REQ-002'],
             'response_security' => ['CORE-REQ-002'],
@@ -1687,6 +1689,43 @@ final class Adlaire
         ];
     }
 
+    public static function productionEnvironmentPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'production_provider' => 'Xserver rental server',
+            'production_environment' => 'Xserver shared rental server',
+            'production_equivalent_testing_required' => true,
+            'local_test_environment' => 'Docker php:8.3-apache with Xserver compatibility profile',
+            'php_requirement' => '>=8.3',
+            'php_profile' => 'PHP 8.3.x compatible',
+            'web_server_profile' => 'Apache compatible shared hosting',
+            'document_root' => 'public_html',
+            'htaccess_required' => true,
+            'composer_required' => false,
+            'external_service_required_for_tests' => false,
+            'shell_access_optional' => true,
+            'database_profile' => [
+                'sqlite_for_local_debug' => true,
+                'mysql_compatible_production' => true,
+                'libsql_optional' => true,
+            ],
+            'deployment_profile' => [
+                'root_deployment_core' => 'DeploymentCore.php',
+                'framework_core_directory' => 'FrameworkCore',
+                'no_deployment_core_directory' => true,
+                'safe_relative_paths_only' => true,
+                'deploy_allowlist_required' => true,
+            ],
+            'required_verifications' => [
+                'php_lint',
+                'official_debug_test',
+                'xserver_profile_audit',
+                'git_diff_check',
+            ],
+        ];
+    }
+
     public static function migrationPolicy(): array
     {
         return [
@@ -1777,7 +1816,7 @@ final class Adlaire
         return [
             'version' => self::version(),
             'stable_release' => true,
-            'release_name' => 'v0.200 stable backend framework release',
+            'release_name' => 'v0.202 stable backend framework release',
             'backend_framework_capabilities' => [
                 'routing',
                 'middleware',
@@ -1812,10 +1851,10 @@ final class Adlaire
                 'directory_required' => false,
                 'placement' => 'root',
                 'file_principle' => 'single file',
-                'core_file' => 'Deployer.php',
+                'core_file' => 'DeploymentCore.php',
                 'design_philosophy' => 'distributed autonomous system design philosophy',
-                'primary_component' => 'Deployer.php',
-                'components' => ['Deployer.php'],
+                'primary_component' => 'DeploymentCore.php',
+                'components' => ['DeploymentCore.php'],
                 'autonomous_operation_required' => true,
                 'deployment_audit_required' => true,
                 'manifest_required' => true,
@@ -1825,13 +1864,14 @@ final class Adlaire
             'general_framework' => [
                 'core_name' => 'Framework Core',
                 'core_directory' => 'FrameworkCore',
-                'scope' => ['Core.php', 'Kernel.php', 'Extension.php', 'Database.php', 'Logger.php', 'Config.php', 'Middleware.php', 'Support.php'],
-                'aggregated_components' => ['Core.php', 'Kernel.php', 'Extension.php', 'Database.php', 'Logger.php', 'Config.php', 'Middleware.php', 'Support.php'],
+                'scope' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php'],
+                'aggregated_components' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php'],
                 'policy' => 'general purpose within documented constraints',
                 'design_philosophy' => 'specification-defined general purpose framework architecture',
                 'distributed_autonomous_design_applies' => false,
                 'architecture_source' => 'documented specification',
-                'compatibility_entrypoints_retained' => true,
+                'root_entrypoints_retained' => false,
+                'aggregated_in_core_directory' => true,
                 'standalone_framework_usage' => true,
                 'middleware_available' => true,
                 'configuration_repository_available' => true,
@@ -1855,9 +1895,9 @@ final class Adlaire
                 'file_principle' => self::auditFilePrinciple(),
                 'microkernel_policy_retained' => true,
             ],
-            'v0_200_target' => [
-                'version' => 'v0.200',
-                'source_code_scope' => ['Core.php', 'Kernel.php', 'Extension.php', 'Database.php', 'Deployer.php', 'Logger.php', 'Config.php', 'Middleware.php', 'Support.php'],
+            'v0_202_target' => [
+                'version' => 'v0.202',
+                'source_code_scope' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'DeploymentCore.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php'],
                 'deployment_system_axis_required' => true,
                 'deployer_manifest_required' => true,
                 'deployer_readiness_required' => true,
@@ -1923,6 +1963,13 @@ final class Adlaire
                 && in_array('database', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('deployment', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('configuration', self::stableReleaseContract()['backend_framework_capabilities'], true),
+            'production_environment_policy' => self::productionEnvironmentPolicy()['production_provider'] === 'Xserver rental server'
+                && self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
+                && self::productionEnvironmentPolicy()['php_requirement'] === '>=8.3'
+                && self::productionEnvironmentPolicy()['htaccess_required'] === true
+                && self::productionEnvironmentPolicy()['composer_required'] === false
+                && self::productionEnvironmentPolicy()['external_service_required_for_tests'] === false
+                && in_array('xserver_profile_audit', self::productionEnvironmentPolicy()['required_verifications'], true),
             'deployment_axis_policy' => self::deploymentAxisPolicy()['framework_axis'] === 'deployment system'
                 && self::deploymentAxisPolicy()['architecture_changed'] === false
                 && self::deploymentAxisPolicy()['deployment_system']['core_name'] === 'Deployment Core'
@@ -1930,8 +1977,8 @@ final class Adlaire
                 && self::deploymentAxisPolicy()['deployment_system']['directory_required'] === false
                 && self::deploymentAxisPolicy()['deployment_system']['placement'] === 'root'
                 && self::deploymentAxisPolicy()['deployment_system']['file_principle'] === 'single file'
-                && self::deploymentAxisPolicy()['deployment_system']['core_file'] === 'Deployer.php'
-                && self::deploymentAxisPolicy()['deployment_system']['components'] === ['Deployer.php']
+                && self::deploymentAxisPolicy()['deployment_system']['core_file'] === 'DeploymentCore.php'
+                && self::deploymentAxisPolicy()['deployment_system']['components'] === ['DeploymentCore.php']
                 && self::deploymentAxisPolicy()['deployment_system']['design_philosophy'] === 'distributed autonomous system design philosophy'
                 && self::deploymentAxisPolicy()['deployment_system']['manifest_required'] === true
                 && self::deploymentAxisPolicy()['deployment_system']['readiness_required'] === true
@@ -1942,7 +1989,8 @@ final class Adlaire
                 && self::deploymentAxisPolicy()['general_framework']['design_philosophy'] === 'specification-defined general purpose framework architecture'
                 && self::deploymentAxisPolicy()['general_framework']['distributed_autonomous_design_applies'] === false
                 && self::deploymentAxisPolicy()['general_framework']['architecture_source'] === 'documented specification'
-                && self::deploymentAxisPolicy()['general_framework']['compatibility_entrypoints_retained'] === true
+                && self::deploymentAxisPolicy()['general_framework']['root_entrypoints_retained'] === false
+                && self::deploymentAxisPolicy()['general_framework']['aggregated_in_core_directory'] === true
                 && self::deploymentAxisPolicy()['general_framework']['middleware_available'] === true
                 && self::deploymentAxisPolicy()['general_framework']['configuration_repository_available'] === true
                 && self::deploymentAxisPolicy()['general_framework']['support_helpers_available'] === true
@@ -1955,14 +2003,14 @@ final class Adlaire
                 && self::deploymentAxisPolicy()['module_policy']['kernel_mediated'] === true
                 && in_array('modules/Auris', self::deploymentAxisPolicy()['module_policy']['official_module_directories'], true)
                 && self::deploymentAxisPolicy()['architecture_policy']['current_architecture_retained'] === true
-                && self::deploymentAxisPolicy()['v0_200_target']['deployment_system_axis_required'] === true
-                && self::deploymentAxisPolicy()['v0_200_target']['deployer_manifest_required'] === true
-                && self::deploymentAxisPolicy()['v0_200_target']['deployer_readiness_required'] === true
-                && self::deploymentAxisPolicy()['v0_200_target']['ten_file_principle_required'] === true
-                && self::deploymentAxisPolicy()['v0_200_target']['general_framework_capability_required'] === true
-                && self::deploymentAxisPolicy()['v0_200_target']['router_middleware_required'] === true
-                && self::deploymentAxisPolicy()['v0_200_target']['backend_framework_capability_required'] === true
-                && self::deploymentAxisPolicy()['v0_200_target']['stable_release_required'] === true,
+                && self::deploymentAxisPolicy()['v0_202_target']['deployment_system_axis_required'] === true
+                && self::deploymentAxisPolicy()['v0_202_target']['deployer_manifest_required'] === true
+                && self::deploymentAxisPolicy()['v0_202_target']['deployer_readiness_required'] === true
+                && self::deploymentAxisPolicy()['v0_202_target']['ten_file_principle_required'] === true
+                && self::deploymentAxisPolicy()['v0_202_target']['general_framework_capability_required'] === true
+                && self::deploymentAxisPolicy()['v0_202_target']['router_middleware_required'] === true
+                && self::deploymentAxisPolicy()['v0_202_target']['backend_framework_capability_required'] === true
+                && self::deploymentAxisPolicy()['v0_202_target']['stable_release_required'] === true,
             'auris_integration_policy' => self::aurisIntegrationPolicy()['future_integration'] === true
                 && self::aurisIntegrationPolicy()['target_repository'] === 'https://github.com/fqwink/Auris'
                 && self::aurisIntegrationPolicy()['framework_repository_maintained'] === true
@@ -2020,6 +2068,7 @@ final class Adlaire
             'stability_contract',
             'long_term_stability_contract',
             'stable_release_contract',
+            'production_environment_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
         ];
@@ -2040,6 +2089,7 @@ final class Adlaire
             'stability_contract',
             'long_term_stability_contract',
             'stable_release_contract',
+            'production_environment_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
         ];
@@ -2061,6 +2111,7 @@ final class Adlaire
             'stability_contract',
             'long_term_stability_contract',
             'stable_release_contract',
+            'production_environment_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
             'design_philosophy',
@@ -2084,15 +2135,15 @@ final class Adlaire
         return [
             'version' => self::version(),
             'files' => [
-                'Core.php',
-                'Kernel.php',
-                'Extension.php',
-                'Database.php',
-                'Deployer.php',
-                'Logger.php',
-                'Config.php',
-                'Middleware.php',
-                'Support.php',
+                'FrameworkCore/Core.php',
+                'FrameworkCore/Kernel.php',
+                'FrameworkCore/Extension.php',
+                'FrameworkCore/Database.php',
+                'DeploymentCore.php',
+                'FrameworkCore/Logger.php',
+                'FrameworkCore/Config.php',
+                'FrameworkCore/Middleware.php',
+                'FrameworkCore/Support.php',
                 'tests/debug.php',
                 'adlaire-ecosystem.md',
             ],
@@ -2110,6 +2161,7 @@ final class Adlaire
             'stability_contract' => self::stabilityContract(),
             'long_term_stability_contract' => self::longTermStabilityContract(),
             'stable_release_contract' => self::stableReleaseContract(),
+            'production_environment_policy' => self::productionEnvironmentPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
         ];
@@ -2127,7 +2179,7 @@ final class Adlaire
             'php' => '>=8.3',
             'version_format' => 'v0.x',
             'cumulative_version' => true,
-            'formalization_version' => 'v0.200',
+            'formalization_version' => 'v0.202',
             'file_principle' => self::auditFilePrinciple(),
             'external_dependencies' => 'none; optional libSQL PHP extension only',
             'license_policy' => self::licensePolicy(),
@@ -2156,6 +2208,7 @@ final class Adlaire
             'release_freeze_policy' => self::releaseFreezePolicy(),
             'long_term_stability_contract' => self::longTermStabilityContract(),
             'stable_release_contract' => self::stableReleaseContract(),
+            'production_environment_policy' => self::productionEnvironmentPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
             'design_philosophy' => [
@@ -2177,6 +2230,7 @@ final class Adlaire
             'required_verifications' => [
                 'php_lint',
                 'official_debug_test',
+                'xserver_profile_audit',
                 'git_diff_check',
             ],
             'breaking_change_policy' => [
@@ -2204,9 +2258,16 @@ final class Adlaire
                 'compatible' => true,
             ],
             'runtime' => [
-                'official_environment' => 'local Docker php:8.3-cli',
+                'official_environment' => 'local Docker php:8.3-apache with Xserver compatibility profile',
                 'official_debug_test' => 'php -d phar.readonly=0 tests/debug.php',
                 'compatible' => true,
+            ],
+            'production_equivalent' => [
+                'provider' => 'Xserver rental server',
+                'profile' => self::productionEnvironmentPolicy(),
+                'compatible' => self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
+                    && self::productionEnvironmentPolicy()['php_requirement'] === '>=8.3'
+                    && self::productionEnvironmentPolicy()['composer_required'] === false,
             ],
             'dependencies' => [
                 'external_dependencies' => 'none',
@@ -2259,6 +2320,12 @@ final class Adlaire
                 && in_array('routing', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('database', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('deployment', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true),
+            'production_environment_policy' => ($audit['production_environment_policy']['production_provider'] ?? null) === 'Xserver rental server'
+                && ($audit['production_environment_policy']['production_equivalent_testing_required'] ?? false) === true
+                && ($audit['production_environment_policy']['php_requirement'] ?? null) === '>=8.3'
+                && ($audit['production_environment_policy']['htaccess_required'] ?? false) === true
+                && ($audit['production_environment_policy']['composer_required'] ?? true) === false
+                && in_array('xserver_profile_audit', $audit['production_environment_policy']['required_verifications'] ?? [], true),
             'deployment_axis_policy' => ($audit['deployment_axis_policy']['framework_axis'] ?? null) === 'deployment system'
                 && ($audit['deployment_axis_policy']['architecture_changed'] ?? true) === false
                 && ($audit['deployment_axis_policy']['deployment_system']['core_name'] ?? null) === 'Deployment Core'
@@ -2267,8 +2334,8 @@ final class Adlaire
                 && ($audit['deployment_axis_policy']['deployment_system']['directory_required'] ?? true) === false
                 && ($audit['deployment_axis_policy']['deployment_system']['placement'] ?? null) === 'root'
                 && ($audit['deployment_axis_policy']['deployment_system']['file_principle'] ?? null) === 'single file'
-                && ($audit['deployment_axis_policy']['deployment_system']['core_file'] ?? null) === 'Deployer.php'
-                && ($audit['deployment_axis_policy']['deployment_system']['components'] ?? []) === ['Deployer.php']
+                && ($audit['deployment_axis_policy']['deployment_system']['core_file'] ?? null) === 'DeploymentCore.php'
+                && ($audit['deployment_axis_policy']['deployment_system']['components'] ?? []) === ['DeploymentCore.php']
                 && ($audit['deployment_axis_policy']['deployment_system']['design_philosophy'] ?? null) === 'distributed autonomous system design philosophy'
                 && ($audit['deployment_axis_policy']['deployment_system']['manifest_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['deployment_system']['readiness_required'] ?? false) === true
@@ -2280,7 +2347,8 @@ final class Adlaire
                 && ($audit['deployment_axis_policy']['general_framework']['design_philosophy'] ?? null) === 'specification-defined general purpose framework architecture'
                 && ($audit['deployment_axis_policy']['general_framework']['distributed_autonomous_design_applies'] ?? true) === false
                 && ($audit['deployment_axis_policy']['general_framework']['architecture_source'] ?? null) === 'documented specification'
-                && ($audit['deployment_axis_policy']['general_framework']['compatibility_entrypoints_retained'] ?? false) === true
+                && ($audit['deployment_axis_policy']['general_framework']['root_entrypoints_retained'] ?? true) === false
+                && ($audit['deployment_axis_policy']['general_framework']['aggregated_in_core_directory'] ?? false) === true
                 && ($audit['deployment_axis_policy']['general_framework']['middleware_available'] ?? false) === true
                 && ($audit['deployment_axis_policy']['general_framework']['configuration_repository_available'] ?? false) === true
                 && ($audit['deployment_axis_policy']['general_framework']['support_helpers_available'] ?? false) === true
@@ -2292,14 +2360,14 @@ final class Adlaire
                 && ($audit['deployment_axis_policy']['module_policy']['default_file_principle'] ?? null) === '3 files'
                 && ($audit['deployment_axis_policy']['module_policy']['kernel_mediated'] ?? false) === true
                 && in_array('modules/Auris', $audit['deployment_axis_policy']['module_policy']['official_module_directories'] ?? [], true)
-                && ($audit['deployment_axis_policy']['v0_200_target']['deployment_system_axis_required'] ?? false) === true
-                && ($audit['deployment_axis_policy']['v0_200_target']['deployer_manifest_required'] ?? false) === true
-                && ($audit['deployment_axis_policy']['v0_200_target']['deployer_readiness_required'] ?? false) === true
-                && ($audit['deployment_axis_policy']['v0_200_target']['ten_file_principle_required'] ?? false) === true
-                && ($audit['deployment_axis_policy']['v0_200_target']['general_framework_capability_required'] ?? false) === true
-                && ($audit['deployment_axis_policy']['v0_200_target']['router_middleware_required'] ?? false) === true
-                && ($audit['deployment_axis_policy']['v0_200_target']['backend_framework_capability_required'] ?? false) === true
-                && ($audit['deployment_axis_policy']['v0_200_target']['stable_release_required'] ?? false) === true,
+                && ($audit['deployment_axis_policy']['v0_202_target']['deployment_system_axis_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_202_target']['deployer_manifest_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_202_target']['deployer_readiness_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_202_target']['ten_file_principle_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_202_target']['general_framework_capability_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_202_target']['router_middleware_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_202_target']['backend_framework_capability_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_202_target']['stable_release_required'] ?? false) === true,
             'auris_integration_policy' => ($audit['auris_integration_policy']['future_integration'] ?? false) === true
                 && ($audit['auris_integration_policy']['target_repository'] ?? null) === 'https://github.com/fqwink/Auris'
                 && ($audit['auris_integration_policy']['framework_repository_maintained'] ?? false) === true
@@ -2328,6 +2396,7 @@ final class Adlaire
             ),
             'required_verifications' => in_array('php_lint', $audit['required_verifications'] ?? [], true)
                 && in_array('official_debug_test', $audit['required_verifications'] ?? [], true)
+                && in_array('xserver_profile_audit', $audit['required_verifications'] ?? [], true)
                 && in_array('git_diff_check', $audit['required_verifications'] ?? [], true),
             'breaking_change_policy' => ($audit['breaking_change_policy']['public_api_removal'] ?? null) === 'forbidden',
         ];

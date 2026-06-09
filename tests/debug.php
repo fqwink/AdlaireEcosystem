@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../Core.php';
-require_once __DIR__ . '/../Logger.php';
-require_once __DIR__ . '/../Database.php';
-require_once __DIR__ . '/../Deployer.php';
+require_once __DIR__ . '/../FrameworkCore/Core.php';
+require_once __DIR__ . '/../FrameworkCore/Logger.php';
+require_once __DIR__ . '/../FrameworkCore/Database.php';
+require_once __DIR__ . '/../DeploymentCore.php';
 
 final class DebugTestFailure extends RuntimeException
 {
@@ -243,36 +243,36 @@ function test_core_config(): void
 
 function test_adlaire_audit(): void
 {
-    assert_same('v0.200', Adlaire::version(), 'Adlaire version should follow cumulative v0.x release format');
+    assert_same('v0.202', Adlaire::version(), 'Adlaire version should follow cumulative v0.x release format');
     $api = Adlaire::publicApi();
-    assert_true(in_array('Request', $api['Core.php'] ?? [], true), 'public API should include Request');
-    assert_true(in_array('MicroKernel', $api['Kernel.php'] ?? [], true), 'public API should include MicroKernel');
-    assert_true(in_array('AdlaireExtension', $api['Extension.php'] ?? [], true), 'public API should include AdlaireExtension');
-    assert_true(in_array('AutonomousModule', $api['Extension.php'] ?? [], true), 'public API should include AutonomousModule');
-    assert_true(in_array('PolicyRule', $api['Extension.php'] ?? [], true), 'public API should include PolicyRule');
-    assert_true(in_array('AurisModule', $api['Extension.php'] ?? [], true), 'public API should include AurisModule');
-    assert_true(in_array('Database', $api['Database.php'] ?? [], true), 'public API should include Database');
-    assert_true(in_array('Deployer', $api['Deployer.php'] ?? [], true), 'public API should include Deployer');
-    assert_true(in_array('Logger', $api['Logger.php'] ?? [], true), 'public API should include Logger');
-    assert_true(in_array('ConfigRepository', $api['Config.php'] ?? [], true), 'public API should include ConfigRepository');
-    assert_true(in_array('MiddlewarePipeline', $api['Middleware.php'] ?? [], true), 'public API should include MiddlewarePipeline');
-    assert_true(in_array('AdlaireSupport', $api['Support.php'] ?? [], true), 'public API should include AdlaireSupport');
+    assert_true(in_array('Request', $api['FrameworkCore/Core.php'] ?? [], true), 'public API should include Request');
+    assert_true(in_array('MicroKernel', $api['FrameworkCore/Kernel.php'] ?? [], true), 'public API should include MicroKernel');
+    assert_true(in_array('AdlaireExtension', $api['FrameworkCore/Extension.php'] ?? [], true), 'public API should include AdlaireExtension');
+    assert_true(in_array('AutonomousModule', $api['FrameworkCore/Extension.php'] ?? [], true), 'public API should include AutonomousModule');
+    assert_true(in_array('PolicyRule', $api['FrameworkCore/Extension.php'] ?? [], true), 'public API should include PolicyRule');
+    assert_true(in_array('AurisModule', $api['FrameworkCore/Extension.php'] ?? [], true), 'public API should include AurisModule');
+    assert_true(in_array('Database', $api['FrameworkCore/Database.php'] ?? [], true), 'public API should include Database');
+    assert_true(in_array('Deployer', $api['DeploymentCore.php'] ?? [], true), 'public API should include Deployer');
+    assert_true(in_array('Logger', $api['FrameworkCore/Logger.php'] ?? [], true), 'public API should include Logger');
+    assert_true(in_array('ConfigRepository', $api['FrameworkCore/Config.php'] ?? [], true), 'public API should include ConfigRepository');
+    assert_true(in_array('MiddlewarePipeline', $api['FrameworkCore/Middleware.php'] ?? [], true), 'public API should include MiddlewarePipeline');
+    assert_true(in_array('AdlaireSupport', $api['FrameworkCore/Support.php'] ?? [], true), 'public API should include AdlaireSupport');
 
     $audit = Adlaire::audit();
-    assert_same('v0.200', $audit['version'] ?? null, 'audit should include version');
+    assert_same('v0.202', $audit['version'] ?? null, 'audit should include version');
     assert_same('>=8.3', $audit['php'] ?? null, 'audit should include PHP requirement');
     assert_same('v0.x', $audit['version_format'] ?? null, 'audit should include cumulative version format');
     assert_same(true, $audit['cumulative_version'] ?? null, 'audit should mark cumulative versions');
-    assert_same('v0.200', $audit['formalization_version'] ?? null, 'audit should include formalization version');
+    assert_same('v0.202', $audit['formalization_version'] ?? null, 'audit should include formalization version');
     assert_same('10 files', $audit['file_principle'] ?? null, 'audit should include 10-file principle');
     assert_same('php -d phar.readonly=0 tests/debug.php', $audit['official_debug_test'] ?? null, 'audit should include official debug test command');
 
     $specificationIds = Adlaire::specificationIds();
-    assert_true(isset($specificationIds['Core.php']['CORE-REQ-001']), 'specification IDs should include core requirement');
-    assert_true(isset($specificationIds['Kernel.php']['KERNEL-REQ-001']), 'specification IDs should include kernel requirement');
-    assert_true(isset($specificationIds['Database.php']['DB-REQ-001']), 'specification IDs should include database requirement');
-    assert_true(isset($specificationIds['Logger.php']['LOGGER-REQ-001']), 'specification IDs should include logger requirement');
-    assert_true(isset($specificationIds['Deployer.php']['DEPLOY-REQ-001']), 'specification IDs should include deployer requirement');
+    assert_true(isset($specificationIds['FrameworkCore/Core.php']['CORE-REQ-001']), 'specification IDs should include core requirement');
+    assert_true(isset($specificationIds['FrameworkCore/Kernel.php']['KERNEL-REQ-001']), 'specification IDs should include kernel requirement');
+    assert_true(isset($specificationIds['FrameworkCore/Database.php']['DB-REQ-001']), 'specification IDs should include database requirement');
+    assert_true(isset($specificationIds['FrameworkCore/Logger.php']['LOGGER-REQ-001']), 'specification IDs should include logger requirement');
+    assert_true(isset($specificationIds['DeploymentCore.php']['DEPLOY-REQ-001']), 'specification IDs should include deployer requirement');
     assert_true(isset($specificationIds['Release']['RELEASE-REQ-001']), 'specification IDs should include release requirement');
     assert_same($specificationIds, $audit['specification_ids'] ?? null, 'audit should include specification IDs');
 
@@ -280,8 +280,10 @@ function test_adlaire_audit(): void
     assert_true(in_array('CORE-REQ-002', $testSpecificationMap['adlaire_audit'] ?? [], true), 'test map should connect audit test to core spec');
     assert_true(in_array('RELEASE-REQ-002', $testSpecificationMap['adlaire_audit'] ?? [], true), 'test map should connect audit test to release gate');
     assert_true(in_array('KERNEL-REQ-001', $testSpecificationMap['microkernel'] ?? [], true), 'test map should connect microkernel test to kernel spec');
+    assert_true(in_array('RELEASE-REQ-011', $testSpecificationMap['production_equivalent_environment'] ?? [], true), 'test map should connect production-equivalent test to Xserver spec');
     assert_same($testSpecificationMap, $audit['test_specification_map'] ?? null, 'audit should include test specification map');
     assert_true(in_array('official_debug_test', $audit['required_verifications'] ?? [], true), 'audit should require official debug test');
+    assert_true(in_array('xserver_profile_audit', $audit['required_verifications'] ?? [], true), 'audit should require Xserver profile audit');
     assert_same('forbidden', $audit['breaking_change_policy']['public_api_removal'] ?? null, 'audit should forbid public API removal');
 }
 
@@ -345,7 +347,7 @@ function test_release_readiness(): void
     assert_same($compatibility, $audit['compatibility_matrix'] ?? null, 'audit should include compatibility matrix');
 
     $readiness = Adlaire::releaseReadiness();
-    assert_same('v0.200', $readiness['version'] ?? null, 'release readiness should include current version');
+    assert_same('v0.202', $readiness['version'] ?? null, 'release readiness should include current version');
     assert_same(true, $readiness['ready'] ?? null, 'release readiness should be ready when all checks pass');
     foreach ($readiness['checks'] ?? [] as $name => $passed) {
         assert_same(true, $passed, "release readiness check should pass: {$name}");
@@ -355,7 +357,7 @@ function test_release_readiness(): void
 function test_deployment_axis_policy(): void
 {
     $policy = Adlaire::deploymentAxisPolicy();
-    assert_same('v0.200', $policy['version'] ?? null, 'deployment axis policy should include version');
+    assert_same('v0.202', $policy['version'] ?? null, 'deployment axis policy should include version');
     assert_same('deployment system', $policy['framework_axis'] ?? null, 'deployment axis policy should set deployment system as axis');
     assert_same(false, $policy['architecture_changed'] ?? null, 'deployment axis policy should not change architecture');
     assert_same(
@@ -368,9 +370,9 @@ function test_deployment_axis_policy(): void
     assert_same(false, $policy['deployment_system']['directory_required'] ?? null, 'deployment axis policy should not require Deployment Core directory');
     assert_same('root', $policy['deployment_system']['placement'] ?? null, 'deployment axis policy should place Deployment Core at root');
     assert_same('single file', $policy['deployment_system']['file_principle'] ?? null, 'deployment axis policy should define Deployment Core as single file');
-    assert_same('Deployer.php', $policy['deployment_system']['core_file'] ?? null, 'deployment axis policy should define Deployer.php as Deployment Core file');
-    assert_same(['Deployer.php'], $policy['deployment_system']['components'] ?? null, 'deployment axis policy should aggregate deployer into Deployment Core');
-    assert_same('Deployer.php', $policy['deployment_system']['primary_component'] ?? null, 'deployment axis policy should identify Deployer.php as primary component');
+    assert_same('DeploymentCore.php', $policy['deployment_system']['core_file'] ?? null, 'deployment axis policy should define DeploymentCore.php as Deployment Core file');
+    assert_same(['DeploymentCore.php'], $policy['deployment_system']['components'] ?? null, 'deployment axis policy should aggregate deployer into Deployment Core');
+    assert_same('DeploymentCore.php', $policy['deployment_system']['primary_component'] ?? null, 'deployment axis policy should identify DeploymentCore.php as primary component');
     assert_same(true, $policy['deployment_system']['autonomous_operation_required'] ?? null, 'deployment axis policy should require autonomous deployment operation');
     assert_same(true, $policy['deployment_system']['manifest_required'] ?? null, 'deployment axis policy should require deployer manifest');
     assert_same(true, $policy['deployment_system']['readiness_required'] ?? null, 'deployment axis policy should require deployer readiness');
@@ -382,10 +384,11 @@ function test_deployment_axis_policy(): void
     assert_same('specification-defined general purpose framework architecture', $policy['general_framework']['design_philosophy'] ?? null, 'deployment axis policy should define framework architecture from specification');
     assert_same(false, $policy['general_framework']['distributed_autonomous_design_applies'] ?? null, 'deployment axis policy should not apply distributed autonomous design to general framework');
     assert_same('documented specification', $policy['general_framework']['architecture_source'] ?? null, 'deployment axis policy should use documented specification as framework architecture source');
-    assert_same(true, $policy['general_framework']['compatibility_entrypoints_retained'] ?? null, 'deployment axis policy should retain compatibility entrypoints');
-    assert_true(in_array('Core.php', $policy['general_framework']['scope'] ?? [], true), 'deployment axis policy should include Core.php in general framework scope');
-    assert_true(in_array('Database.php', $policy['general_framework']['scope'] ?? [], true), 'deployment axis policy should include Database.php in general framework scope');
-    assert_true(in_array('Config.php', $policy['general_framework']['scope'] ?? [], true), 'deployment axis policy should include Config.php in general framework scope');
+    assert_same(false, $policy['general_framework']['root_entrypoints_retained'] ?? null, 'deployment axis policy should not retain general framework root entrypoints');
+    assert_same(true, $policy['general_framework']['aggregated_in_core_directory'] ?? null, 'deployment axis policy should aggregate general framework into FrameworkCore');
+    assert_true(in_array('FrameworkCore/Core.php', $policy['general_framework']['scope'] ?? [], true), 'deployment axis policy should include Core.php in general framework scope');
+    assert_true(in_array('FrameworkCore/Database.php', $policy['general_framework']['scope'] ?? [], true), 'deployment axis policy should include Database.php in general framework scope');
+    assert_true(in_array('FrameworkCore/Config.php', $policy['general_framework']['scope'] ?? [], true), 'deployment axis policy should include Config.php in general framework scope');
     assert_same(true, $policy['general_framework']['middleware_available'] ?? null, 'deployment axis policy should include middleware capability');
     assert_same(true, $policy['general_framework']['configuration_repository_available'] ?? null, 'deployment axis policy should include configuration repository');
     assert_same(true, $policy['general_framework']['support_helpers_available'] ?? null, 'deployment axis policy should include support helpers');
@@ -400,17 +403,17 @@ function test_deployment_axis_policy(): void
     assert_true(in_array('modules/Auris', $policy['module_policy']['official_module_directories'] ?? [], true), 'deployment axis policy should include Auris module directory');
     assert_same(true, $policy['architecture_policy']['current_architecture_retained'] ?? null, 'deployment axis policy should retain architecture');
     assert_same('10 files', $policy['architecture_policy']['file_principle'] ?? null, 'deployment axis policy should retain 10-file principle');
-    assert_same('v0.200', $policy['v0_200_target']['version'] ?? null, 'deployment axis policy should define v0.200 target');
-    assert_true(in_array('Deployer.php', $policy['v0_200_target']['source_code_scope'] ?? [], true), 'deployment axis target should include Deployer.php');
-    assert_true(in_array('Middleware.php', $policy['v0_200_target']['source_code_scope'] ?? [], true), 'deployment axis target should include Middleware.php');
-    assert_same(true, $policy['v0_200_target']['deployment_system_axis_required'] ?? null, 'deployment axis target should require deployment axis');
-    assert_same(true, $policy['v0_200_target']['deployer_manifest_required'] ?? null, 'deployment axis target should require deployer manifest');
-    assert_same(true, $policy['v0_200_target']['deployer_readiness_required'] ?? null, 'deployment axis target should require deployer readiness');
-    assert_same(true, $policy['v0_200_target']['ten_file_principle_required'] ?? null, 'deployment axis target should require 10-file principle');
-    assert_same(true, $policy['v0_200_target']['general_framework_capability_required'] ?? null, 'deployment axis target should require general framework capability');
-    assert_same(true, $policy['v0_200_target']['router_middleware_required'] ?? null, 'deployment axis target should require router middleware');
-    assert_same(true, $policy['v0_200_target']['backend_framework_capability_required'] ?? null, 'deployment axis target should require backend framework capability');
-    assert_same(true, $policy['v0_200_target']['stable_release_required'] ?? null, 'deployment axis target should require stable release');
+    assert_same('v0.202', $policy['v0_202_target']['version'] ?? null, 'deployment axis policy should define v0.202 target');
+    assert_true(in_array('DeploymentCore.php', $policy['v0_202_target']['source_code_scope'] ?? [], true), 'deployment axis target should include DeploymentCore.php');
+    assert_true(in_array('FrameworkCore/Middleware.php', $policy['v0_202_target']['source_code_scope'] ?? [], true), 'deployment axis target should include Middleware.php');
+    assert_same(true, $policy['v0_202_target']['deployment_system_axis_required'] ?? null, 'deployment axis target should require deployment axis');
+    assert_same(true, $policy['v0_202_target']['deployer_manifest_required'] ?? null, 'deployment axis target should require deployer manifest');
+    assert_same(true, $policy['v0_202_target']['deployer_readiness_required'] ?? null, 'deployment axis target should require deployer readiness');
+    assert_same(true, $policy['v0_202_target']['ten_file_principle_required'] ?? null, 'deployment axis target should require 10-file principle');
+    assert_same(true, $policy['v0_202_target']['general_framework_capability_required'] ?? null, 'deployment axis target should require general framework capability');
+    assert_same(true, $policy['v0_202_target']['router_middleware_required'] ?? null, 'deployment axis target should require router middleware');
+    assert_same(true, $policy['v0_202_target']['backend_framework_capability_required'] ?? null, 'deployment axis target should require backend framework capability');
+    assert_same(true, $policy['v0_202_target']['stable_release_required'] ?? null, 'deployment axis target should require stable release');
 
     $audit = Adlaire::audit();
     assert_same($policy, $audit['deployment_axis_policy'] ?? null, 'audit should include deployment axis policy');
@@ -425,7 +428,7 @@ function test_deployment_axis_policy(): void
 function test_auris_integration_policy(): void
 {
     $policy = Adlaire::aurisIntegrationPolicy();
-    assert_same('v0.200', $policy['version'] ?? null, 'Auris integration policy should include version');
+    assert_same('v0.202', $policy['version'] ?? null, 'Auris integration policy should include version');
     assert_same(true, $policy['future_integration'] ?? null, 'Auris integration policy should mark future integration');
     assert_same('Auris', $policy['target_system'] ?? null, 'Auris integration policy should identify target system');
     assert_same('https://github.com/fqwink/Auris', $policy['target_repository'] ?? null, 'Auris integration policy should identify target repository');
@@ -522,7 +525,7 @@ function test_official_metadata(): void
     assert_true(in_array('managed runtime environment', $boundary['prohibited_categories'] ?? [], true), 'cloud boundary should include managed runtime');
 
     $metadata = Adlaire::officialMetadata();
-    assert_same('v0.200', $metadata['version'] ?? null, 'official metadata should include version');
+    assert_same('v0.202', $metadata['version'] ?? null, 'official metadata should include version');
     assert_same(Adlaire::publicApi(), $metadata['public_api'] ?? null, 'official metadata should include public API');
     assert_same(Adlaire::licensePolicy(), $metadata['license_policy'] ?? null, 'official metadata should include license policy');
     assert_same($distribution, $metadata['distribution_policy'] ?? null, 'official metadata should include distribution policy');
@@ -569,8 +572,8 @@ function test_specification_drift(): void
 function test_distribution_manifest(): void
 {
     $manifest = Adlaire::distributionManifest();
-    assert_same('v0.200', $manifest['version'] ?? null, 'distribution manifest should include version');
-    foreach (['Core.php', 'Kernel.php', 'Extension.php', 'Database.php', 'Deployer.php', 'Logger.php', 'Config.php', 'Middleware.php', 'Support.php', 'tests/debug.php', 'adlaire-ecosystem.md'] as $file) {
+    assert_same('v0.202', $manifest['version'] ?? null, 'distribution manifest should include version');
+    foreach (['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'DeploymentCore.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php', 'tests/debug.php', 'adlaire-ecosystem.md'] as $file) {
         assert_true(in_array($file, $manifest['files'] ?? [], true), "distribution manifest should include file: {$file}");
     }
     assert_same(Adlaire::publicApi(), $manifest['public_api'] ?? null, 'distribution manifest should include public API');
@@ -648,7 +651,7 @@ function test_autonomous_system(): void
     assert_same('ready', Adlaire::healthReport()['status'] ?? null, 'Adlaire health report should be ready');
     assert_same(true, Adlaire::stabilityContract()['breaking_changes_forbidden'] ?? null, 'stability contract should forbid breaking changes');
     $report = Adlaire::autonomousAuditReport();
-    assert_same('v0.200', $report['version'] ?? null, 'autonomous audit report should include version');
+    assert_same('v0.202', $report['version'] ?? null, 'autonomous audit report should include version');
     assert_true(isset($report['policies']['cloud_business_use']), 'autonomous audit report should include policies');
 }
 
@@ -682,7 +685,7 @@ function test_long_term_stability(): void
     assert_true(in_array('breaking_changes', $freeze['forbidden_changes'] ?? [], true), 'release freeze should forbid breaking changes');
 
     $lts = Adlaire::longTermStabilityContract();
-    assert_same('v0.200', $lts['version'] ?? null, 'long term stability contract should include version');
+    assert_same('v0.202', $lts['version'] ?? null, 'long term stability contract should include version');
     assert_same(true, $lts['long_term_stable'] ?? null, 'long term stability contract should mark stable');
     assert_same(true, $lts['docs_are_source_of_truth'] ?? null, 'long term stability contract should keep docs as source of truth');
     assert_same(true, $lts['cloud_business_prohibition_fixed'] ?? null, 'long term stability contract should fix cloud prohibition');
@@ -696,9 +699,9 @@ function test_long_term_stability(): void
 function test_stable_release_contract(): void
 {
     $contract = Adlaire::stableReleaseContract();
-    assert_same('v0.200', $contract['version'] ?? null, 'stable release contract should include version');
+    assert_same('v0.202', $contract['version'] ?? null, 'stable release contract should include version');
     assert_same(true, $contract['stable_release'] ?? null, 'stable release contract should mark stable release');
-    assert_same('v0.200 stable backend framework release', $contract['release_name'] ?? null, 'stable release contract should name release');
+    assert_same('v0.202 stable backend framework release', $contract['release_name'] ?? null, 'stable release contract should name release');
     foreach (['routing', 'middleware', 'validation', 'database', 'logging', 'deployment', 'configuration', 'support helpers', 'microkernel', 'Auris module integration'] as $capability) {
         assert_true(in_array($capability, $contract['backend_framework_capabilities'] ?? [], true), "stable release contract should include capability: {$capability}");
     }
@@ -712,6 +715,42 @@ function test_stable_release_contract(): void
     assert_same($contract, Adlaire::distributionManifest()['stable_release_contract'] ?? null, 'manifest should include stable release contract');
     assert_same(true, Adlaire::specificationIntegrity()['checks']['stable_release_contract'] ?? null, 'specification integrity should include stable release contract');
     assert_same(true, Adlaire::releaseReadiness()['checks']['stable_release_contract'] ?? null, 'release readiness should include stable release contract');
+}
+
+function test_production_equivalent_environment(): void
+{
+    $policy = Adlaire::productionEnvironmentPolicy();
+    assert_same('v0.202', $policy['version'] ?? null, 'production environment policy should include version');
+    assert_same('Xserver rental server', $policy['production_provider'] ?? null, 'production environment policy should identify Xserver');
+    assert_same('Xserver shared rental server', $policy['production_environment'] ?? null, 'production environment policy should identify rental server environment');
+    assert_same(true, $policy['production_equivalent_testing_required'] ?? null, 'production-equivalent testing should be required');
+    assert_same('Docker php:8.3-apache with Xserver compatibility profile', $policy['local_test_environment'] ?? null, 'local test environment should emulate Xserver profile');
+    assert_same('>=8.3', $policy['php_requirement'] ?? null, 'production profile should keep PHP 8.3 requirement');
+    assert_same('PHP 8.3.x compatible', $policy['php_profile'] ?? null, 'production profile should use PHP 8.3 compatible profile');
+    assert_same('Apache compatible shared hosting', $policy['web_server_profile'] ?? null, 'production profile should use Apache compatible shared hosting');
+    assert_same('public_html', $policy['document_root'] ?? null, 'production profile should define public_html document root');
+    assert_same(true, $policy['htaccess_required'] ?? null, 'production profile should require htaccess compatibility');
+    assert_same(false, $policy['composer_required'] ?? null, 'production profile should not require Composer');
+    assert_same(false, $policy['external_service_required_for_tests'] ?? null, 'production-equivalent test should avoid external services');
+    assert_same(true, $policy['database_profile']['sqlite_for_local_debug'] ?? null, 'production profile should allow SQLite local debug');
+    assert_same(true, $policy['database_profile']['mysql_compatible_production'] ?? null, 'production profile should account for MySQL compatible production');
+    assert_same('DeploymentCore.php', $policy['deployment_profile']['root_deployment_core'] ?? null, 'production profile should keep DeploymentCore at root');
+    assert_same('FrameworkCore', $policy['deployment_profile']['framework_core_directory'] ?? null, 'production profile should keep FrameworkCore directory');
+    assert_same(true, $policy['deployment_profile']['no_deployment_core_directory'] ?? null, 'production profile should prohibit DeploymentCore directory');
+    assert_true(in_array('xserver_profile_audit', $policy['required_verifications'] ?? [], true), 'production profile should require Xserver audit');
+
+    $compatibility = Adlaire::compatibilityMatrix();
+    assert_same('Xserver rental server', $compatibility['production_equivalent']['provider'] ?? null, 'compatibility matrix should include Xserver profile');
+    assert_same(true, $compatibility['production_equivalent']['compatible'] ?? null, 'Xserver profile compatibility should pass');
+    assert_same($policy, $compatibility['production_equivalent']['profile'] ?? null, 'compatibility matrix should embed production policy');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['production_environment_policy'] ?? null, 'audit should include production environment policy');
+    assert_same(true, $audit['specification_integrity']['checks']['production_environment_policy'] ?? null, 'specification integrity should include production environment policy');
+
+    $readiness = Adlaire::releaseReadiness();
+    assert_same(true, $readiness['checks']['production_environment_policy'] ?? null, 'release readiness should include production environment policy');
+    assert_same($policy, Adlaire::distributionManifest()['production_environment_policy'] ?? null, 'distribution manifest should include production environment policy');
 }
 
 function test_router(): void
@@ -1044,7 +1083,7 @@ function test_deployer_config(): void
     assert_same('deployment system', $validation['deployment_axis'] ?? null, 'deployer validateOnly should include deployment axis');
 
     $deploymentManifest = $deployer->deploymentSystemManifest();
-    assert_same('Deployer.php', $deploymentManifest['component'] ?? null, 'deployer manifest should identify component');
+    assert_same('DeploymentCore.php', $deploymentManifest['component'] ?? null, 'deployer manifest should identify component');
     assert_same('deployment system', $deploymentManifest['axis'] ?? null, 'deployer manifest should identify deployment axis');
     assert_same('distributed autonomous system design philosophy', $deploymentManifest['design_philosophy'] ?? null, 'deployer manifest should include design philosophy');
     assert_same(true, $deploymentManifest['auris_integration_considered'] ?? null, 'deployer manifest should consider Auris integration');
@@ -1106,8 +1145,8 @@ function test_deployer_config(): void
 
     $allowed = new ReflectionMethod($initialDeployer, 'allowed');
     $allowed->setAccessible(true);
-    assert_true($allowed->invoke($initialDeployer, 'Core.php', []), 'empty deploy allowlist should allow all files');
-    assert_true($allowed->invoke($initialDeployer, 'Core.php', ['*.php']), 'matching deploy allowlist should allow file');
+    assert_true($allowed->invoke($initialDeployer, 'FrameworkCore/Core.php', []), 'empty deploy allowlist should allow all files');
+    assert_true($allowed->invoke($initialDeployer, 'FrameworkCore/Core.php', ['*.php']), 'matching deploy allowlist should allow file');
     assert_true(!$allowed->invoke($initialDeployer, 'notes.txt', ['*.php']), 'non-matching deploy allowlist should reject file');
     foreach (['../Core.php', '/Core.php', 'nested/../Core.php', '', "bad\0path"] as $badPath) {
         try {
@@ -1119,7 +1158,7 @@ function test_deployer_config(): void
 
     $recordHistory = new ReflectionMethod($initialDeployer, 'recordHistory');
     $recordHistory->setAccessible(true);
-    $recordHistory->invoke($initialDeployer, $snapshotPath, ['Core.php']);
+    $recordHistory->invoke($initialDeployer, $snapshotPath, ['FrameworkCore/Core.php']);
     $historyLines = file($initialBase . '/backup/deploy_history.jsonl', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     assert_true(is_array($historyLines) && $historyLines !== [], 'deploy history should be written');
     $lastHistory = json_decode((string)end($historyLines), true, flags: JSON_THROW_ON_ERROR);
@@ -1144,6 +1183,7 @@ $tests = [
     'autonomous_system' => test_autonomous_system(...),
     'long_term_stability' => test_long_term_stability(...),
     'stable_release_contract' => test_stable_release_contract(...),
+    'production_equivalent_environment' => test_production_equivalent_environment(...),
     'validator' => test_validator(...),
     'router' => test_router(...),
     'general_framework_support' => test_general_framework_support(...),

@@ -1,0 +1,19 @@
+services:
+  adlaire-xserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.xserver
+    image: adlaire-ecosystem:xserver
+    env_file:
+      - .env.xserver.example
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - adlaire_xserver_tmp:/var/www/html/storage
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+
+volumes:
+  adlaire_xserver_tmp:
