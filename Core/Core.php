@@ -2935,6 +2935,104 @@ final class Adlaire
             && in_array('pre_migration_readiness_gate_defined', $policy['required_verifications'] ?? [], true);
     }
 
+    public static function physicalReorganizationPhaseOnePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Physical Reorganization Phase One',
+            'status' => 'core_backend_moved_with_compatibility_shims',
+            'range' => 'v0.261-v0.263',
+            'approval_obtained' => true,
+            'physical_reorganization_applied' => true,
+            'deployment_core_root_retained' => true,
+            'deployment_core_contract_changed' => false,
+            'public_api_required' => false,
+            'configuration_files_allowed' => false,
+            'dashboard_execution_enabled' => false,
+            'moved_paths' => [
+                'FrameworkCore/Core.php' => 'Core/Core.php',
+                'FrameworkCore/Kernel.php' => 'Core/Kernel.php',
+                'FrameworkCore/Extension.php' => 'Core/Extension.php',
+                'FrameworkCore/Database.php' => 'Frameworks/Backend/Database.php',
+                'FrameworkCore/Config.php' => 'Frameworks/Backend/Config.php',
+                'FrameworkCore/Logger.php' => 'Frameworks/Backend/Logger.php',
+                'FrameworkCore/Middleware.php' => 'Frameworks/Backend/Middleware.php',
+                'FrameworkCore/Support.php' => 'Frameworks/Backend/Support.php',
+            ],
+            'compatibility_shims' => [
+                'FrameworkCore/Core.php',
+                'FrameworkCore/Kernel.php',
+                'FrameworkCore/Extension.php',
+                'FrameworkCore/Database.php',
+                'FrameworkCore/Config.php',
+                'FrameworkCore/Logger.php',
+                'FrameworkCore/Middleware.php',
+                'FrameworkCore/Support.php',
+            ],
+            'created_directories' => [
+                'Core',
+                'Frameworks/Backend',
+                'Frameworks/Deployment',
+                'Frameworks/Frontend',
+                'Frameworks/CSS',
+                'Frameworks/JavaScript',
+            ],
+            'preserved_entrypoints' => [
+                'DeploymentCore.php',
+                'public_html/index.php',
+                'public_html/dashboard.php',
+            ],
+            'required_source_policies' => [
+                'reorganization_preparation_plan_policy',
+                'reorganization_architecture_plan_policy',
+                'deployment_system_compatibility_policy',
+            ],
+            'required_verifications' => [
+                'new_core_paths_exist',
+                'new_backend_paths_exist',
+                'frameworkcore_shims_exist',
+                'deployment_core_root_retained',
+                'deployment_core_contract_unchanged',
+                'dashboard_execution_disabled',
+                'official_debug_test',
+                'release_check',
+            ],
+        ];
+    }
+
+    private static function physicalReorganizationPhaseOnePassed(array $policy): bool
+    {
+        $root = dirname(__DIR__);
+        $requiredFiles = array_merge(
+            array_values($policy['moved_paths'] ?? []),
+            $policy['compatibility_shims'] ?? [],
+            $policy['preserved_entrypoints'] ?? [],
+        );
+        $filesExist = true;
+        foreach ($requiredFiles as $file) {
+            $filesExist = $filesExist && is_file($root . '/' . $file);
+        }
+
+        return ($policy['theme'] ?? null) === 'Physical Reorganization Phase One'
+            && ($policy['status'] ?? null) === 'core_backend_moved_with_compatibility_shims'
+            && ($policy['range'] ?? null) === 'v0.261-v0.263'
+            && ($policy['approval_obtained'] ?? false) === true
+            && ($policy['physical_reorganization_applied'] ?? false) === true
+            && ($policy['deployment_core_root_retained'] ?? false) === true
+            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['public_api_required'] ?? true) === false
+            && ($policy['configuration_files_allowed'] ?? true) === false
+            && ($policy['dashboard_execution_enabled'] ?? true) === false
+            && ($policy['moved_paths']['FrameworkCore/Core.php'] ?? null) === 'Core/Core.php'
+            && ($policy['moved_paths']['FrameworkCore/Database.php'] ?? null) === 'Frameworks/Backend/Database.php'
+            && in_array('FrameworkCore/Core.php', $policy['compatibility_shims'] ?? [], true)
+            && in_array('Frameworks/JavaScript', $policy['created_directories'] ?? [], true)
+            && in_array('DeploymentCore.php', $policy['preserved_entrypoints'] ?? [], true)
+            && in_array('reorganization_preparation_plan_policy', $policy['required_source_policies'] ?? [], true)
+            && in_array('frameworkcore_shims_exist', $policy['required_verifications'] ?? [], true)
+            && $filesExist;
+    }
+
     public static function frameworkClassificationPolicy(): array
     {
         return [
@@ -3455,6 +3553,7 @@ final class Adlaire
                 'reorganization readiness boundary',
                 'reorganization architecture plan',
                 'non-deployment migration preparation plan',
+                'physical reorganization phase one',
             ],
             'no_breaking_changes' => false,
             'breaking_changes_allowed' => true,
@@ -3503,6 +3602,7 @@ final class Adlaire
             'reorganization_readiness_boundary' => true,
             'reorganization_architecture_plan' => true,
             'reorganization_preparation_plan' => true,
+            'physical_reorganization_phase_one' => true,
         ];
     }
 
@@ -3663,6 +3763,7 @@ final class Adlaire
                 && in_array('reorganization readiness boundary', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('reorganization architecture plan', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('non-deployment migration preparation plan', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('physical reorganization phase one', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && self::stableReleaseContract()['dashboard_deploy_execution_specification'] === true
                 && self::stableReleaseContract()['framework_classification_specification'] === true
                 && self::stableReleaseContract()['integration_core_concept'] === true
@@ -3673,6 +3774,7 @@ final class Adlaire
                 && self::stableReleaseContract()['reorganization_readiness_boundary'] === true
                 && self::stableReleaseContract()['reorganization_architecture_plan'] === true
                 && self::stableReleaseContract()['reorganization_preparation_plan'] === true
+                && self::stableReleaseContract()['physical_reorganization_phase_one'] === true
                 && self::stableReleaseContract()['mysql_support_planned'] === false,
             'production_environment_policy' => self::productionEnvironmentPolicy()['production_provider'] === 'Xserver rental server'
                 && self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
@@ -3803,6 +3905,7 @@ final class Adlaire
             'reorganization_readiness_boundary_policy' => self::reorganizationReadinessBoundaryPassed(self::reorganizationReadinessBoundaryPolicy()),
             'reorganization_architecture_plan_policy' => self::reorganizationArchitecturePlanPassed(self::reorganizationArchitecturePlanPolicy()),
             'reorganization_preparation_plan_policy' => self::reorganizationPreparationPlanPassed(self::reorganizationPreparationPlanPolicy()),
+            'physical_reorganization_phase_one_policy' => self::physicalReorganizationPhaseOnePassed(self::physicalReorganizationPhaseOnePolicy()),
             'development_workflow_policy' => self::developmentWorkflowPolicy()['theme'] === 'Specification-First Development Workflow'
                 && self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
                 && self::developmentWorkflowPolicy()['required_order'] === ['specification', 'implementation_plan', 'implementation']
@@ -3946,6 +4049,7 @@ final class Adlaire
             'reorganization_readiness_boundary_policy',
             'reorganization_architecture_plan_policy',
             'reorganization_preparation_plan_policy',
+            'physical_reorganization_phase_one_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
@@ -4006,6 +4110,7 @@ final class Adlaire
             'reorganization_readiness_boundary_policy',
             'reorganization_architecture_plan_policy',
             'reorganization_preparation_plan_policy',
+            'physical_reorganization_phase_one_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
@@ -4062,6 +4167,14 @@ final class Adlaire
                 'FrameworkCore/Config.php',
                 'FrameworkCore/Middleware.php',
                 'FrameworkCore/Support.php',
+                'Core/Core.php',
+                'Core/Kernel.php',
+                'Core/Extension.php',
+                'Frameworks/Backend/Database.php',
+                'Frameworks/Backend/Logger.php',
+                'Frameworks/Backend/Config.php',
+                'Frameworks/Backend/Middleware.php',
+                'Frameworks/Backend/Support.php',
                 'public_html/assets/adlaire-ui.css',
                 'tests/debug.php',
                 'README.md',
@@ -4118,6 +4231,7 @@ final class Adlaire
             'reorganization_readiness_boundary_policy' => self::reorganizationReadinessBoundaryPolicy(),
             'reorganization_architecture_plan_policy' => self::reorganizationArchitecturePlanPolicy(),
             'reorganization_preparation_plan_policy' => self::reorganizationPreparationPlanPolicy(),
+            'physical_reorganization_phase_one_policy' => self::physicalReorganizationPhaseOnePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
@@ -4203,6 +4317,7 @@ final class Adlaire
             'reorganization_readiness_boundary_policy' => self::reorganizationReadinessBoundaryPolicy(),
             'reorganization_architecture_plan_policy' => self::reorganizationArchitecturePlanPolicy(),
             'reorganization_preparation_plan_policy' => self::reorganizationPreparationPlanPolicy(),
+            'physical_reorganization_phase_one_policy' => self::physicalReorganizationPhaseOnePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
@@ -4461,6 +4576,10 @@ final class Adlaire
                 'profile' => self::reorganizationPreparationPlanPolicy(),
                 'passed' => self::reorganizationPreparationPlanPassed(self::reorganizationPreparationPlanPolicy()),
             ],
+            'physical_reorganization_phase_one_policy' => [
+                'profile' => self::physicalReorganizationPhaseOnePolicy(),
+                'passed' => self::physicalReorganizationPhaseOnePassed(self::physicalReorganizationPhaseOnePolicy()),
+            ],
             'development_workflow_policy' => [
                 'profile' => self::developmentWorkflowPolicy(),
                 'passed' => self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
@@ -4565,6 +4684,7 @@ final class Adlaire
                 && in_array('reorganization readiness boundary', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('reorganization architecture plan', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('non-deployment migration preparation plan', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('physical reorganization phase one', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && ($audit['stable_release_contract']['mysql_support_planned'] ?? true) === false
                 && ($audit['stable_release_contract']['runtime_operations_hardening'] ?? false) === true
                 && ($audit['stable_release_contract']['operations_dashboard'] ?? false) === true
@@ -4600,7 +4720,8 @@ final class Adlaire
                 && ($audit['stable_release_contract']['dashboard_gated_controls'] ?? false) === true
                 && ($audit['stable_release_contract']['reorganization_readiness_boundary'] ?? false) === true
                 && ($audit['stable_release_contract']['reorganization_architecture_plan'] ?? false) === true
-                && ($audit['stable_release_contract']['reorganization_preparation_plan'] ?? false) === true,
+                && ($audit['stable_release_contract']['reorganization_preparation_plan'] ?? false) === true
+                && ($audit['stable_release_contract']['physical_reorganization_phase_one'] ?? false) === true,
             'production_environment_policy' => ($audit['production_environment_policy']['production_provider'] ?? null) === 'Xserver rental server'
                 && ($audit['production_environment_policy']['production_equivalent_testing_required'] ?? false) === true
                 && ($audit['production_environment_policy']['php_requirement'] ?? null) === '>=8.3'
@@ -4725,6 +4846,7 @@ final class Adlaire
             'reorganization_readiness_boundary_policy' => self::reorganizationReadinessBoundaryPassed($audit['reorganization_readiness_boundary_policy'] ?? []),
             'reorganization_architecture_plan_policy' => self::reorganizationArchitecturePlanPassed($audit['reorganization_architecture_plan_policy'] ?? []),
             'reorganization_preparation_plan_policy' => self::reorganizationPreparationPlanPassed($audit['reorganization_preparation_plan_policy'] ?? []),
+            'physical_reorganization_phase_one_policy' => self::physicalReorganizationPhaseOnePassed($audit['physical_reorganization_phase_one_policy'] ?? []),
             'development_workflow_policy' => ($audit['development_workflow_policy']['theme'] ?? null) === 'Specification-First Development Workflow'
                 && ($audit['development_workflow_policy']['highest_absolute_principle'] ?? false) === true
                 && ($audit['development_workflow_policy']['required_order'] ?? []) === ['specification', 'implementation_plan', 'implementation']
