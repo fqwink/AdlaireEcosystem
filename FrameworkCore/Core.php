@@ -3,13 +3,13 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version v0.230
+ * @version v0.234
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-const ADLAIRE_VERSION = 'v0.230';
+const ADLAIRE_VERSION = 'v0.234';
 
 if (is_file(__DIR__ . '/Extension.php')) {
     require_once __DIR__ . '/Extension.php';
@@ -1328,6 +1328,10 @@ final class Adlaire
                 'CORE-REQ-005' => 'Public API features, JSON response helpers, JSON request helpers, and CORS helpers are removed.',
                 'CORE-REQ-006' => 'Development workflow must define specification first, implementation plan second, and implementation third.',
                 'CORE-REQ-007' => 'Repository documentation must stay aligned with Xserver, database, configuration-file prohibition, and API-removal policies.',
+                'CORE-REQ-008' => 'Repository files must be classified by deployment-system axis role before physical reorganization.',
+                'CORE-REQ-009' => 'Dashboard deploy execution must be specified as default-off and safety-gated before implementation.',
+                'CORE-REQ-010' => 'Framework families and Integration Core must be classified before large-scale reorganization.',
+                'CORE-REQ-011' => 'Integration Core must coordinate framework family registry, lifecycle, dependencies, audit, release readiness, and deployment control.',
             ],
             'DeploymentCore.php' => [
                 'DEPLOY-REQ-001' => 'Deployment paths remain bounded to relative safe paths.',
@@ -1384,6 +1388,10 @@ final class Adlaire
                 'RELEASE-REQ-036' => 'The v0.228 specification-first workflow release makes specification, implementation planning, and implementation order mandatory.',
                 'RELEASE-REQ-037' => 'The v0.229 repository-wide specification-first workflow release applies the development order to the entire repository.',
                 'RELEASE-REQ-038' => 'The v0.230 repository documentation consistency release rejects stale Xserver MySQL and env-file guidance.',
+                'RELEASE-REQ-039' => 'The v0.231 deployment axis map release classifies repository files by deployment-system role without physical reorganization.',
+                'RELEASE-REQ-040' => 'The v0.232 dashboard deploy execution specification release keeps execution disabled while fixing required safety gates.',
+                'RELEASE-REQ-041' => 'The v0.233 framework classification specification release defines classified framework families, Integration Core, and the v0.270 stable reorganization target.',
+                'RELEASE-REQ-042' => 'The v0.234 integration core concept release defines Integration Core responsibilities without physical reorganization.',
             ],
         ];
     }
@@ -1417,6 +1425,11 @@ final class Adlaire
             'stable_release_candidate_gate_policy' => ['RELEASE-REQ-034'],
             'api_removal_policy' => ['CORE-REQ-005', 'RELEASE-REQ-035'],
             'documentation_consistency_policy' => ['CORE-REQ-007', 'RELEASE-REQ-038'],
+            'deployment_axis_map_policy' => ['CORE-REQ-008', 'RELEASE-REQ-039'],
+            'dashboard_deploy_execution_policy' => ['CORE-REQ-009', 'RELEASE-REQ-040'],
+            'framework_classification_policy' => ['CORE-REQ-010', 'RELEASE-REQ-041'],
+            'integration_core_policy' => ['CORE-REQ-011', 'RELEASE-REQ-042'],
+            'integration_core_policy' => ['CORE-REQ-011', 'RELEASE-REQ-042'],
             'adlaire_audit' => ['CORE-REQ-002', 'TEST-REQ-001', 'TEST-REQ-002', 'RELEASE-REQ-001', 'RELEASE-REQ-002'],
             'release_readiness' => ['RELEASE-REQ-001', 'RELEASE-REQ-002', 'RELEASE-REQ-003'],
             'license_governance' => ['RELEASE-REQ-003', 'RELEASE-REQ-004', 'CORE-REQ-006', 'RELEASE-REQ-036', 'RELEASE-REQ-037'],
@@ -2160,6 +2173,7 @@ final class Adlaire
                 'ignored deployment-specific env file',
             ],
             'checked_documents' => [
+                'README.md',
                 'docs/xserver-production-equivalent.md',
                 'adlaire-ecosystem.md',
             ],
@@ -2172,6 +2186,288 @@ final class Adlaire
                 'release_check',
             ],
         ];
+    }
+
+    private static function documentationConsistencyPassed(array $policy): bool
+    {
+        return ($policy['theme'] ?? null) === 'Repository Documentation Consistency'
+            && ($policy['xserver_required'] ?? true) === false
+            && ($policy['mysql_support_planned'] ?? true) === false
+            && ($policy['framework_configuration_files_allowed'] ?? true) === false
+            && ($policy['json_configuration_files_allowed'] ?? true) === false
+            && ($policy['public_api_available'] ?? true) === false
+            && in_array('docs/xserver-production-equivalent.md', $policy['checked_documents'] ?? [], true);
+    }
+
+    public static function deploymentAxisMapPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Deployment Axis Map',
+            'repository_axis' => 'deployment system',
+            'physical_reorganization_applied' => false,
+            'deployment_core_compatibility_required' => true,
+            'dashboard_execution_enabled' => false,
+            'roles' => [
+                'deployment_core' => [
+                    'label' => 'Deployment Core',
+                    'compatibility_domain' => true,
+                    'paths' => ['DeploymentCore.php'],
+                    'breaking_changes_allowed' => false,
+                ],
+                'deployment_control_ui' => [
+                    'label' => 'Deployment Control UI',
+                    'compatibility_domain' => false,
+                    'paths' => ['public_html/dashboard.php', 'public_html/assets/adlaire-ui.css'],
+                    'read_only' => true,
+                    'command_execution_allowed' => false,
+                ],
+                'framework_support' => [
+                    'label' => 'Framework Support',
+                    'compatibility_domain' => false,
+                    'paths' => ['FrameworkCore'],
+                    'supports_deployment_axis' => true,
+                ],
+                'verification' => [
+                    'label' => 'Verification',
+                    'paths' => ['tests/debug.php', 'scripts'],
+                    'release_gate_required' => true,
+                ],
+                'specification' => [
+                    'label' => 'Specification',
+                    'paths' => ['adlaire-ecosystem.md', 'README.md', 'docs'],
+                    'source_of_truth' => 'adlaire-ecosystem.md',
+                ],
+            ],
+            'required_verifications' => [
+                'axis_map_defined',
+                'deployment_core_compatibility_preserved',
+                'dashboard_read_only_preserved',
+                'official_debug_test',
+                'release_check',
+            ],
+        ];
+    }
+
+    private static function deploymentAxisMapPassed(array $policy): bool
+    {
+        return ($policy['theme'] ?? null) === 'Deployment Axis Map'
+            && ($policy['repository_axis'] ?? null) === 'deployment system'
+            && ($policy['physical_reorganization_applied'] ?? true) === false
+            && ($policy['deployment_core_compatibility_required'] ?? false) === true
+            && ($policy['dashboard_execution_enabled'] ?? true) === false
+            && in_array('DeploymentCore.php', $policy['roles']['deployment_core']['paths'] ?? [], true)
+            && in_array('public_html/dashboard.php', $policy['roles']['deployment_control_ui']['paths'] ?? [], true)
+            && ($policy['roles']['deployment_control_ui']['read_only'] ?? false) === true
+            && ($policy['roles']['deployment_control_ui']['command_execution_allowed'] ?? true) === false
+            && in_array('FrameworkCore', $policy['roles']['framework_support']['paths'] ?? [], true)
+            && in_array('tests/debug.php', $policy['roles']['verification']['paths'] ?? [], true)
+            && in_array('adlaire-ecosystem.md', $policy['roles']['specification']['paths'] ?? [], true);
+    }
+
+    public static function dashboardDeployExecutionPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Dashboard Deploy Execution Specification',
+            'status' => 'specified_not_implemented',
+            'default_enabled' => false,
+            'implementation_enabled' => false,
+            'public_api_required' => false,
+            'configuration_files_allowed' => false,
+            'deployment_core_compatibility_required' => true,
+            'dashboard_default_read_only' => true,
+            'execution_exception_requires_explicit_enable' => true,
+            'safety_gates' => [
+                'csrf_required' => true,
+                'two_step_confirmation_required' => true,
+                'short_lived_execution_token_required' => true,
+                'approved_deploy_profile_required' => true,
+                'preflight_required' => true,
+                'plan_preview_required' => true,
+                'dry_run_required_before_apply' => true,
+                'rollback_preview_required' => true,
+                'safety_score_required' => true,
+                'minimum_safety_score' => 70,
+                'audit_log_required' => true,
+            ],
+            'future_phases' => [
+                'v0.234' => 'Execution Safety Gate',
+                'v0.235' => 'DeploymentCore Execute Adapter',
+                'v0.236' => 'Audit Trail',
+                'v0.237' => 'Dashboard UI',
+            ],
+            'required_verifications' => [
+                'dashboard_execution_specified_default_off',
+                'dashboard_execution_not_implemented_yet',
+                'deployment_core_compatibility_preserved',
+                'safety_gates_defined',
+                'official_debug_test',
+                'release_check',
+            ],
+        ];
+    }
+
+    private static function dashboardDeployExecutionPassed(array $policy): bool
+    {
+        return ($policy['theme'] ?? null) === 'Dashboard Deploy Execution Specification'
+            && ($policy['status'] ?? null) === 'specified_not_implemented'
+            && ($policy['default_enabled'] ?? true) === false
+            && ($policy['implementation_enabled'] ?? true) === false
+            && ($policy['public_api_required'] ?? true) === false
+            && ($policy['configuration_files_allowed'] ?? true) === false
+            && ($policy['deployment_core_compatibility_required'] ?? false) === true
+            && ($policy['dashboard_default_read_only'] ?? false) === true
+            && ($policy['execution_exception_requires_explicit_enable'] ?? false) === true
+            && ($policy['safety_gates']['csrf_required'] ?? false) === true
+            && ($policy['safety_gates']['two_step_confirmation_required'] ?? false) === true
+            && ($policy['safety_gates']['dry_run_required_before_apply'] ?? false) === true
+            && ($policy['safety_gates']['minimum_safety_score'] ?? null) === 70
+            && ($policy['safety_gates']['audit_log_required'] ?? false) === true;
+    }
+
+    public static function frameworkClassificationPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Framework Classification Specification',
+            'reorganization_target_version' => 'v0.270',
+            'stable_release_target' => 'v0.270 reorganized framework stable release',
+            'integration_core_role' => 'seamless coordination, lifecycle, audit, dependency, release, and deployment-control connection across framework families',
+            'physical_reorganization_applied' => false,
+            'classified_frameworks' => [
+                'deployment_framework' => [
+                    'label' => 'Deployment Framework',
+                    'compatibility_domain' => true,
+                    'current_paths' => ['DeploymentCore.php'],
+                    'core_responsibility' => 'deployment control and Deployment Core compatibility',
+                ],
+                'backend_framework' => [
+                    'label' => 'Backend Framework',
+                    'compatibility_domain' => false,
+                    'current_paths' => ['FrameworkCore/Core.php', 'FrameworkCore/Database.php', 'FrameworkCore/Middleware.php'],
+                    'core_responsibility' => 'routing, validation, database, middleware, runtime support',
+                ],
+                'frontend_framework' => [
+                    'label' => 'Frontend Framework',
+                    'compatibility_domain' => false,
+                    'current_paths' => ['public_html/index.php', 'public_html/dashboard.php'],
+                    'core_responsibility' => 'HTML entrypoints and dashboard view surface',
+                ],
+                'css_framework' => [
+                    'label' => 'CSS Framework',
+                    'compatibility_domain' => false,
+                    'current_paths' => ['public_html/assets/adlaire-ui.css'],
+                    'core_responsibility' => 'shared UI styling system',
+                ],
+                'javascript_framework' => [
+                    'label' => 'JavaScript Framework',
+                    'compatibility_domain' => false,
+                    'current_paths' => [],
+                    'core_responsibility' => 'future browser-side behavior under safety policy',
+                    'implementation_status' => 'not_implemented',
+                ],
+                'integration_core' => [
+                    'label' => 'Integration Core',
+                    'compatibility_domain' => false,
+                    'current_paths' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php'],
+                    'core_responsibility' => 'connect framework families without public API dependency',
+                ],
+            ],
+            'roadmap' => [
+                'v0.234-v0.240' => 'classification, Integration Core concept, compatibility boundaries, registry, lifecycle, policy, layout plan, readiness gate',
+                'v0.241-v0.250' => 'classified framework formalization and release matrix',
+                'v0.251-v0.260' => 'Integration Core internal contracts and cross-framework release gate',
+                'v0.261-v0.270' => 'physical layout migration, documentation rewire, compatibility gate, stable release',
+            ],
+            'required_verifications' => [
+                'framework_families_classified',
+                'integration_core_defined',
+                'deployment_framework_compatibility_preserved',
+                'javascript_framework_not_implemented_yet',
+                'v0_270_stable_release_target_defined',
+                'official_debug_test',
+                'release_check',
+            ],
+        ];
+    }
+
+    private static function frameworkClassificationPassed(array $policy): bool
+    {
+        return ($policy['theme'] ?? null) === 'Framework Classification Specification'
+            && ($policy['reorganization_target_version'] ?? null) === 'v0.270'
+            && ($policy['stable_release_target'] ?? null) === 'v0.270 reorganized framework stable release'
+            && ($policy['physical_reorganization_applied'] ?? true) === false
+            && in_array('DeploymentCore.php', $policy['classified_frameworks']['deployment_framework']['current_paths'] ?? [], true)
+            && ($policy['classified_frameworks']['deployment_framework']['compatibility_domain'] ?? false) === true
+            && in_array('FrameworkCore/Database.php', $policy['classified_frameworks']['backend_framework']['current_paths'] ?? [], true)
+            && in_array('public_html/dashboard.php', $policy['classified_frameworks']['frontend_framework']['current_paths'] ?? [], true)
+            && in_array('public_html/assets/adlaire-ui.css', $policy['classified_frameworks']['css_framework']['current_paths'] ?? [], true)
+            && ($policy['classified_frameworks']['javascript_framework']['implementation_status'] ?? null) === 'not_implemented'
+            && in_array('FrameworkCore/Kernel.php', $policy['classified_frameworks']['integration_core']['current_paths'] ?? [], true)
+            && array_key_exists('v0.261-v0.270', $policy['roadmap'] ?? []);
+    }
+
+    public static function integrationCorePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Integration Core Concept',
+            'role' => 'coordinate classified framework families without public API dependency',
+            'physical_reorganization_applied' => false,
+            'public_api_required' => false,
+            'configuration_files_allowed' => false,
+            'deployment_framework_compatibility_required' => true,
+            'coordinated_frameworks' => [
+                'deployment_framework',
+                'backend_framework',
+                'frontend_framework',
+                'css_framework',
+                'javascript_framework',
+            ],
+            'responsibilities' => [
+                'framework_family_registry',
+                'framework_lifecycle',
+                'dependency_graph',
+                'policy_audit',
+                'release_readiness',
+                'deployment_control_connection',
+                'compatibility_boundary_management',
+            ],
+            'internal_contracts_only' => true,
+            'current_core_paths' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php'],
+            'release_target' => 'v0.270 reorganized framework stable release',
+            'required_verifications' => [
+                'integration_core_defined',
+                'framework_families_connected',
+                'internal_contracts_only',
+                'deployment_framework_compatibility_preserved',
+                'release_target_v0_270',
+                'official_debug_test',
+                'release_check',
+            ],
+        ];
+    }
+
+    private static function integrationCorePassed(array $policy): bool
+    {
+        return ($policy['theme'] ?? null) === 'Integration Core Concept'
+            && ($policy['role'] ?? null) === 'coordinate classified framework families without public API dependency'
+            && ($policy['physical_reorganization_applied'] ?? true) === false
+            && ($policy['public_api_required'] ?? true) === false
+            && ($policy['configuration_files_allowed'] ?? true) === false
+            && ($policy['deployment_framework_compatibility_required'] ?? false) === true
+            && in_array('deployment_framework', $policy['coordinated_frameworks'] ?? [], true)
+            && in_array('backend_framework', $policy['coordinated_frameworks'] ?? [], true)
+            && in_array('frontend_framework', $policy['coordinated_frameworks'] ?? [], true)
+            && in_array('css_framework', $policy['coordinated_frameworks'] ?? [], true)
+            && in_array('javascript_framework', $policy['coordinated_frameworks'] ?? [], true)
+            && in_array('framework_family_registry', $policy['responsibilities'] ?? [], true)
+            && in_array('deployment_control_connection', $policy['responsibilities'] ?? [], true)
+            && ($policy['internal_contracts_only'] ?? false) === true
+            && in_array('FrameworkCore/Core.php', $policy['current_core_paths'] ?? [], true)
+            && in_array('FrameworkCore/Kernel.php', $policy['current_core_paths'] ?? [], true)
+            && ($policy['release_target'] ?? null) === 'v0.270 reorganized framework stable release';
     }
 
     public static function dashboardEnabled(): bool
@@ -2502,7 +2798,7 @@ final class Adlaire
         return [
             'version' => self::version(),
             'stable_release' => true,
-            'release_name' => 'v0.230 repository documentation consistency release',
+            'release_name' => 'v0.234 integration core concept release',
             'backend_framework_capabilities' => [
                 'routing',
                 'middleware',
@@ -2539,6 +2835,10 @@ final class Adlaire
                 'stable release candidate gate',
                 'API removal',
                 'specification-first workflow',
+                'deployment axis map',
+                'dashboard deploy execution specification',
+                'framework classification specification',
+                'integration core concept',
             ],
             'no_breaking_changes' => false,
             'breaking_changes_allowed' => true,
@@ -2576,6 +2876,10 @@ final class Adlaire
             'stable_release_candidate_gate' => true,
             'api_removal' => true,
             'specification_first_workflow' => true,
+            'deployment_axis_map' => true,
+            'dashboard_deploy_execution_specification' => true,
+            'framework_classification_specification' => true,
+            'integration_core_concept' => true,
         ];
     }
 
@@ -2844,13 +3148,11 @@ final class Adlaire
                 && self::apiRemovalPolicy()['cors_available'] === false
                 && self::apiRemovalPolicy()['json_metadata_exception_retained'] === true
                 && self::apiRemovalPolicy()['internal_libsql_api_allowed'] === true,
-            'documentation_consistency_policy' => self::documentationConsistencyPolicy()['theme'] === 'Repository Documentation Consistency'
-                && self::documentationConsistencyPolicy()['xserver_required'] === false
-                && self::documentationConsistencyPolicy()['mysql_support_planned'] === false
-                && self::documentationConsistencyPolicy()['framework_configuration_files_allowed'] === false
-                && self::documentationConsistencyPolicy()['json_configuration_files_allowed'] === false
-                && self::documentationConsistencyPolicy()['public_api_available'] === false
-                && in_array('docs/xserver-production-equivalent.md', self::documentationConsistencyPolicy()['checked_documents'], true),
+            'documentation_consistency_policy' => self::documentationConsistencyPassed(self::documentationConsistencyPolicy()),
+            'deployment_axis_map_policy' => self::deploymentAxisMapPassed(self::deploymentAxisMapPolicy()),
+            'dashboard_deploy_execution_policy' => self::dashboardDeployExecutionPassed(self::dashboardDeployExecutionPolicy()),
+            'framework_classification_policy' => self::frameworkClassificationPassed(self::frameworkClassificationPolicy()),
+            'integration_core_policy' => self::integrationCorePassed(self::integrationCorePolicy()),
             'development_workflow_policy' => self::developmentWorkflowPolicy()['theme'] === 'Specification-First Development Workflow'
                 && self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
                 && self::developmentWorkflowPolicy()['required_order'] === ['specification', 'implementation_plan', 'implementation']
@@ -2982,6 +3284,11 @@ final class Adlaire
             'deployment_control_diff_policy',
             'stable_release_candidate_gate_policy',
             'api_removal_policy',
+            'documentation_consistency_policy',
+            'deployment_axis_map_policy',
+            'dashboard_deploy_execution_policy',
+            'framework_classification_policy',
+            'integration_core_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
@@ -3030,6 +3337,11 @@ final class Adlaire
             'deployment_control_diff_policy',
             'stable_release_candidate_gate_policy',
             'api_removal_policy',
+            'documentation_consistency_policy',
+            'deployment_axis_map_policy',
+            'dashboard_deploy_execution_policy',
+            'framework_classification_policy',
+            'integration_core_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
@@ -3088,6 +3400,7 @@ final class Adlaire
                 'FrameworkCore/Support.php',
                 'public_html/assets/adlaire-ui.css',
                 'tests/debug.php',
+                'README.md',
                 'adlaire-ecosystem.md',
             ],
             'license_policy' => self::licensePolicy(),
@@ -3130,6 +3443,10 @@ final class Adlaire
             'stable_release_candidate_gate_policy' => self::stableReleaseCandidateGatePolicy(),
             'api_removal_policy' => self::apiRemovalPolicy(),
             'documentation_consistency_policy' => self::documentationConsistencyPolicy(),
+            'deployment_axis_map_policy' => self::deploymentAxisMapPolicy(),
+            'dashboard_deploy_execution_policy' => self::dashboardDeployExecutionPolicy(),
+            'framework_classification_policy' => self::frameworkClassificationPolicy(),
+            'integration_core_policy' => self::integrationCorePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
@@ -3148,7 +3465,7 @@ final class Adlaire
             'php' => '>=8.3',
             'version_format' => 'v0.x',
             'cumulative_version' => true,
-            'formalization_version' => 'v0.230',
+            'formalization_version' => 'v0.234',
             'file_principle' => self::auditFilePrinciple(),
             'external_dependencies' => 'none',
             'license_policy' => self::licensePolicy(),
@@ -3204,6 +3521,10 @@ final class Adlaire
             'stable_release_candidate_gate_policy' => self::stableReleaseCandidateGatePolicy(),
             'api_removal_policy' => self::apiRemovalPolicy(),
             'documentation_consistency_policy' => self::documentationConsistencyPolicy(),
+            'deployment_axis_map_policy' => self::deploymentAxisMapPolicy(),
+            'dashboard_deploy_execution_policy' => self::dashboardDeployExecutionPolicy(),
+            'framework_classification_policy' => self::frameworkClassificationPolicy(),
+            'integration_core_policy' => self::integrationCorePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
@@ -3416,12 +3737,23 @@ final class Adlaire
             ],
             'documentation_consistency_policy' => [
                 'profile' => self::documentationConsistencyPolicy(),
-                'passed' => self::documentationConsistencyPolicy()['xserver_required'] === false
-                    && self::documentationConsistencyPolicy()['mysql_support_planned'] === false
-                    && self::documentationConsistencyPolicy()['framework_configuration_files_allowed'] === false
-                    && self::documentationConsistencyPolicy()['json_configuration_files_allowed'] === false
-                    && self::documentationConsistencyPolicy()['public_api_available'] === false
-                    && in_array('docs/xserver-production-equivalent.md', self::documentationConsistencyPolicy()['checked_documents'], true),
+                'passed' => self::documentationConsistencyPassed(self::documentationConsistencyPolicy()),
+            ],
+            'deployment_axis_map_policy' => [
+                'profile' => self::deploymentAxisMapPolicy(),
+                'passed' => self::deploymentAxisMapPassed(self::deploymentAxisMapPolicy()),
+            ],
+            'dashboard_deploy_execution_policy' => [
+                'profile' => self::dashboardDeployExecutionPolicy(),
+                'passed' => self::dashboardDeployExecutionPassed(self::dashboardDeployExecutionPolicy()),
+            ],
+            'framework_classification_policy' => [
+                'profile' => self::frameworkClassificationPolicy(),
+                'passed' => self::frameworkClassificationPassed(self::frameworkClassificationPolicy()),
+            ],
+            'integration_core_policy' => [
+                'profile' => self::integrationCorePolicy(),
+                'passed' => self::integrationCorePassed(self::integrationCorePolicy()),
             ],
             'development_workflow_policy' => [
                 'profile' => self::developmentWorkflowPolicy(),
@@ -3516,6 +3848,10 @@ final class Adlaire
                 && in_array('stable release candidate gate', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('API removal', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('specification-first workflow', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('deployment axis map', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('dashboard deploy execution specification', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('framework classification specification', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('integration core concept', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && ($audit['stable_release_contract']['mysql_support_planned'] ?? true) === false
                 && ($audit['stable_release_contract']['runtime_operations_hardening'] ?? false) === true
                 && ($audit['stable_release_contract']['operations_dashboard'] ?? false) === true
@@ -3540,7 +3876,11 @@ final class Adlaire
                 && ($audit['stable_release_contract']['deployment_control_diff'] ?? false) === true
                 && ($audit['stable_release_contract']['stable_release_candidate_gate'] ?? false) === true
                 && ($audit['stable_release_contract']['api_removal'] ?? false) === true
-                && ($audit['stable_release_contract']['specification_first_workflow'] ?? false) === true,
+                && ($audit['stable_release_contract']['specification_first_workflow'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_axis_map'] ?? false) === true
+                && ($audit['stable_release_contract']['dashboard_deploy_execution_specification'] ?? false) === true
+                && ($audit['stable_release_contract']['framework_classification_specification'] ?? false) === true
+                && ($audit['stable_release_contract']['integration_core_concept'] ?? false) === true,
             'production_environment_policy' => ($audit['production_environment_policy']['production_provider'] ?? null) === 'Xserver rental server'
                 && ($audit['production_environment_policy']['production_equivalent_testing_required'] ?? false) === true
                 && ($audit['production_environment_policy']['php_requirement'] ?? null) === '>=8.3'
@@ -3653,13 +3993,11 @@ final class Adlaire
                 && ($audit['api_removal_policy']['cors_available'] ?? true) === false
                 && ($audit['api_removal_policy']['json_metadata_exception_retained'] ?? false) === true
                 && ($audit['api_removal_policy']['internal_libsql_api_allowed'] ?? false) === true,
-            'documentation_consistency_policy' => ($audit['documentation_consistency_policy']['theme'] ?? null) === 'Repository Documentation Consistency'
-                && ($audit['documentation_consistency_policy']['xserver_required'] ?? true) === false
-                && ($audit['documentation_consistency_policy']['mysql_support_planned'] ?? true) === false
-                && ($audit['documentation_consistency_policy']['framework_configuration_files_allowed'] ?? true) === false
-                && ($audit['documentation_consistency_policy']['json_configuration_files_allowed'] ?? true) === false
-                && ($audit['documentation_consistency_policy']['public_api_available'] ?? true) === false
-                && in_array('docs/xserver-production-equivalent.md', $audit['documentation_consistency_policy']['checked_documents'] ?? [], true),
+            'documentation_consistency_policy' => self::documentationConsistencyPassed($audit['documentation_consistency_policy'] ?? []),
+            'deployment_axis_map_policy' => self::deploymentAxisMapPassed($audit['deployment_axis_map_policy'] ?? []),
+            'dashboard_deploy_execution_policy' => self::dashboardDeployExecutionPassed($audit['dashboard_deploy_execution_policy'] ?? []),
+            'framework_classification_policy' => self::frameworkClassificationPassed($audit['framework_classification_policy'] ?? []),
+            'integration_core_policy' => self::integrationCorePassed($audit['integration_core_policy'] ?? []),
             'development_workflow_policy' => ($audit['development_workflow_policy']['theme'] ?? null) === 'Specification-First Development Workflow'
                 && ($audit['development_workflow_policy']['highest_absolute_principle'] ?? false) === true
                 && ($audit['development_workflow_policy']['required_order'] ?? []) === ['specification', 'implementation_plan', 'implementation']

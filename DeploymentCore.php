@@ -143,6 +143,8 @@ final class DeployConfig
 
 final class Deployer
 {
+    private const CONTROL_VERSION = 'v0.234';
+
     private Logger $logger;
     private array $fileCache = [];
 
@@ -586,7 +588,7 @@ final class Deployer
     public function deploymentControlReport(?string $sourceDir = null): array
     {
         return [
-            'version' => 'v0.230',
+            'version' => self::CONTROL_VERSION,
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
@@ -607,7 +609,7 @@ final class Deployer
         $path = $this->path($this->config->requiredString('backup_dir')) . '/deployment_control_snapshots.jsonl';
         $entry = [
             'time' => date('c'),
-            'version' => 'v0.230',
+            'version' => self::CONTROL_VERSION,
             'phase' => 'control_snapshot',
             'status' => 'recorded',
             'report' => $report,
@@ -675,7 +677,7 @@ final class Deployer
     {
         $report = $this->deploymentControlReport($sourceDir);
         return [
-            'version' => 'v0.230',
+            'version' => self::CONTROL_VERSION,
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
