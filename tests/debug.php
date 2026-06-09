@@ -59,6 +59,13 @@ function test_request_helpers(): void
     assert_same('token-123', $request->bearerToken(), 'bearer token should parse authorization header');
     assert_same('127.0.0.1', $request->ip(), 'untrusted proxy should not override remote address');
 
+    $jsonRequest = make_request('POST', '/json', [
+        'CONTENT_TYPE' => 'application/json',
+        'HTTP_ACCEPT' => 'application/json',
+    ]);
+    assert_true($jsonRequest->isJson(), 'request should detect JSON content type');
+    assert_true($jsonRequest->expectsJson(), 'request should detect JSON accept header');
+
     Request::setTrustedProxies(['127.0.0.1']);
     $trusted = make_request('GET', '/users/42?active=1', [
         'HTTP_X_FORWARDED_FOR' => '203.0.113.10, 10.0.0.1',
@@ -129,6 +136,25 @@ function test_validator(): void
     assert_true($valid, 'validator should pass valid payload');
 }
 
+function test_core_config(): void
+{
+    Adlaire::init([
+        'app' => [
+            'name' => 'adlaire',
+        ],
+        'trustedProxies' => [],
+    ]);
+    assert_same('adlaire', Adlaire::config('app.name'), 'config should read nested value with dot notation');
+    assert_same('fallback', Adlaire::config('missing.value', 'fallback'), 'config should return default for missing value');
+
+    putenv('ADLAIRE_DEBUG=true');
+    putenv('ADLAIRE_PORT=8080');
+    assert_same(true, Adlaire::env('ADLAIRE_DEBUG'), 'env should cast true string');
+    assert_same(8080, Adlaire::env('ADLAIRE_PORT'), 'env should cast integer string');
+    putenv('ADLAIRE_DEBUG');
+    putenv('ADLAIRE_PORT');
+}
+
 function test_router(): void
 {
     $router = new Router();
@@ -137,15 +163,27 @@ function test_router(): void
     })->where('id', '\d+')->name('users.show');
 
     assert_same('/users/42', $router->url('users.show', ['id' => 42]), 'named route should build URL');
+    assert_true($router->has('users.show'), 'router should report named route existence');
+    assert_same(['GET'], $router->methodsFor('/users/42'), 'router should report matching methods');
+    assert_true(count($router->routes()) >= 1, 'router should expose registered routes');
+    $router->options('/users/{id}', static function (): void {
+        throw new DebugRouteHit(['options' => 'ok']);
+    })->where('id', '\d+');
 
     try {
         $router->dispatch(make_request('GET', '/users/42'), new Response());
     } catch (DebugRouteHit $hit) {
         assert_same(['id' => '42'], $hit->params, 'router should capture constrained param');
+    }
+
+    try {
+        $router->dispatch(make_request('OPTIONS', '/users/42'), new Response());
+    } catch (DebugRouteHit $hit) {
+        assert_same(['options' => 'ok'], $hit->params, 'router should dispatch OPTIONS routes');
         return;
     }
 
-    throw new DebugTestFailure('router did not hit expected route');
+    throw new DebugTestFailure('router did not hit expected routes');
 }
 
 function test_database(): void
@@ -157,12 +195,12 @@ function test_database(): void
 
     $database = Database::connect(':memory:');
     $database->enableQueryLog(0.0);
-    $database->statement('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, score INTEGER NOT NULL)');
+    $database->statement('CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, score INTEGER NOT NULL, nickname TEXT NULL)');
     $database->statement('CREATE TABLE posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL)');
 
     $database->table('users')->insert([
-        ['name' => 'alice', 'score' => 10],
-        ['name' => 'bob', 'score' => 20],
+        ['name' => 'alice', 'score' => 10, 'nickname' => null],
+        ['name' => 'bob', 'score' => 20, 'nickname' => 'b'],
     ]);
     $database->table('posts')->insert([
         ['user_id' => 1, 'title' => 'a'],
@@ -188,6 +226,19 @@ function test_database(): void
     assert_same(2, $page['total'], 'paginate should include total');
     assert_same(2, $page['current_page'], 'paginate should include current page');
     assert_same('bob', $page['data'][0]['name'] ?? null, 'paginate should return page data');
+
+    $builder = $database->table('users')->orderBy('id')->limit(2);
+    $builder->paginate(1, 1);
+    assert_same(2, count($builder->get()), 'paginate should not mutate existing limit state');
+    assert_same(1, $database->table('users')->whereNull('nickname')->count(), 'whereNull should count null values');
+    assert_same(1, $database->table('users')->whereNotNull('nickname')->count(), 'whereNotNull should count non-null values');
+    assert_same(2, $database->table('users')->whereBetween('score', 10, 20)->count(), 'whereBetween should include range endpoints');
+    assert_true($database->table('users')->where('name', 'alice')->exists(), 'exists should return true for matching row');
+    assert_true(!$database->table('users')->where('name', 'missing')->exists(), 'exists should return false for missing row');
+    $insertedId = $database->table('users')->insertGetId(['name' => 'erin', 'score' => 50, 'nickname' => null]);
+    assert_true($insertedId > 0, 'insertGetId should return inserted primary key');
+    assert_same(['alice', 'bob', 'erin'], $database->table('users')->orderBy('id')->limit(3)->pluck('name'), 'pluck should return column values');
+    assert_same('alice', $database->table('users')->orderBy('id')->value('name'), 'value should return first column value');
 
     $withPosts = $database->table('users')->with('posts', 'posts', 'id', 'user_id')->orderBy('id')->get();
     assert_same(2, count($withPosts[0]['posts']), 'eager loading should attach related rows');
@@ -219,7 +270,7 @@ function test_database(): void
         });
     });
 
-    assert_same(4, $database->table('users')->count(), 'nested transaction should commit');
+    assert_same(5, $database->table('users')->count(), 'nested transaction should commit');
 
     $path = sys_get_temp_dir() . '/adlaire_file_url.sqlite';
     if (is_file($path)) {
@@ -229,6 +280,11 @@ function test_database(): void
     $fileDatabase->statement('CREATE TABLE checks (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
     $fileDatabase->table('checks')->insert(['id' => 1, 'name' => 'file-url']);
     assert_same('file-url', $fileDatabase->table('checks')->first()['name'] ?? null, 'file: SQLite URL should work');
+
+    Database::resetConnectionsForTesting();
+    Database::addConnection('one', ':memory:', true);
+    assert_true(Database::connection('one') instanceof Database, 'test connection reset should allow fresh named connection');
+    Database::resetConnectionsForTesting();
 }
 
 function test_logger(): void
@@ -269,6 +325,8 @@ function test_logger(): void
     assert_true(str_contains($debugContent, '"X-Debug":"yes"'), 'logger should record response headers');
     assert_true(str_contains($debugContent, '"name":"debug.show"'), 'logger should record matched route name');
     assert_true(str_contains($debugContent, '"queries"'), 'logger should record query log entries');
+    assert_true(str_contains($debugContent, '"component":"logger"'), 'logger should record component');
+    assert_true(str_contains($debugContent, '"request_id"'), 'logger should record request id');
 
     $rotateFile = sys_get_temp_dir() . '/adlaire_rotate.log';
     foreach ([$rotateFile, $rotateFile . '.1', $rotateFile . '.2', $rotateFile . '.3'] as $candidate) {
@@ -284,6 +342,18 @@ function test_logger(): void
     assert_true(is_file($rotateFile . '.1'), 'logger should keep first rotated generation');
     assert_true(is_file($rotateFile . '.2'), 'logger should keep second rotated generation');
     assert_true(!is_file($rotateFile . '.3'), 'logger should not exceed configured rotated generations');
+
+    $requestIdFile = sys_get_temp_dir() . '/adlaire_request_id.log';
+    if (is_file($requestIdFile)) {
+        assert_true(unlink($requestIdFile), 'old request id log should be removed');
+    }
+    $requestLogger = new Logger($requestIdFile, 'DEBUG', 'secret', 1048576, 5, ['password'], 4096, false, 'rid-123', 'core');
+    $requestLogger->info('request id test');
+    $requestLogger->withComponent('database')->info('component child test');
+    $requestIdContent = (string)file_get_contents($requestIdFile);
+    assert_true(str_contains($requestIdContent, '"request_id":"rid-123"'), 'logger should use configured request id');
+    assert_true(str_contains($requestIdContent, '"component":"core"'), 'logger should use configured component');
+    assert_true(str_contains($requestIdContent, '"component":"database"'), 'logger component clone should override component');
 }
 
 function test_deployer_config(): void
@@ -306,6 +376,9 @@ function test_deployer_config(): void
 
     $deployer = new Deployer($config);
     assert_true($deployer instanceof Deployer, 'deployer should be constructed from valid config');
+    $validation = $deployer->validateOnly();
+    assert_true($validation['valid'] === true, 'deployer validateOnly should return valid result');
+    assert_same('main', $validation['branch'], 'deployer validateOnly should include branch');
 
     $targetFile = $base . '/target/current.txt';
     assert_true(file_put_contents($targetFile, 'current') !== false, 'target file should be prepared');
@@ -354,10 +427,26 @@ function test_deployer_config(): void
     $snapshotPath = $backup->invoke($initialDeployer, []);
     assert_true(is_dir($initialBase . '/target'), 'initial backup should create missing target directory');
     assert_true(is_file($snapshotPath . '/manifest.json'), 'initial backup should write manifest for empty target');
+
+    $allowed = new ReflectionMethod($initialDeployer, 'allowed');
+    $allowed->setAccessible(true);
+    assert_true($allowed->invoke($initialDeployer, 'Core.php', []), 'empty deploy allowlist should allow all files');
+    assert_true($allowed->invoke($initialDeployer, 'Core.php', ['*.php']), 'matching deploy allowlist should allow file');
+    assert_true(!$allowed->invoke($initialDeployer, 'notes.txt', ['*.php']), 'non-matching deploy allowlist should reject file');
+
+    $recordHistory = new ReflectionMethod($initialDeployer, 'recordHistory');
+    $recordHistory->setAccessible(true);
+    $recordHistory->invoke($initialDeployer, $snapshotPath, ['Core.php']);
+    $historyLines = file($initialBase . '/backup/deploy_history.jsonl', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    assert_true(is_array($historyLines) && $historyLines !== [], 'deploy history should be written');
+    $lastHistory = json_decode((string)end($historyLines), true, flags: JSON_THROW_ON_ERROR);
+    assert_same('deploy', $lastHistory['phase'] ?? null, 'deploy history should include phase');
+    assert_same('completed', $lastHistory['status'] ?? null, 'deploy history should include status');
 }
 
 $tests = [
     'request' => test_request_helpers(...),
+    'core_config' => test_core_config(...),
     'validator' => test_validator(...),
     'router' => test_router(...),
     'database' => test_database(...),

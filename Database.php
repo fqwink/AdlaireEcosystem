@@ -295,6 +295,13 @@ final class Database
         return self::connection();
     }
 
+    public static function resetConnectionsForTesting(): void
+    {
+        self::$connections = [];
+        self::$defaultConnection = null;
+        self::$usedConnect = false;
+    }
+
     public static function connect(string $path): self
     {
         if (self::$connections !== [] && !self::$usedConnect) {
@@ -560,6 +567,29 @@ final class QueryBuilder
         return $this;
     }
 
+    public function whereNull(string $column): static
+    {
+        $this->assertIdentifier($column, true);
+        $this->wheres[] = ['AND', "{$column} IS NULL"];
+        return $this;
+    }
+
+    public function whereNotNull(string $column): static
+    {
+        $this->assertIdentifier($column, true);
+        $this->wheres[] = ['AND', "{$column} IS NOT NULL"];
+        return $this;
+    }
+
+    public function whereBetween(string $column, mixed $min, mixed $max): static
+    {
+        $this->assertIdentifier($column, true);
+        $this->wheres[] = ['AND', "{$column} BETWEEN ? AND ?"];
+        $this->bindings[] = $min;
+        $this->bindings[] = $max;
+        return $this;
+    }
+
     public function whereRaw(string $expression, array $bindings = []): static
     {
         if ($expression === '') {
@@ -662,6 +692,34 @@ final class QueryBuilder
         return $row === false ? null : $row;
     }
 
+    public function pluck(string $column): array
+    {
+        $this->assertIdentifier($column, true);
+        $previousColumns = $this->columns;
+        try {
+            $this->columns = [$column];
+            return array_map(static fn(array $row): mixed => reset($row), $this->runSelect()->fetchAll());
+        } finally {
+            $this->columns = $previousColumns;
+        }
+    }
+
+    public function value(string $column): mixed
+    {
+        $this->assertIdentifier($column, true);
+        $previousColumns = $this->columns;
+        $previousLimit = $this->limit;
+        try {
+            $this->columns = [$column];
+            $this->limit = 1;
+            $row = $this->runSelect()->fetch();
+            return is_array($row) ? reset($row) : null;
+        } finally {
+            $this->columns = $previousColumns;
+            $this->limit = $previousLimit;
+        }
+    }
+
     public function paginate(int $perPage, int $page = 1): array
     {
         if ($perPage < 1) {
@@ -672,7 +730,14 @@ final class QueryBuilder
         }
 
         $total = $this->count();
-        $data = $this->limit($perPage)->offset(($page - 1) * $perPage)->get();
+        $previousLimit = $this->limit;
+        $previousOffset = $this->offset;
+        try {
+            $data = $this->limit($perPage)->offset(($page - 1) * $perPage)->get();
+        } finally {
+            $this->limit = $previousLimit;
+            $this->offset = $previousOffset;
+        }
 
         return [
             'data' => $data,
@@ -732,6 +797,15 @@ final class QueryBuilder
         return $statement->rowCount();
     }
 
+    public function insertGetId(array $row): int
+    {
+        if (array_is_list($row)) {
+            throw new InvalidArgumentException('insertGetId requires a single associative row.');
+        }
+        $this->insert($row);
+        return (int)$this->database->pdo()->lastInsertId();
+    }
+
     public function update(array $values): int
     {
         if ($values === []) {
@@ -763,6 +837,23 @@ final class QueryBuilder
     public function count(string $column = '*'): int
     {
         return (int)$this->aggregate('COUNT', $column);
+    }
+
+    public function exists(): bool
+    {
+        $previousColumns = $this->columns;
+        $previousLimit = $this->limit;
+        $previousOffset = $this->offset;
+        try {
+            $this->columns = ['1'];
+            $this->limit = 1;
+            $this->offset = null;
+            return $this->runSelect()->fetch() !== false;
+        } finally {
+            $this->columns = $previousColumns;
+            $this->limit = $previousLimit;
+            $this->offset = $previousOffset;
+        }
     }
 
     public function sum(string $column): float|int

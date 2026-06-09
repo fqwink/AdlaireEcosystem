@@ -131,6 +131,18 @@ final class Request
         return trim($matches[1]);
     }
 
+    public function isJson(): bool
+    {
+        $contentType = strtolower((string)$this->header('content-type', ''));
+        return str_contains($contentType, 'application/json') || str_contains($contentType, '+json');
+    }
+
+    public function expectsJson(): bool
+    {
+        $accept = strtolower((string)$this->header('accept', ''));
+        return str_contains($accept, 'application/json') || str_contains($accept, '+json');
+    }
+
     public function param(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null) {
@@ -341,6 +353,18 @@ final class Response
     public function success(mixed $data, int $status = 200): never
     {
         $this->json(['data' => $data], $status);
+    }
+
+    public function created(mixed $data): never
+    {
+        $this->success($data, 201);
+    }
+
+    public function noContent(): never
+    {
+        $this->status(204);
+        $this->sendHeaders();
+        exit;
     }
 
     public function paginated(array $result): never
@@ -815,6 +839,11 @@ final class Router
         return $this->addRoute('DELETE', $path, $handler);
     }
 
+    public function options(string $path, callable $handler): RouteDefinition
+    {
+        return $this->addRoute('OPTIONS', $path, $handler);
+    }
+
     public function group(string $prefix, callable $callback): void
     {
         $previous = $this->prefix;
@@ -855,6 +884,33 @@ final class Router
         }
 
         return $url;
+    }
+
+    public function has(string $name): bool
+    {
+        return isset($this->names[$name]);
+    }
+
+    public function routes(): array
+    {
+        return array_map(static fn(array $route): array => [
+            'method' => $route['method'],
+            'path' => $route['path'],
+            'name' => $route['name'],
+            'where' => $route['where'],
+        ], $this->routes);
+    }
+
+    public function methodsFor(string $uri): array
+    {
+        $uri = $this->normalizePath($uri);
+        $methods = [];
+        foreach ($this->routes as $route) {
+            if ($this->matchRoute($route, $uri) !== null) {
+                $methods[] = $route['method'];
+            }
+        }
+        return array_values(array_unique($methods));
     }
 
     public function nameRoute(int $index, string $name): void
@@ -898,7 +954,7 @@ final class Router
             exit;
         }
 
-        foreach (['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as $candidateMethod) {
+        foreach (['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as $candidateMethod) {
             if ($candidateMethod !== $method && isset($this->staticRoutes[$candidateMethod . '#' . $uri])) {
                 $matchedMethods[] = $candidateMethod;
             }
@@ -925,12 +981,13 @@ final class Router
         }
 
         if ($matchedMethods !== []) {
+            $allowedMethods = array_values(array_unique([...$matchedMethods, 'OPTIONS']));
             $request->setRouteInfo([
                 'matched' => false,
                 'failure' => '405',
-                'allowed_methods' => array_values(array_unique($matchedMethods)),
+                'allowed_methods' => $allowedMethods,
             ]);
-            $response->header('Allow', implode(', ', array_unique($matchedMethods)))
+            $response->header('Allow', implode(', ', $allowedMethods))
                 ->error('Method Not Allowed', 405);
         }
 
@@ -1054,9 +1111,11 @@ final class Adlaire
     private static ?Response $response = null;
     private static ?Logger $logger = null;
     private static float $startedAt = 0.0;
+    private static array $config = [];
 
     public static function init(array $config = []): void
     {
+        self::$config = $config;
         self::$startedAt = microtime(true);
         Request::setTrustedProxies($config['trustedProxies'] ?? []);
         self::$router = new Router();
@@ -1125,6 +1184,44 @@ final class Adlaire
             throw new RuntimeException('Adlaire not initialized. Call Adlaire::init() first.');
         }
         return self::$response;
+    }
+
+    public static function config(?string $key = null, mixed $default = null): mixed
+    {
+        if ($key === null) {
+            return self::$config;
+        }
+
+        $value = self::$config;
+        foreach (explode('.', $key) as $segment) {
+            if (!is_array($value) || !array_key_exists($segment, $value)) {
+                return $default;
+            }
+            $value = $value[$segment];
+        }
+        return $value;
+    }
+
+    public static function env(string $key, mixed $default = null): mixed
+    {
+        $value = getenv($key);
+        if ($value === false) {
+            return $default;
+        }
+        $lower = strtolower($value);
+        if ($lower === 'true') {
+            return true;
+        }
+        if ($lower === 'false') {
+            return false;
+        }
+        if (preg_match('/^-?\d+$/', $value) === 1) {
+            return (int)$value;
+        }
+        if (is_numeric($value)) {
+            return (float)$value;
+        }
+        return $value;
     }
 
     public static function validate(array $data, array $rules, array $messages = [], ?Database $database = null): Validator

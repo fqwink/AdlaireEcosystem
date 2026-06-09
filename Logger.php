@@ -17,6 +17,7 @@ if (PHP_VERSION_ID < 80300) {
 final class Logger
 {
     private const LEVELS = ['DEBUG' => 0, 'INFO' => 1, 'WARNING' => 2, 'ERROR' => 3];
+    private bool $missingHmacWarningWritten = false;
 
     public function __construct(
         private string $file,
@@ -26,7 +27,9 @@ final class Logger
         private int $keep = 5,
         private array $maskFields = ['password', 'token', 'secret'],
         private int $bodyMaxBytes = 4096,
-        private bool $debugEnabled = false
+        private bool $debugEnabled = false,
+        private ?string $requestId = null,
+        private string $component = 'logger'
     ) {
         $this->level = strtoupper($level);
         if (!isset(self::LEVELS[$this->level])) {
@@ -35,7 +38,7 @@ final class Logger
         $this->ensureDirectory(dirname($file));
         $this->verifyHmac();
         if ($this->hmacKey === null || $this->hmacKey === '') {
-            $this->warning('Log HMAC key is not configured.');
+            $this->writeMissingHmacWarning();
         }
     }
 
@@ -54,7 +57,9 @@ final class Logger
             (int)($config['keep'] ?? $config['log_keep'] ?? 5),
             is_array($config['mask_fields'] ?? null) ? $config['mask_fields'] : ['password', 'token', 'secret'],
             (int)($config['body_max_bytes'] ?? 4096),
-            getenv('APP_ENV') === 'development'
+            getenv('APP_ENV') === 'development',
+            isset($config['request_id']) && is_string($config['request_id']) && $config['request_id'] !== '' ? $config['request_id'] : null,
+            isset($config['component']) && is_string($config['component']) && $config['component'] !== '' ? $config['component'] : 'core'
         );
     }
 
@@ -76,6 +81,26 @@ final class Logger
     public function error(string $message, array $context = []): void
     {
         $this->write('ERROR', $message, $context);
+    }
+
+    public function withComponent(string $component): self
+    {
+        if ($component === '') {
+            throw new InvalidArgumentException('Logger component must not be empty.');
+        }
+
+        return new self(
+            $this->file,
+            $this->level,
+            $this->hmacKey,
+            $this->maxBytes,
+            $this->keep,
+            $this->maskFields,
+            $this->bodyMaxBytes,
+            $this->debugEnabled,
+            $this->requestId,
+            $component
+        );
     }
 
     public function debugRequest(Request $request, ?Response $response, float $startedAt, array $queryLog = []): void
@@ -132,6 +157,8 @@ final class Logger
             'time' => date('c'),
             'level' => $level,
             'message' => $message,
+            'component' => $context['component'] ?? $this->component,
+            'request_id' => $context['request_id'] ?? $this->requestId ?? $this->generateRequestId(),
             'context' => $this->maskArray($context),
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
@@ -199,6 +226,21 @@ final class Logger
         if (file_put_contents($this->file . '.hmac', $hmac) === false) {
             throw new RuntimeException('Failed to write log HMAC.');
         }
+    }
+
+    private function writeMissingHmacWarning(): void
+    {
+        if ($this->missingHmacWarningWritten) {
+            return;
+        }
+        $this->missingHmacWarningWritten = true;
+        $this->warning('Log HMAC key is not configured.');
+    }
+
+    private function generateRequestId(): string
+    {
+        $this->requestId ??= bin2hex(random_bytes(8));
+        return $this->requestId;
     }
 
     private function rotateIfNeeded(): void

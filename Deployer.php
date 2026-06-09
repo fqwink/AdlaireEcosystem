@@ -114,7 +114,12 @@ final class Deployer
             (string)$config->get('log_level', 'INFO'),
             is_string($config->get('hmac_key')) && $config->get('hmac_key') !== '' ? $config->get('hmac_key') : null,
             (int)$config->get('log_max_bytes', 1048576),
-            (int)$config->get('log_keep', 5)
+            (int)$config->get('log_keep', 5),
+            ['password', 'token', 'secret'],
+            4096,
+            false,
+            null,
+            'deployer'
         );
     }
 
@@ -150,6 +155,25 @@ final class Deployer
         } finally {
             $this->cleanup();
         }
+    }
+
+    public function validateOnly(): array
+    {
+        foreach (['target_dir', 'work_dir', 'backup_dir'] as $key) {
+            $this->ensureDirectory($this->path($this->config->requiredString($key)));
+        }
+
+        $logFile = $this->config->requiredString('log_file');
+        $this->ensureDirectory(dirname($logFile));
+
+        return [
+            'valid' => true,
+            'repository' => $this->config->requiredString('repository'),
+            'branch' => $this->config->requiredString('branch'),
+            'target_dir' => $this->path($this->config->requiredString('target_dir')),
+            'work_dir' => $this->path($this->config->requiredString('work_dir')),
+            'backup_dir' => $this->path($this->config->requiredString('backup_dir')),
+        ];
     }
 
     private function cleanup(): void
@@ -295,9 +319,11 @@ final class Deployer
             $to = $target . '/' . $file;
             $this->ensureDirectory(dirname($to));
             if (!copy($from, $to)) {
+                $this->logger->error('Deployment apply failed.', ['file' => $file, 'component' => 'deployer']);
                 throw new RuntimeException("Failed to apply file: {$file}");
             }
             if (!chmod($to, (int)$this->config->get('file_permissions', 0644))) {
+                $this->logger->error('Deployment chmod failed.', ['file' => $file, 'component' => 'deployer']);
                 throw new RuntimeException("Failed to chmod file: {$file}");
             }
         }
@@ -373,6 +399,8 @@ final class Deployer
         $history = $this->path($this->config->requiredString('backup_dir')) . '/deploy_history.jsonl';
         $written = file_put_contents($history, json_encode([
             'time' => date('c'),
+            'phase' => 'deploy',
+            'status' => 'completed',
             'snapshot' => $snapshot,
             'changes' => $changes,
             'commit' => $this->config->get('commit_sha'),
