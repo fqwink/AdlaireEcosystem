@@ -37,6 +37,37 @@ final class DebugExtension implements AdlaireExtension
     }
 }
 
+final class DebugModule implements AutonomousModule
+{
+    public function id(): string
+    {
+        return 'debug.module';
+    }
+
+    public function responsibility(): string
+    {
+        return 'debug testing';
+    }
+
+    public function dependencies(): array
+    {
+        return ['router'];
+    }
+
+    public function handle(string $message, array $payload = []): mixed
+    {
+        if ($message !== 'debug.ping') {
+            throw new RuntimeException('unknown message');
+        }
+        return ['pong' => $payload['value'] ?? null];
+    }
+
+    public function health(): array
+    {
+        return ['status' => 'ready', 'module' => $this->id()];
+    }
+}
+
 function assert_true(bool $condition, string $message): void
 {
     if (!$condition) {
@@ -175,21 +206,23 @@ function test_core_config(): void
 
 function test_adlaire_audit(): void
 {
-    assert_same('v0.19', Adlaire::version(), 'Adlaire version should follow cumulative v0.x release format');
+    assert_same('v0.50', Adlaire::version(), 'Adlaire version should follow cumulative v0.x release format');
     $api = Adlaire::publicApi();
     assert_true(in_array('Request', $api['Core.php'] ?? [], true), 'public API should include Request');
     assert_true(in_array('MicroKernel', $api['Kernel.php'] ?? [], true), 'public API should include MicroKernel');
     assert_true(in_array('AdlaireExtension', $api['Extension.php'] ?? [], true), 'public API should include AdlaireExtension');
+    assert_true(in_array('AutonomousModule', $api['Extension.php'] ?? [], true), 'public API should include AutonomousModule');
+    assert_true(in_array('PolicyRule', $api['Extension.php'] ?? [], true), 'public API should include PolicyRule');
     assert_true(in_array('Database', $api['Database.php'] ?? [], true), 'public API should include Database');
     assert_true(in_array('Deployer', $api['Deployer.php'] ?? [], true), 'public API should include Deployer');
     assert_true(in_array('Logger', $api['Logger.php'] ?? [], true), 'public API should include Logger');
 
     $audit = Adlaire::audit();
-    assert_same('v0.19', $audit['version'] ?? null, 'audit should include version');
+    assert_same('v0.50', $audit['version'] ?? null, 'audit should include version');
     assert_same('>=8.3', $audit['php'] ?? null, 'audit should include PHP requirement');
     assert_same('v0.x', $audit['version_format'] ?? null, 'audit should include cumulative version format');
     assert_same(true, $audit['cumulative_version'] ?? null, 'audit should mark cumulative versions');
-    assert_same('v0.19', $audit['formalization_version'] ?? null, 'audit should include formalization version');
+    assert_same('v0.50', $audit['formalization_version'] ?? null, 'audit should include formalization version');
     assert_same('7 files', $audit['file_principle'] ?? null, 'audit should include 7-file principle');
     assert_same('php -d phar.readonly=0 tests/debug.php', $audit['official_debug_test'] ?? null, 'audit should include official debug test command');
 
@@ -265,7 +298,7 @@ function test_release_readiness(): void
     assert_same($compatibility, $audit['compatibility_matrix'] ?? null, 'audit should include compatibility matrix');
 
     $readiness = Adlaire::releaseReadiness();
-    assert_same('v0.19', $readiness['version'] ?? null, 'release readiness should include current version');
+    assert_same('v0.50', $readiness['version'] ?? null, 'release readiness should include current version');
     assert_same(true, $readiness['ready'] ?? null, 'release readiness should be ready when all checks pass');
     foreach ($readiness['checks'] ?? [] as $name => $passed) {
         assert_same(true, $passed, "release readiness check should pass: {$name}");
@@ -289,7 +322,7 @@ function test_official_metadata(): void
     assert_true(in_array('managed runtime environment', $boundary['prohibited_categories'] ?? [], true), 'cloud boundary should include managed runtime');
 
     $metadata = Adlaire::officialMetadata();
-    assert_same('v0.19', $metadata['version'] ?? null, 'official metadata should include version');
+    assert_same('v0.50', $metadata['version'] ?? null, 'official metadata should include version');
     assert_same(Adlaire::publicApi(), $metadata['public_api'] ?? null, 'official metadata should include public API');
     assert_same(Adlaire::licensePolicy(), $metadata['license_policy'] ?? null, 'official metadata should include license policy');
     assert_same($distribution, $metadata['distribution_policy'] ?? null, 'official metadata should include distribution policy');
@@ -336,7 +369,7 @@ function test_specification_drift(): void
 function test_distribution_manifest(): void
 {
     $manifest = Adlaire::distributionManifest();
-    assert_same('v0.19', $manifest['version'] ?? null, 'distribution manifest should include version');
+    assert_same('v0.50', $manifest['version'] ?? null, 'distribution manifest should include version');
     foreach (['Core.php', 'Kernel.php', 'Extension.php', 'Database.php', 'Deployer.php', 'Logger.php', 'tests/debug.php', 'adlaire-ecosystem.md'] as $file) {
         assert_true(in_array($file, $manifest['files'] ?? [], true), "distribution manifest should include file: {$file}");
     }
@@ -375,6 +408,87 @@ function test_microkernel(): void
         throw new DebugTestFailure('duplicate extension registration should fail');
     } catch (RuntimeException) {
     }
+}
+
+function test_autonomous_system(): void
+{
+    Adlaire::init();
+    $kernel = Adlaire::kernel();
+    $kernel->requires('debug', []);
+    $kernel->configureExtension('debug', ['enabled' => true, 'name' => 'debug'], ['enabled' => 'bool', 'name' => 'string']);
+    assert_same(['enabled' => true, 'name' => 'debug'], $kernel->extensionConfig('debug'), 'kernel should expose extension config');
+    $kernel->allowServices('debug', ['router']);
+    $kernel->registerExtension(new DebugExtension());
+    assert_true($kernel->serviceFor('debug', 'router') instanceof Router, 'kernel should allow permitted service access');
+    try {
+        $kernel->serviceFor('debug', 'request');
+        throw new DebugTestFailure('kernel should reject non-allowed service access');
+    } catch (RuntimeException) {
+    }
+
+    $events = [];
+    $kernel->on('debug.event', static function (array $payload) use (&$events): string {
+        $events[] = $payload['value'] ?? null;
+        return 'handled';
+    });
+    assert_same(['handled'], $kernel->emit('debug.event', ['value' => 'ok']), 'kernel event bus should return listener result');
+    assert_same(['ok'], $events, 'kernel event bus should pass payload');
+
+    $kernel->registerModule(new DebugModule());
+    assert_same(['pong' => 'ok'], $kernel->send('debug.module', 'debug.ping', ['value' => 'ok']), 'kernel should send messages to modules');
+    $kernel->handle('debug.custom', static fn(string $module, array $payload): array => ['module' => $module, 'value' => $payload['value'] ?? null]);
+    assert_same(['module' => 'debug.module', 'value' => 7], $kernel->send('debug.module', 'debug.custom', ['value' => 7]), 'kernel should use message handlers');
+    assert_same('ready', $kernel->healthReport()['status'] ?? null, 'kernel health report should be ready');
+    assert_true(isset($kernel->extensionManifest()['extensions']['debug']), 'kernel extension manifest should include debug extension');
+
+    assert_same(false, Adlaire::policyDecision('cloud_business_use')['allow'], 'policy should deny cloud business use');
+    assert_same(true, Adlaire::policyDecision('commercial_use')['allow'], 'policy should allow non-cloud commercial use');
+    assert_same('ready', Adlaire::healthReport()['status'] ?? null, 'Adlaire health report should be ready');
+    assert_same(true, Adlaire::stabilityContract()['breaking_changes_forbidden'] ?? null, 'stability contract should forbid breaking changes');
+    $report = Adlaire::autonomousAuditReport();
+    assert_same('v0.50', $report['version'] ?? null, 'autonomous audit report should include version');
+    assert_true(isset($report['policies']['cloud_business_use']), 'autonomous audit report should include policies');
+}
+
+function test_long_term_stability(): void
+{
+    $registry = Adlaire::officialExtensionRegistry();
+    assert_same(false, $registry['unknown_extensions_allowed_as_official'] ?? null, 'official registry should reject unknown official extensions');
+    assert_same(true, $registry['cloud_business_prohibition_enforced'] ?? null, 'official registry should enforce cloud prohibition');
+
+    $profiles = Adlaire::compatibilityProfiles();
+    foreach (['minimal', 'standard', 'audited', 'distributed', 'extension_enabled'] as $profile) {
+        assert_true(isset($profiles[$profile]), "compatibility profile should exist: {$profile}");
+    }
+
+    $migration = Adlaire::migrationPolicy();
+    assert_same(false, $migration['breaking_changes'] ?? null, 'migration policy should forbid breaking changes');
+    assert_same(true, $migration['doc_update_required'] ?? null, 'migration policy should require documentation');
+
+    $support = Adlaire::supportPolicy();
+    assert_same(true, $support['long_term_support'] ?? null, 'support policy should mark long term support');
+    assert_true(in_array('breaking public API changes', $support['unsupported_changes'] ?? [], true), 'support policy should reject breaking changes');
+
+    $security = Adlaire::securityFixProtocol();
+    assert_same(['report', 'assess', 'patch', 'test', 'audit', 'release', 'document'], $security['steps'] ?? null, 'security protocol should include required steps');
+
+    $guarantee = Adlaire::compatibilityGuarantee();
+    assert_same('fixed', $guarantee['public_api'] ?? null, 'compatibility guarantee should fix public API');
+    assert_same('fixed', $guarantee['audit_api'] ?? null, 'compatibility guarantee should fix audit API');
+
+    $freeze = Adlaire::releaseFreezePolicy();
+    assert_true(in_array('breaking_changes', $freeze['forbidden_changes'] ?? [], true), 'release freeze should forbid breaking changes');
+
+    $lts = Adlaire::longTermStabilityContract();
+    assert_same('v0.50', $lts['version'] ?? null, 'long term stability contract should include version');
+    assert_same(true, $lts['long_term_stable'] ?? null, 'long term stability contract should mark stable');
+    assert_same(true, $lts['docs_are_source_of_truth'] ?? null, 'long term stability contract should keep docs as source of truth');
+    assert_same(true, $lts['cloud_business_prohibition_fixed'] ?? null, 'long term stability contract should fix cloud prohibition');
+
+    $audit = Adlaire::audit();
+    assert_same($lts, $audit['long_term_stability_contract'] ?? null, 'audit should include long term stability contract');
+    assert_true(isset($audit['ecosystem_audit_report']), 'audit should include ecosystem audit report');
+    assert_same(true, Adlaire::releaseReadiness()['checks']['long_term_stability_contract'] ?? null, 'release readiness should include long term stability');
 }
 
 function test_router(): void
@@ -710,6 +824,8 @@ $tests = [
     'specification_drift' => test_specification_drift(...),
     'distribution_manifest' => test_distribution_manifest(...),
     'microkernel' => test_microkernel(...),
+    'autonomous_system' => test_autonomous_system(...),
+    'long_term_stability' => test_long_term_stability(...),
     'validator' => test_validator(...),
     'router' => test_router(...),
     'response_security' => test_response_security(...),

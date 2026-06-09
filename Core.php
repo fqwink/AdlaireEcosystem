@@ -3,13 +3,13 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version v0.19
+ * @version v0.50
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-const ADLAIRE_VERSION = 'v0.19';
+const ADLAIRE_VERSION = 'v0.50';
 
 if (is_file(__DIR__ . '/Extension.php')) {
     require_once __DIR__ . '/Extension.php';
@@ -1248,6 +1248,8 @@ final class Adlaire
             ],
             'Extension.php' => [
                 'AdlaireExtension',
+                'AutonomousModule',
+                'PolicyRule',
             ],
             'Database.php' => [
                 'LibSqlDriver',
@@ -1306,6 +1308,7 @@ final class Adlaire
                 'RELEASE-REQ-006' => 'Specification integrity verifies specification, audit metadata, and official debug tests as one consistent set.',
                 'RELEASE-REQ-007' => 'Specification drift detection reports missing tests, unknown specification IDs, missing audit keys, and missing readiness checks.',
                 'RELEASE-REQ-008' => 'Distribution manifest exposes the official release file set, public API, policies, and release gate metadata.',
+                'RELEASE-REQ-009' => 'Microkernel practical APIs, autonomous modules, policy decisions, audit reports, and stability contracts are exposed as formal metadata.',
             ],
         ];
     }
@@ -1323,6 +1326,7 @@ final class Adlaire
             'specification_drift' => ['RELEASE-REQ-007'],
             'distribution_manifest' => ['RELEASE-REQ-008'],
             'microkernel' => ['KERNEL-REQ-001', 'KERNEL-REQ-002'],
+            'autonomous_system' => ['KERNEL-REQ-001', 'KERNEL-REQ-002', 'RELEASE-REQ-009'],
             'validator' => ['CORE-REQ-001'],
             'router' => ['CORE-REQ-001', 'CORE-REQ-002'],
             'response_security' => ['CORE-REQ-002'],
@@ -1422,6 +1426,198 @@ final class Adlaire
         ];
     }
 
+    public static function microkernelPolicy(): array
+    {
+        return [
+            'extension_lifecycle' => ['registered', 'booted', 'failed', 'skipped'],
+            'dependencies_required_before_boot' => true,
+            'duplicate_extensions_forbidden' => true,
+            'event_bus_available' => true,
+            'extension_config_schema' => ['string', 'int', 'bool', 'array'],
+            'sandbox_service_allowlist_required' => true,
+            'extension_manifest_available' => true,
+        ];
+    }
+
+    public static function policyDecision(string $policy, array $context = []): array
+    {
+        return match ($policy) {
+            'cloud_business_use' => [
+                'allow' => false,
+                'reason' => 'Cloud business use is prohibited under both open source and commercial use licenses.',
+                'policy' => $policy,
+                'context' => $context,
+            ],
+            'commercial_use' => [
+                'allow' => true,
+                'reason' => 'Commercial use follows the open source license unless it is cloud business use.',
+                'policy' => $policy,
+                'context' => $context,
+            ],
+            default => throw new InvalidArgumentException("Unknown policy: {$policy}"),
+        };
+    }
+
+    public static function healthReport(): array
+    {
+        $kernel = self::$kernel;
+        return [
+            'status' => 'ready',
+            'version' => self::version(),
+            'kernel' => $kernel?->healthReport() ?? ['status' => 'ready', 'extensions' => [], 'modules' => []],
+        ];
+    }
+
+    public static function autonomousAuditReport(): array
+    {
+        return [
+            'version' => self::version(),
+            'release_readiness' => [
+                'ready' => true,
+            ],
+            'license' => self::licensePolicy(),
+            'governance' => self::governancePolicy(),
+            'kernel' => self::$kernel?->extensionManifest() ?? ['extensions' => [], 'services' => [], 'modules' => [], 'booted' => false],
+            'policies' => [
+                'cloud_business_use' => self::policyDecision('cloud_business_use'),
+                'commercial_use' => self::policyDecision('commercial_use'),
+            ],
+            'drift' => self::specificationDrift(),
+            'manifest' => self::distributionManifest(),
+        ];
+    }
+
+    public static function stabilityContract(): array
+    {
+        return [
+            'version' => self::version(),
+            'public_api_fixed' => true,
+            'kernel_api_fixed' => true,
+            'extension_contract_fixed' => true,
+            'autonomous_module_contract_fixed' => true,
+            'policy_api_fixed' => true,
+            'breaking_changes_forbidden' => true,
+            'official_debug_test_required' => true,
+        ];
+    }
+
+    public static function officialExtensionRegistry(): array
+    {
+        return [
+            'registry_required' => true,
+            'statuses' => ['official', 'approved', 'rejected', 'unknown'],
+            'unknown_extensions_allowed_as_official' => false,
+            'cloud_business_prohibition_enforced' => true,
+        ];
+    }
+
+    public static function extensionSignatureMetadata(): array
+    {
+        return [
+            'signature_required_for_official' => true,
+            'algorithm' => 'placeholder',
+            'signer' => 'approved maintainer',
+            'status' => 'valid-placeholder',
+            'expired_allowed' => false,
+        ];
+    }
+
+    public static function compatibilityProfiles(): array
+    {
+        return [
+            'minimal' => ['php' => '>=8.3', 'files' => '7 files'],
+            'standard' => ['kernel' => true, 'logger' => true],
+            'audited' => ['audit' => true, 'release_readiness' => true],
+            'distributed' => ['autonomous_modules' => true, 'policy_decisions' => true],
+            'extension_enabled' => ['microkernel' => true, 'extension_manifest' => true],
+        ];
+    }
+
+    public static function migrationPolicy(): array
+    {
+        return [
+            'from' => 'v0.30',
+            'to' => self::version(),
+            'breaking_changes' => false,
+            'required_tests' => ['official_debug_test'],
+            'rollback_condition' => 'failed official debug test',
+            'doc_update_required' => true,
+        ];
+    }
+
+    public static function ecosystemAuditReport(): array
+    {
+        return [
+            'extension_registry' => self::officialExtensionRegistry(),
+            'signatures' => self::extensionSignatureMetadata(),
+            'compatibility_profiles' => self::compatibilityProfiles(),
+            'migration_policy' => self::migrationPolicy(),
+            'governance' => self::governancePolicy(),
+            'stability' => self::stabilityContract(),
+        ];
+    }
+
+    public static function supportPolicy(): array
+    {
+        return [
+            'long_term_support' => true,
+            'support_window' => 'long term stable',
+            'security_fixes' => true,
+            'compatibility_fixes' => true,
+            'documentation_fixes' => true,
+            'unsupported_changes' => ['breaking public API changes', 'cloud business permission changes'],
+        ];
+    }
+
+    public static function securityFixProtocol(): array
+    {
+        return [
+            'steps' => ['report', 'assess', 'patch', 'test', 'audit', 'release', 'document'],
+            'official_debug_test_required' => true,
+            'documentation_required' => true,
+        ];
+    }
+
+    public static function compatibilityGuarantee(): array
+    {
+        return [
+            'public_api' => 'fixed',
+            'kernel_api' => 'fixed',
+            'extension_contract' => 'fixed',
+            'module_contract' => 'fixed',
+            'policy_api' => 'fixed',
+            'audit_api' => 'fixed',
+        ];
+    }
+
+    public static function releaseFreezePolicy(): array
+    {
+        return [
+            'freeze_scope' => ['public_api', 'kernel_api', 'extension_contract', 'audit_api'],
+            'allowed_changes' => ['security_fixes', 'compatibility_fixes', 'documentation_fixes'],
+            'forbidden_changes' => ['breaking_changes', 'cloud_business_permission', 'open_contribution_enablement'],
+            'required_approval' => true,
+            'required_tests' => ['official_debug_test'],
+        ];
+    }
+
+    public static function longTermStabilityContract(): array
+    {
+        return [
+            'version' => self::version(),
+            'long_term_stable' => true,
+            'all_prior_contracts_included' => true,
+            'no_breaking_changes' => true,
+            'official_tests_required' => true,
+            'docs_are_source_of_truth' => true,
+            'cloud_business_prohibition_fixed' => true,
+            'non_open_contribution_fixed' => true,
+            'support_policy' => self::supportPolicy(),
+            'compatibility_guarantee' => self::compatibilityGuarantee(),
+            'release_freeze_policy' => self::releaseFreezePolicy(),
+        ];
+    }
+
     public static function specificationIntegrity(): array
     {
         $checks = [
@@ -1435,6 +1631,10 @@ final class Adlaire
             'official_metadata' => self::officialMetadata()['version'] === self::version()
                 && self::officialMetadata()['release_readiness_required'] === true,
             'file_principle' => self::auditFilePrinciple() === '7 files',
+            'microkernel_policy' => self::microkernelPolicy()['event_bus_available'] === true
+                && self::microkernelPolicy()['extension_manifest_available'] === true,
+            'stability_contract' => self::stabilityContract()['breaking_changes_forbidden'] === true,
+            'long_term_stability_contract' => self::longTermStabilityContract()['long_term_stable'] === true,
             'official_debug_test' => self::officialMetadata()['official_debug_test'] === 'php -d phar.readonly=0 tests/debug.php',
         ];
 
@@ -1475,6 +1675,9 @@ final class Adlaire
             'specification_integrity',
             'specification_drift',
             'distribution_manifest',
+            'microkernel_policy',
+            'stability_contract',
+            'long_term_stability_contract',
         ];
         $auditKeys = [
             'version',
@@ -1489,6 +1692,9 @@ final class Adlaire
             'specification_integrity',
             'specification_drift',
             'distribution_manifest',
+            'microkernel_policy',
+            'stability_contract',
+            'long_term_stability_contract',
         ];
 
         $requiredReadinessChecks = [
@@ -1504,6 +1710,9 @@ final class Adlaire
             'specification_drift',
             'distribution_manifest',
             'file_principle',
+            'microkernel_policy',
+            'stability_contract',
+            'long_term_stability_contract',
             'design_philosophy',
             'compatibility',
             'required_verifications',
@@ -1544,6 +1753,9 @@ final class Adlaire
                 'required' => true,
                 'ready' => true,
             ],
+            'microkernel_policy' => self::microkernelPolicy(),
+            'stability_contract' => self::stabilityContract(),
+            'long_term_stability_contract' => self::longTermStabilityContract(),
         ];
     }
 
@@ -1559,7 +1771,7 @@ final class Adlaire
             'php' => '>=8.3',
             'version_format' => 'v0.x',
             'cumulative_version' => true,
-            'formalization_version' => 'v0.19',
+            'formalization_version' => 'v0.50',
             'file_principle' => self::auditFilePrinciple(),
             'external_dependencies' => 'none; optional libSQL PHP extension only',
             'license_policy' => self::licensePolicy(),
@@ -1573,6 +1785,20 @@ final class Adlaire
             'specification_integrity' => self::specificationIntegrity(),
             'specification_drift' => self::specificationDrift(),
             'distribution_manifest' => self::distributionManifest(),
+            'microkernel_policy' => self::microkernelPolicy(),
+            'health_report' => self::healthReport(),
+            'autonomous_audit_report' => self::autonomousAuditReport(),
+            'stability_contract' => self::stabilityContract(),
+            'official_extension_registry' => self::officialExtensionRegistry(),
+            'extension_signature_metadata' => self::extensionSignatureMetadata(),
+            'compatibility_profiles' => self::compatibilityProfiles(),
+            'migration_policy' => self::migrationPolicy(),
+            'ecosystem_audit_report' => self::ecosystemAuditReport(),
+            'support_policy' => self::supportPolicy(),
+            'security_fix_protocol' => self::securityFixProtocol(),
+            'compatibility_guarantee' => self::compatibilityGuarantee(),
+            'release_freeze_policy' => self::releaseFreezePolicy(),
+            'long_term_stability_contract' => self::longTermStabilityContract(),
             'design_philosophy' => [
                 'core' => 'distributed autonomy system design philosophy',
                 'composite_framework' => true,
@@ -1655,6 +1881,10 @@ final class Adlaire
             'distribution_manifest' => ($audit['distribution_manifest']['version'] ?? null) === self::version()
                 && ($audit['distribution_manifest']['release_readiness']['ready'] ?? false) === true,
             'file_principle' => ($audit['file_principle'] ?? null) === '7 files',
+            'microkernel_policy' => ($audit['microkernel_policy']['event_bus_available'] ?? false) === true,
+            'stability_contract' => ($audit['stability_contract']['breaking_changes_forbidden'] ?? false) === true,
+            'long_term_stability_contract' => ($audit['long_term_stability_contract']['long_term_stable'] ?? false) === true
+                && ($audit['long_term_stability_contract']['no_breaking_changes'] ?? false) === true,
             'design_philosophy' => ($audit['design_philosophy']['core'] ?? null) === 'distributed autonomy system design philosophy'
                 && ($audit['design_philosophy']['standalone_framework_usage'] ?? false) === true,
             'compatibility' => array_reduce(

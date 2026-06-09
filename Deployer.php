@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Deployer.php
  *
- * @version v0.19
+ * @version v0.50
  * @php     >= 8.3
  */
 
