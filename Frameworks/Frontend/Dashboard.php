@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__, 2);
 
-require_once $root . '/FrameworkCore/Core.php';
+require_once $root . '/Core/Core.php';
 require_once __DIR__ . '/DashboardSecurity.php';
 require_once __DIR__ . '/DashboardData.php';
 require_once __DIR__ . '/DashboardView.php';

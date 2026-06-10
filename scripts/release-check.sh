@@ -1,7 +1,6 @@
 #!/bin/sh
 set -eu
 
-php -d phar.readonly=0 -l DeploymentCore.php >/dev/null
 php -d phar.readonly=0 -l Frameworks/Deployment/DeploymentCore.php >/dev/null
 php -d phar.readonly=0 -l Frameworks/Deployment/DeployConfig.php >/dev/null
 php -d phar.readonly=0 -l Frameworks/Deployment/Deployer.php >/dev/null
@@ -10,12 +9,22 @@ php -d phar.readonly=0 -l Frameworks/Deployment/DeploymentEvidence.php >/dev/nul
 php -d phar.readonly=0 -l Core/Registry.php >/dev/null
 php -d phar.readonly=0 -l Core/Lifecycle.php >/dev/null
 
-for file in FrameworkCore/Core.php FrameworkCore/Kernel.php FrameworkCore/Extension.php FrameworkCore/Database.php FrameworkCore/Logger.php FrameworkCore/Config.php FrameworkCore/Middleware.php FrameworkCore/Support.php Frameworks/Frontend/Index.php Frameworks/Frontend/Dashboard.php Frameworks/Frontend/DashboardSecurity.php Frameworks/Frontend/DashboardData.php Frameworks/Frontend/DashboardView.php public_html/index.php public_html/dashboard.php tests/debug.php; do
+for file in Core/Core.php Core/Kernel.php Core/Extension.php Frameworks/Backend/Database.php Frameworks/Backend/Logger.php Frameworks/Backend/Config.php Frameworks/Backend/Middleware.php Frameworks/Backend/Support.php Frameworks/Frontend/Index.php Frameworks/Frontend/Dashboard.php Frameworks/Frontend/DashboardSecurity.php Frameworks/Frontend/DashboardData.php Frameworks/Frontend/DashboardView.php public_html/index.php public_html/dashboard.php tests/debug.php; do
     php -d phar.readonly=0 -l "$file" >/dev/null
 done
 
 php -d phar.readonly=0 tests/debug.php
 sh scripts/xserver-profile-audit.sh
+
+if [ -d FrameworkCore ]; then
+    echo "Legacy FrameworkCore shim directory must be absent"
+    exit 1
+fi
+
+if [ -f DeploymentCore.php ]; then
+    echo "Root DeploymentCore.php compatibility entrypoint must be absent"
+    exit 1
+fi
 
 for dir in Core Frameworks/Deployment Frameworks/Backend Frameworks/Frontend Frameworks/CSS Frameworks/JavaScript; do
     count=$(find "$dir" -maxdepth 1 -type f | wc -l | tr -d ' ')

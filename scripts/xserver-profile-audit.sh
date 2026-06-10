@@ -21,6 +21,15 @@ check_dir_absent() {
     echo "PASS prohibited directory absent: $1"
 }
 
+check_file_absent() {
+    if [ -f "$1" ]; then
+        echo "FAIL prohibited file exists: $1"
+        failures=$((failures + 1))
+        return
+    fi
+    echo "PASS prohibited file absent: $1"
+}
+
 check_file Dockerfile.xserver
 check_file docker-compose.xserver.yml
 check_file public_html/.htaccess
@@ -28,14 +37,14 @@ check_file public_html/index.php
 check_file public_html/dashboard.php
 check_file public_html/assets/adlaire-ui.css
 check_file storage/.gitkeep
-check_file DeploymentCore.php
 check_file Frameworks/Deployment/DeploymentCore.php
 check_file Frameworks/Deployment/DeployConfig.php
 check_file Frameworks/Deployment/Deployer.php
 check_file Frameworks/Deployment/DeploymentPaths.php
 check_file Frameworks/Deployment/DeploymentEvidence.php
-check_file FrameworkCore/Core.php
+check_file Core/Core.php
 check_dir_absent DeploymentCore
+check_file_absent DeploymentCore.php
 
 if grep -q "DocumentRoot /var/www/html/public_html" Dockerfile.xserver; then
     echo "PASS document root: public_html"

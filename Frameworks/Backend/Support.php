@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Support.php
  *
- * @version v0.272
+ * @version v0.277
  * @php     >= 8.3
  */
 
@@ -53,6 +53,41 @@ final class AdlaireSupport
             $target = &$target[$segment];
         }
         $target = $value;
+    }
+
+    public static function dataForget(array &$data, string $key): void
+    {
+        $target = &$data;
+        $segments = explode('.', $key);
+        $last = array_pop($segments);
+        if (!is_string($last) || $last === '') {
+            throw new InvalidArgumentException('Data key segment must not be empty.');
+        }
+        foreach ($segments as $segment) {
+            if ($segment === '') {
+                throw new InvalidArgumentException('Data key segment must not be empty.');
+            }
+            if (!isset($target[$segment]) || !is_array($target[$segment])) {
+                return;
+            }
+            $target = &$target[$segment];
+        }
+        unset($target[$last]);
+    }
+
+    public static function bool(mixed $value, bool $default = false): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_scalar($value)) {
+            return match (strtolower(trim((string)$value))) {
+                '1', 'true', 'yes', 'on' => true,
+                '0', 'false', 'no', 'off' => false,
+                default => $default,
+            };
+        }
+        return $default;
     }
 
     public static function slug(string $value): string

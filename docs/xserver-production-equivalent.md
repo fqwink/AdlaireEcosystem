@@ -31,8 +31,8 @@ http://localhost:8080/health
 docker run --rm -v "$PWD:/app" -w /app php:8.3-cli sh scripts/xserver-profile-audit.sh
 ```
 
-The audit checks the Xserver profile files, `public_html` document root, `.htaccess` rewrite support, Composer-free operation, absence of a `DeploymentCore` directory, PHP lint, and the official debug test.
+The audit checks the Xserver profile files, `public_html` document root, `.htaccess` rewrite support, Composer-free operation, absence of the root `DeploymentCore.php` compatibility entrypoint and `DeploymentCore` directory, PHP lint, and the official debug test.
 
 ## Xserver Deployment Notes
 
-Upload `public_html`, `DeploymentCore.php`, `FrameworkCore`, `Frameworks`, `modules`, and the writable `storage` directory according to the deployment allowlist. Keep real credentials out of source control and use server environment variables. Framework configuration files such as `.env`, `.ini`, `.conf`, `.yaml`, `.yml`, `config.php`, and `*.config.php` are prohibited; JSON is retained only for metadata, history, audit, release evidence, logs, and internal libSQL API transport payloads.
+Upload `public_html`, `Core`, `Frameworks`, `modules`, and the writable `storage` directory according to the deployment allowlist. The Deployment Framework entrypoint is `Frameworks/Deployment/DeploymentCore.php`; the root `DeploymentCore.php` compatibility entrypoint is intentionally absent. Keep real credentials out of source control and use server environment variables. Framework configuration files such as `.env`, `.ini`, `.conf`, `.yaml`, `.yml`, `config.php`, and `*.config.php` are prohibited; JSON is retained only for metadata, history, audit, release evidence, logs, and internal libSQL API transport payloads.

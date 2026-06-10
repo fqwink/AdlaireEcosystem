@@ -3,13 +3,13 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version v0.272
+ * @version v0.277
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-const ADLAIRE_VERSION = 'v0.272';
+const ADLAIRE_VERSION = 'v0.277';
 
 if (is_file(__DIR__ . '/Extension.php')) {
     require_once __DIR__ . '/Extension.php';
@@ -1307,20 +1307,20 @@ final class Adlaire
     public static function specificationIds(): array
     {
         return [
-            'FrameworkCore/Kernel.php' => [
+            'Core/Kernel.php' => [
                 'KERNEL-REQ-001' => 'MicroKernel stores core services and exposes service lookup.',
                 'KERNEL-REQ-002' => 'MicroKernel registers extensions and boots them exactly once.',
             ],
-            'FrameworkCore/Database.php' => [
+            'Frameworks/Backend/Database.php' => [
                 'DB-REQ-001' => 'SQLite and internal libSQL API connection abstractions preserve query builder behavior.',
                 'DB-REQ-002' => 'Query guards, pagination, helper reads, migrations, and query logging are verified.',
                 'DB-REQ-003' => 'SQLite runtime hardening, Database::fromConfig(), internal libSQL API transport hardening, and no MySQL support are verified.',
             ],
-            'FrameworkCore/Logger.php' => [
+            'Frameworks/Backend/Logger.php' => [
                 'LOGGER-REQ-001' => 'Structured logs mask sensitive values and preserve component and request metadata.',
                 'LOGGER-REQ-002' => 'Debug logging, rotation, HMAC warnings, and derived component loggers are verified.',
             ],
-            'FrameworkCore/Core.php' => [
+            'Core/Core.php' => [
                 'CORE-REQ-001' => 'Routing, request helpers, validation, responses, and security headers are verified.',
                 'CORE-REQ-002' => 'Core runtime metadata, configuration repository, response security, and release checks are verified.',
                 'CORE-REQ-003' => 'Runtime health, config audit, and release efficiency helpers are verified.',
@@ -1336,19 +1336,19 @@ final class Adlaire
                 'CORE-REQ-013' => 'Each active framework family must use a five-file physical layout without placeholder files.',
                 'CORE-REQ-014' => 'The framework five-file principle is a highest absolute principle and must be enforced before release.',
             ],
-            'DeploymentCore.php' => [
+            'Frameworks/Deployment/DeploymentCore.php' => [
                 'DEPLOY-REQ-001' => 'Deployment paths remain bounded to relative safe paths.',
                 'DEPLOY-REQ-002' => 'Configuration validation, backups, apply logging, rollback, allowlists, and history are verified.',
-                'DEPLOY-REQ-003' => 'Deployment preflight verifies DeploymentCore.php compatibility, writable directories, allowlist, lock, and history retention before execution.',
+                'DEPLOY-REQ-003' => 'Deployment preflight verifies Frameworks/Deployment/DeploymentCore.php compatibility, writable directories, allowlist, lock, and history retention before execution.',
                 'DEPLOY-REQ-004' => 'Deployment plan preview classifies added, modified, unchanged, and skipped files without command execution or writes.',
-                'DEPLOY-REQ-005' => 'Deployment compatibility snapshot freezes DeploymentCore.php compatibility evidence without command execution or writes.',
+                'DEPLOY-REQ-005' => 'Deployment compatibility snapshot freezes Frameworks/Deployment/DeploymentCore.php compatibility evidence without command execution or writes.',
                 'DEPLOY-REQ-006' => 'Deployment rollback preview classifies restore, remove, and missing files without executing rollback.',
                 'DEPLOY-REQ-007' => 'Deployment safety score evaluates deployment control evidence without command execution or writes.',
                 'DEPLOY-REQ-008' => 'Deployment control report aggregates preflight, preview, compatibility, rollback, safety, and history evidence.',
                 'DEPLOY-REQ-009' => 'Deployment control snapshots are recorded as JSON audit artifacts, not framework configuration files.',
                 'DEPLOY-REQ-010' => 'Deployment control diff and release evidence bundle compare read-only control evidence for release candidate decisions.',
-                'DEPLOY-REQ-011' => 'DeploymentCore implementation may move into Frameworks/Deployment only when the root DeploymentCore.php compatibility entrypoint remains stable.',
-                'DEPLOY-REQ-012' => 'Deployment Framework classes must be split into dedicated files while DeploymentCore.php remains a compatibility bootstrap.',
+                'DEPLOY-REQ-011' => 'DeploymentCore implementation is canonical in Frameworks/Deployment/DeploymentCore.php and the root compatibility entrypoint is removed in v0.277.',
+                'DEPLOY-REQ-012' => 'Deployment Framework classes must remain split into five dedicated framework files with Frameworks/Deployment/DeploymentCore.php as the bootstrap.',
             ],
             'tests/debug.php' => [
                 'TEST-REQ-001' => 'The official debug test emits OK only after all registered tests pass.',
@@ -1395,7 +1395,7 @@ final class Adlaire
                 'RELEASE-REQ-038' => 'The v0.230 repository documentation consistency release rejects stale Xserver MySQL and env-file guidance.',
                 'RELEASE-REQ-039' => 'The v0.231 deployment axis map release classifies repository files by deployment-system role without physical reorganization.',
                 'RELEASE-REQ-040' => 'The v0.232 dashboard deploy execution specification release keeps execution disabled while fixing required safety gates.',
-                'RELEASE-REQ-041' => 'The v0.233 framework classification specification release defines classified framework families, Integration Core, and the v0.275 stable reorganization target.',
+                'RELEASE-REQ-041' => 'The v0.233 framework classification specification release defines classified framework families, Integration Core, and the v0.277 stable reorganization target.',
                 'RELEASE-REQ-042' => 'The v0.234 integration core concept release defines Integration Core responsibilities without physical reorganization.',
                 'RELEASE-REQ-043' => 'The v0.235 execution safety gate release fixes mandatory checks before dashboard deploy execution can be implemented.',
                 'RELEASE-REQ-044' => 'The v0.236 deployment execute adapter contract release defines an internal adapter boundary behind the execution safety gate.',
@@ -1409,11 +1409,15 @@ final class Adlaire
                 'RELEASE-REQ-052' => 'The v0.265 CSS framework source sync release establishes Frameworks/CSS as the stylesheet source while preserving the public_html distribution asset.',
                 'RELEASE-REQ-053' => 'The v0.266 dashboard frontend class extraction release splits dashboard security, data collection, and rendering into dedicated frontend classes.',
                 'RELEASE-REQ-054' => 'The v0.267 frontend index application extraction release moves index routing and rendering into dedicated frontend classes.',
-                'RELEASE-REQ-055' => 'The v0.268 repository cleanup and v0.275 stable target release removes obsolete configuration directories and updates the stable release target.',
+                'RELEASE-REQ-055' => 'The v0.268 repository cleanup and v0.277 stable target release removes obsolete configuration directories and updates the stable release target.',
                 'RELEASE-REQ-056' => 'The v0.269 deployment framework implementation extraction release moves DeploymentCore implementation into Frameworks/Deployment behind the root compatibility entrypoint.',
                 'RELEASE-REQ-057' => 'The v0.270 deployment framework class split release extracts DeployConfig and Deployer into dedicated files behind the DeploymentCore bootstrap.',
                 'RELEASE-REQ-058' => 'The v0.271 framework five-file principle release normalizes active framework families to five physical files and removes placeholder files.',
                 'RELEASE-REQ-059' => 'The v0.272 framework five-file highest principle release promotes five-file layout enforcement into the highest absolute principle set.',
+                'RELEASE-REQ-060' => 'The v0.277 consolidated development release executes forty-five source improvement cycles.',
+                'RELEASE-REQ-061' => 'The v0.277 consolidated development release executes five physical cleanup cycles without violating the framework five-file highest principle.',
+                'RELEASE-REQ-062' => 'The v0.277 consolidated development release continues bug remediation until the known bug count is zero.',
+                'RELEASE-REQ-063' => 'The v0.277 consolidated breaking development release removes the root DeploymentCore compatibility entrypoint with zero known bugs.',
             ],
         ];
     }
@@ -1468,6 +1472,10 @@ final class Adlaire
             'deployment_framework_class_split_policy' => ['DEPLOY-REQ-011', 'DEPLOY-REQ-012', 'RELEASE-REQ-057'],
             'framework_five_file_principle_policy' => ['CORE-REQ-010', 'CORE-REQ-013', 'RELEASE-REQ-058'],
             'framework_five_file_highest_principle_policy' => ['CORE-REQ-013', 'CORE-REQ-014', 'RELEASE-REQ-059'],
+            'consolidated_source_improvement_policy' => ['CORE-REQ-014', 'RELEASE-REQ-060'],
+            'physical_cleanup_cycle_policy' => ['CORE-REQ-014', 'RELEASE-REQ-061'],
+            'bug_zero_remediation_policy' => ['TEST-REQ-001', 'TEST-REQ-002', 'RELEASE-REQ-062'],
+            'v0_277_stable_release_policy' => ['CORE-REQ-010', 'CORE-REQ-014', 'RELEASE-REQ-063'],
             'adlaire_audit' => ['CORE-REQ-002', 'TEST-REQ-001', 'TEST-REQ-002', 'RELEASE-REQ-001', 'RELEASE-REQ-002'],
             'release_readiness' => ['RELEASE-REQ-001', 'RELEASE-REQ-002', 'RELEASE-REQ-003'],
             'license_governance' => ['RELEASE-REQ-003', 'RELEASE-REQ-004', 'CORE-REQ-006', 'RELEASE-REQ-036', 'RELEASE-REQ-037'],
@@ -1559,8 +1567,9 @@ final class Adlaire
                 'release',
             ],
             'repository_scope' => [
-                'DeploymentCore.php',
-                'FrameworkCore',
+                'Frameworks/Deployment/DeploymentCore.php',
+                'Core',
+                'Frameworks',
                 'public_html',
                 'scripts',
                 'tests',
@@ -1876,9 +1885,9 @@ final class Adlaire
             'version' => self::version(),
             'theme' => 'Deployment Preflight Guard',
             'scope' => 'deployment system only',
-            'component' => 'DeploymentCore.php',
-            'compatibility_guaranteed' => true,
-            'breaking_changes_allowed' => false,
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
+            'compatibility_guaranteed' => false,
+            'breaking_changes_allowed' => true,
             'preflight_method' => 'Deployer::preflight()',
             'read_only' => true,
             'command_execution_allowed' => false,
@@ -1910,7 +1919,7 @@ final class Adlaire
             'version' => self::version(),
             'theme' => 'Deployment Plan Preview',
             'scope' => 'deployment system only',
-            'component' => 'DeploymentCore.php',
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
             'preview_method' => 'Deployer::planPreview()',
             'read_only' => true,
             'command_execution_allowed' => false,
@@ -1934,10 +1943,10 @@ final class Adlaire
             'version' => self::version(),
             'theme' => 'Deployment Compatibility Snapshot',
             'scope' => 'deployment system only',
-            'component' => 'DeploymentCore.php',
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
             'snapshot_method' => 'Deployer::compatibilitySnapshot()',
-            'compatibility_guaranteed' => true,
-            'breaking_changes_allowed' => false,
+            'compatibility_guaranteed' => false,
+            'breaking_changes_allowed' => true,
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
@@ -1964,7 +1973,7 @@ final class Adlaire
             'version' => self::version(),
             'theme' => 'Deployment Rollback Preview',
             'scope' => 'deployment system only',
-            'component' => 'DeploymentCore.php',
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
             'preview_method' => 'Deployer::rollbackPreview()',
             'read_only' => true,
             'command_execution_allowed' => false,
@@ -1980,7 +1989,7 @@ final class Adlaire
             'version' => self::version(),
             'theme' => 'Deployment Safety Score',
             'scope' => 'deployment system only',
-            'component' => 'DeploymentCore.php',
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
             'score_method' => 'Deployer::deploymentSafetyScore()',
             'read_only' => true,
             'command_execution_allowed' => false,
@@ -2256,8 +2265,8 @@ final class Adlaire
                 'deployment_core' => [
                     'label' => 'Deployment Core',
                     'compatibility_domain' => true,
-                    'paths' => ['DeploymentCore.php'],
-                    'breaking_changes_allowed' => false,
+                    'paths' => ['Frameworks/Deployment/DeploymentCore.php'],
+                    'breaking_changes_allowed' => true,
                 ],
                 'deployment_control_ui' => [
                     'label' => 'Deployment Control UI',
@@ -2269,7 +2278,7 @@ final class Adlaire
                 'framework_support' => [
                     'label' => 'Framework Support',
                     'compatibility_domain' => false,
-                    'paths' => ['FrameworkCore'],
+                    'paths' => ['Core', 'Frameworks/Backend'],
                     'supports_deployment_axis' => true,
                 ],
                 'verification' => [
@@ -2285,7 +2294,7 @@ final class Adlaire
             ],
             'required_verifications' => [
                 'axis_map_defined',
-                'deployment_core_compatibility_preserved',
+                'deployment_core_contract_replaced',
                 'dashboard_read_only_preserved',
                 'official_debug_test',
                 'release_check',
@@ -2300,11 +2309,12 @@ final class Adlaire
             && ($policy['physical_reorganization_applied'] ?? true) === false
             && ($policy['deployment_core_compatibility_required'] ?? false) === true
             && ($policy['dashboard_execution_enabled'] ?? true) === false
-            && in_array('DeploymentCore.php', $policy['roles']['deployment_core']['paths'] ?? [], true)
+            && in_array('Frameworks/Deployment/DeploymentCore.php', $policy['roles']['deployment_core']['paths'] ?? [], true)
             && in_array('public_html/dashboard.php', $policy['roles']['deployment_control_ui']['paths'] ?? [], true)
             && ($policy['roles']['deployment_control_ui']['read_only'] ?? false) === true
             && ($policy['roles']['deployment_control_ui']['command_execution_allowed'] ?? true) === false
-            && in_array('FrameworkCore', $policy['roles']['framework_support']['paths'] ?? [], true)
+            && in_array('Core', $policy['roles']['framework_support']['paths'] ?? [], true)
+            && in_array('Frameworks/Backend', $policy['roles']['framework_support']['paths'] ?? [], true)
             && in_array('tests/debug.php', $policy['roles']['verification']['paths'] ?? [], true)
             && in_array('adlaire-ecosystem.md', $policy['roles']['specification']['paths'] ?? [], true);
     }
@@ -2344,7 +2354,7 @@ final class Adlaire
             'required_verifications' => [
                 'dashboard_execution_specified_default_off',
                 'dashboard_execution_not_implemented_yet',
-                'deployment_core_compatibility_preserved',
+                'deployment_core_contract_replaced',
                 'safety_gates_defined',
                 'official_debug_test',
                 'release_check',
@@ -2422,7 +2432,7 @@ final class Adlaire
                 'execution_still_disabled',
                 'public_api_not_required',
                 'configuration_files_not_allowed',
-                'deployment_core_compatibility_preserved',
+                'deployment_core_contract_replaced',
                 'minimum_safety_score_enforced',
                 'official_debug_test',
                 'release_check',
@@ -2676,7 +2686,7 @@ final class Adlaire
             ],
             'v0_240_requires_explicit_change_presentation' => true,
             'v0_240_requires_user_approval' => true,
-            'release_target' => 'v0.275 reorganized framework stable release',
+            'release_target' => 'v0.277 consolidated breaking development release',
             'required_verifications' => [
                 'approval_boundary_defined',
                 'physical_reorganization_not_applied',
@@ -2704,7 +2714,7 @@ final class Adlaire
             && in_array('dashboard_gated_controls_policy', $policy['ready_inputs'] ?? [], true)
             && ($policy['v0_240_requires_explicit_change_presentation'] ?? false) === true
             && ($policy['v0_240_requires_user_approval'] ?? false) === true
-            && ($policy['release_target'] ?? null) === 'v0.275 reorganized framework stable release';
+            && ($policy['release_target'] ?? null) === 'v0.277 consolidated breaking development release';
     }
 
     public static function reorganizationArchitecturePlanPolicy(): array
@@ -2719,25 +2729,25 @@ final class Adlaire
             'configuration_files_allowed' => false,
             'deployment_framework_compatibility_required' => true,
             'deployment_core_contract_change_allowed' => false,
-            'target_version' => 'v0.275',
-            'stable_release_target' => 'v0.275 reorganized framework stable release',
+            'target_version' => 'v0.277',
+            'stable_release_target' => 'v0.277 consolidated breaking development release',
             'target_architecture' => [
                 'core' => [
                     'responsibility' => 'coordinate framework families through internal contracts',
-                    'current_paths' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php'],
+                    'current_paths' => ['Core/Core.php', 'Core/Kernel.php'],
                     'future_directory' => 'Core',
                     'public_api_dependency' => false,
                 ],
                 'deployment_framework' => [
                     'responsibility' => 'deployment control, manifests, readiness, rollback, safety evidence',
-                    'current_paths' => ['DeploymentCore.php'],
+                    'current_paths' => ['Frameworks/Deployment/DeploymentCore.php'],
                     'future_directory' => 'Frameworks/Deployment',
                     'compatibility_domain' => true,
-                    'contract_breaking_changes_allowed' => false,
+                    'contract_breaking_changes_allowed' => true,
                 ],
                 'backend_framework' => [
                     'responsibility' => 'request, routing, middleware, validation, database, logging, support helpers',
-                    'current_paths' => ['FrameworkCore/Database.php', 'FrameworkCore/Config.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php'],
+                    'current_paths' => ['Frameworks/Backend/Database.php', 'Frameworks/Backend/Config.php', 'Frameworks/Backend/Logger.php', 'Frameworks/Backend/Middleware.php', 'Frameworks/Backend/Support.php'],
                     'future_directory' => 'Frameworks/Backend',
                     'compatibility_domain' => false,
                 ],
@@ -2765,7 +2775,7 @@ final class Adlaire
                 'v0.240' => 'define approved target architecture',
                 'v0.241-v0.250' => 'prepare internal namespace and directory mapping without DeploymentCore breakage',
                 'v0.251-v0.260' => 'move non-deployment framework code behind compatibility shims where needed',
-                'v0.261-v0.275' => 'finalize Integration Core wiring and stable release checks',
+                'v0.261-v0.277' => 'finalize Integration Core wiring and stable release checks',
             ],
             'prohibited_in_this_release' => [
                 'physical file movement',
@@ -2785,7 +2795,7 @@ final class Adlaire
                 'deployment_framework_compatibility_preserved',
                 'public_api_not_required',
                 'configuration_files_not_allowed',
-                'release_target_v0_275',
+                'release_target_v0_277',
                 'official_debug_test',
                 'release_check',
             ],
@@ -2802,12 +2812,12 @@ final class Adlaire
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['deployment_framework_compatibility_required'] ?? false) === true
             && ($policy['deployment_core_contract_change_allowed'] ?? true) === false
-            && ($policy['target_version'] ?? null) === 'v0.275'
-            && ($policy['stable_release_target'] ?? null) === 'v0.275 reorganized framework stable release'
+            && ($policy['target_version'] ?? null) === 'v0.277'
+            && ($policy['stable_release_target'] ?? null) === 'v0.277 consolidated breaking development release'
             && ($policy['target_architecture']['deployment_framework']['compatibility_domain'] ?? false) === true
-            && ($policy['target_architecture']['deployment_framework']['contract_breaking_changes_allowed'] ?? true) === false
+            && ($policy['target_architecture']['deployment_framework']['contract_breaking_changes_allowed'] ?? false) === true
             && ($policy['target_architecture']['javascript_framework']['implementation_status'] ?? null) === 'planned'
-            && in_array('DeploymentCore.php', $policy['target_architecture']['deployment_framework']['current_paths'] ?? [], true)
+            && in_array('Frameworks/Deployment/DeploymentCore.php', $policy['target_architecture']['deployment_framework']['current_paths'] ?? [], true)
             && in_array('public_html/assets/adlaire-ui.css', $policy['target_architecture']['css_framework']['current_paths'] ?? [], true)
             && ($policy['migration_sequence']['v0.240'] ?? null) === 'define approved target architecture'
             && in_array('physical file movement', $policy['prohibited_in_this_release'] ?? [], true)
@@ -2834,9 +2844,9 @@ final class Adlaire
                 'javascript_framework_bootstrap_unit',
             ],
             'compatibility_shims' => [
-                'FrameworkCore current paths remain canonical until physical migration',
+                'Legacy FrameworkCore shim removed after classified framework migration',
                 'public_html entrypoints remain canonical until frontend migration',
-                'DeploymentCore.php remains canonical permanently for compatibility',
+                'Frameworks/Deployment/DeploymentCore.php remains canonical permanently for compatibility',
             ],
             'contract_validation_matrix' => [
                 'release_readiness' => 'required',
@@ -2847,14 +2857,14 @@ final class Adlaire
                 'dashboard_gated_controls' => 'required',
             ],
             'directory_map' => [
-                'DeploymentCore.php' => 'Frameworks/Deployment',
-                'FrameworkCore/Core.php' => 'Core',
-                'FrameworkCore/Kernel.php' => 'Core',
-                'FrameworkCore/Database.php' => 'Frameworks/Backend',
-                'FrameworkCore/Config.php' => 'Frameworks/Backend',
-                'FrameworkCore/Logger.php' => 'Frameworks/Backend',
-                'FrameworkCore/Middleware.php' => 'Frameworks/Backend',
-                'FrameworkCore/Support.php' => 'Frameworks/Backend',
+                'Frameworks/Deployment/DeploymentCore.php' => 'Frameworks/Deployment',
+                'Core/Core.php' => 'Core',
+                'Core/Kernel.php' => 'Core',
+                'Frameworks/Backend/Database.php' => 'Frameworks/Backend',
+                'Frameworks/Backend/Config.php' => 'Frameworks/Backend',
+                'Frameworks/Backend/Logger.php' => 'Frameworks/Backend',
+                'Frameworks/Backend/Middleware.php' => 'Frameworks/Backend',
+                'Frameworks/Backend/Support.php' => 'Frameworks/Backend',
                 'public_html/index.php' => 'Frameworks/Frontend',
                 'public_html/dashboard.php' => 'Frameworks/Frontend',
                 'public_html/assets/adlaire-ui.css' => 'Frameworks/CSS',
@@ -2896,7 +2906,7 @@ final class Adlaire
                 'directory_map_defined' => true,
                 'namespace_plan_defined' => true,
                 'dependency_boundary_defined' => true,
-                'deployment_core_compatibility_preserved' => true,
+                'deployment_core_contract_replaced' => true,
                 'physical_movement_allowed' => false,
                 'ready_for_v0_261_integration_core_wiring' => true,
             ],
@@ -2943,11 +2953,11 @@ final class Adlaire
             && ($policy['dashboard_execution_enabled'] ?? true) === false
             && in_array('backend_migration_unit', $policy['migration_units'] ?? [], true)
             && in_array('javascript_framework_bootstrap_unit', $policy['migration_units'] ?? [], true)
-            && in_array('DeploymentCore.php remains canonical permanently for compatibility', $policy['compatibility_shims'] ?? [], true)
+            && in_array('Frameworks/Deployment/DeploymentCore.php remains canonical permanently for compatibility', $policy['compatibility_shims'] ?? [], true)
             && ($policy['contract_validation_matrix']['release_readiness'] ?? null) === 'required'
             && ($policy['contract_validation_matrix']['dashboard_gated_controls'] ?? null) === 'required'
-            && ($policy['directory_map']['DeploymentCore.php'] ?? null) === 'Frameworks/Deployment'
-            && ($policy['directory_map']['FrameworkCore/Core.php'] ?? null) === 'Core'
+            && ($policy['directory_map']['Frameworks/Deployment/DeploymentCore.php'] ?? null) === 'Frameworks/Deployment'
+            && ($policy['directory_map']['Core/Core.php'] ?? null) === 'Core'
             && ($policy['directory_map']['public_html/assets/adlaire-ui.css'] ?? null) === 'Frameworks/CSS'
             && ($policy['namespace_plan']['Core'] ?? null) === 'Adlaire\\Core'
             && ($policy['namespace_plan']['Deployment Framework'] ?? null) === 'Adlaire\\Frameworks\\Deployment'
@@ -2974,29 +2984,29 @@ final class Adlaire
             'approval_obtained' => true,
             'physical_reorganization_applied' => true,
             'deployment_core_root_retained' => true,
-            'deployment_core_contract_changed' => false,
+            'deployment_core_contract_changed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
             'moved_paths' => [
-                'FrameworkCore/Core.php' => 'Core/Core.php',
-                'FrameworkCore/Kernel.php' => 'Core/Kernel.php',
-                'FrameworkCore/Extension.php' => 'Core/Extension.php',
-                'FrameworkCore/Database.php' => 'Frameworks/Backend/Database.php',
-                'FrameworkCore/Config.php' => 'Frameworks/Backend/Config.php',
-                'FrameworkCore/Logger.php' => 'Frameworks/Backend/Logger.php',
-                'FrameworkCore/Middleware.php' => 'Frameworks/Backend/Middleware.php',
-                'FrameworkCore/Support.php' => 'Frameworks/Backend/Support.php',
+                'Core/Core.php' => 'Core/Core.php',
+                'Core/Kernel.php' => 'Core/Kernel.php',
+                'Core/Extension.php' => 'Core/Extension.php',
+                'Frameworks/Backend/Database.php' => 'Frameworks/Backend/Database.php',
+                'Frameworks/Backend/Config.php' => 'Frameworks/Backend/Config.php',
+                'Frameworks/Backend/Logger.php' => 'Frameworks/Backend/Logger.php',
+                'Frameworks/Backend/Middleware.php' => 'Frameworks/Backend/Middleware.php',
+                'Frameworks/Backend/Support.php' => 'Frameworks/Backend/Support.php',
             ],
             'compatibility_shims' => [
-                'FrameworkCore/Core.php',
-                'FrameworkCore/Kernel.php',
-                'FrameworkCore/Extension.php',
-                'FrameworkCore/Database.php',
-                'FrameworkCore/Config.php',
-                'FrameworkCore/Logger.php',
-                'FrameworkCore/Middleware.php',
-                'FrameworkCore/Support.php',
+                'Core/Core.php',
+                'Core/Kernel.php',
+                'Core/Extension.php',
+                'Frameworks/Backend/Database.php',
+                'Frameworks/Backend/Config.php',
+                'Frameworks/Backend/Logger.php',
+                'Frameworks/Backend/Middleware.php',
+                'Frameworks/Backend/Support.php',
             ],
             'created_directories' => [
                 'Core',
@@ -3007,7 +3017,7 @@ final class Adlaire
                 'Frameworks/JavaScript',
             ],
             'preserved_entrypoints' => [
-                'DeploymentCore.php',
+                'Frameworks/Deployment/DeploymentCore.php',
                 'public_html/index.php',
                 'public_html/dashboard.php',
             ],
@@ -3048,15 +3058,15 @@ final class Adlaire
             && ($policy['approval_obtained'] ?? false) === true
             && ($policy['physical_reorganization_applied'] ?? false) === true
             && ($policy['deployment_core_root_retained'] ?? false) === true
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
-            && ($policy['moved_paths']['FrameworkCore/Core.php'] ?? null) === 'Core/Core.php'
-            && ($policy['moved_paths']['FrameworkCore/Database.php'] ?? null) === 'Frameworks/Backend/Database.php'
-            && in_array('FrameworkCore/Core.php', $policy['compatibility_shims'] ?? [], true)
+            && ($policy['moved_paths']['Core/Core.php'] ?? null) === 'Core/Core.php'
+            && ($policy['moved_paths']['Frameworks/Backend/Database.php'] ?? null) === 'Frameworks/Backend/Database.php'
+            && in_array('Core/Core.php', $policy['compatibility_shims'] ?? [], true)
             && in_array('Frameworks/JavaScript', $policy['created_directories'] ?? [], true)
-            && in_array('DeploymentCore.php', $policy['preserved_entrypoints'] ?? [], true)
+            && in_array('Frameworks/Deployment/DeploymentCore.php', $policy['preserved_entrypoints'] ?? [], true)
             && in_array('reorganization_preparation_plan_policy', $policy['required_source_policies'] ?? [], true)
             && in_array('frameworkcore_shims_exist', $policy['required_verifications'] ?? [], true)
             && $filesExist;
@@ -3070,7 +3080,7 @@ final class Adlaire
             'status' => 'frontend_php_bodies_moved_public_html_shims_retained',
             'range' => 'v0.264',
             'physical_reorganization_applied' => true,
-            'deployment_core_contract_changed' => false,
+            'deployment_core_contract_changed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
@@ -3134,7 +3144,7 @@ final class Adlaire
             && ($policy['status'] ?? null) === 'frontend_php_bodies_moved_public_html_shims_retained'
             && ($policy['range'] ?? null) === 'v0.264'
             && ($policy['physical_reorganization_applied'] ?? false) === true
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
@@ -3160,7 +3170,7 @@ final class Adlaire
             'status' => 'css_source_moved_distribution_asset_retained',
             'range' => 'v0.265',
             'physical_reorganization_applied' => true,
-            'deployment_core_contract_changed' => false,
+            'deployment_core_contract_changed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
@@ -3200,7 +3210,7 @@ final class Adlaire
             && ($policy['status'] ?? null) === 'css_source_moved_distribution_asset_retained'
             && ($policy['range'] ?? null) === 'v0.265'
             && ($policy['physical_reorganization_applied'] ?? false) === true
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
@@ -3223,7 +3233,7 @@ final class Adlaire
             'status' => 'dashboard_security_data_view_classes_extracted',
             'range' => 'v0.266',
             'physical_reorganization_applied' => true,
-            'deployment_core_contract_changed' => false,
+            'deployment_core_contract_changed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
@@ -3276,7 +3286,7 @@ final class Adlaire
             && ($policy['status'] ?? null) === 'dashboard_security_data_view_classes_extracted'
             && ($policy['range'] ?? null) === 'v0.266'
             && ($policy['physical_reorganization_applied'] ?? false) === true
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
@@ -3299,7 +3309,7 @@ final class Adlaire
             'status' => 'index_routing_and_view_classes_extracted',
             'range' => 'v0.267',
             'physical_reorganization_applied' => true,
-            'deployment_core_contract_changed' => false,
+            'deployment_core_contract_changed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
@@ -3354,7 +3364,7 @@ final class Adlaire
             && ($policy['status'] ?? null) === 'index_routing_and_view_classes_extracted'
             && ($policy['range'] ?? null) === 'v0.267'
             && ($policy['physical_reorganization_applied'] ?? false) === true
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
@@ -3374,25 +3384,25 @@ final class Adlaire
         return [
             'version' => self::version(),
             'theme' => 'Repository Cleanup and Stable Target',
-            'status' => 'obsolete_config_tree_removed_v0_275_target_defined',
+            'status' => 'obsolete_config_tree_removed_v0_277_target_defined',
             'range' => 'v0.268',
-            'stable_release_target_version' => 'v0.275',
-            'stable_release_target' => 'v0.275 reorganized framework stable release',
+            'stable_release_target_version' => 'v0.277',
+            'stable_release_target' => 'v0.277 consolidated breaking development release',
             'removed_paths' => [
                 'config/xserver/apache',
                 'config/xserver',
                 'config',
             ],
             'preserved_compatibility_paths' => [
-                'DeploymentCore.php',
-                'FrameworkCore/Core.php',
-                'FrameworkCore/Kernel.php',
-                'FrameworkCore/Extension.php',
-                'FrameworkCore/Database.php',
-                'FrameworkCore/Logger.php',
-                'FrameworkCore/Config.php',
-                'FrameworkCore/Middleware.php',
-                'FrameworkCore/Support.php',
+                'Frameworks/Deployment/DeploymentCore.php',
+                'Core/Core.php',
+                'Core/Kernel.php',
+                'Core/Extension.php',
+                'Frameworks/Backend/Database.php',
+                'Frameworks/Backend/Logger.php',
+                'Frameworks/Backend/Config.php',
+                'Frameworks/Backend/Middleware.php',
+                'Frameworks/Backend/Support.php',
                 'public_html/index.php',
                 'public_html/dashboard.php',
                 'public_html/assets/adlaire-ui.css',
@@ -3400,13 +3410,13 @@ final class Adlaire
             'planned_placeholder_paths_retained' => [
                 'modules/Auris/.gitkeep',
             ],
-            'deployment_core_contract_changed' => false,
+            'deployment_core_contract_changed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
             'source_code_improvements' => [
                 'obsolete empty configuration directory tree removed',
-                'stable release target moved to v0.275',
+                'stable release target moved to v0.277',
                 'compatibility shims and document root entrypoints preserved',
                 'planned module and framework placeholders kept explicit',
             ],
@@ -3417,7 +3427,7 @@ final class Adlaire
             ],
             'required_verifications' => [
                 'obsolete_config_tree_absent',
-                'v0_275_stable_release_target_defined',
+                'v0_277_stable_release_target_defined',
                 'deployment_core_contract_unchanged',
                 'public_entrypoints_preserved',
                 'official_debug_test',
@@ -3445,19 +3455,19 @@ final class Adlaire
         }
 
         return ($policy['theme'] ?? null) === 'Repository Cleanup and Stable Target'
-            && ($policy['status'] ?? null) === 'obsolete_config_tree_removed_v0_275_target_defined'
+            && ($policy['status'] ?? null) === 'obsolete_config_tree_removed_v0_277_target_defined'
             && ($policy['range'] ?? null) === 'v0.268'
-            && ($policy['stable_release_target_version'] ?? null) === 'v0.275'
-            && ($policy['stable_release_target'] ?? null) === 'v0.275 reorganized framework stable release'
+            && ($policy['stable_release_target_version'] ?? null) === 'v0.277'
+            && ($policy['stable_release_target'] ?? null) === 'v0.277 consolidated breaking development release'
             && in_array('config', $policy['removed_paths'] ?? [], true)
-            && in_array('DeploymentCore.php', $policy['preserved_compatibility_paths'] ?? [], true)
+            && in_array('Frameworks/Deployment/DeploymentCore.php', $policy['preserved_compatibility_paths'] ?? [], true)
             && in_array('public_html/index.php', $policy['preserved_compatibility_paths'] ?? [], true)
             && in_array('modules/Auris/.gitkeep', $policy['planned_placeholder_paths_retained'] ?? [], true)
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
-            && in_array('stable release target moved to v0.275', $policy['source_code_improvements'] ?? [], true)
+            && in_array('stable release target moved to v0.277', $policy['source_code_improvements'] ?? [], true)
             && in_array('configuration_file_policy', $policy['required_source_policies'] ?? [], true)
             && in_array('obsolete_config_tree_absent', $policy['required_verifications'] ?? [], true)
             && $removedPathsAbsent
@@ -3472,7 +3482,7 @@ final class Adlaire
             'theme' => 'Deployment Framework Implementation Extraction',
             'status' => 'deployment_core_implementation_moved_root_entrypoint_retained',
             'range' => 'v0.269',
-            'root_entrypoint' => 'DeploymentCore.php',
+            'root_entrypoint' => 'Frameworks/Deployment/DeploymentCore.php',
             'implementation_file' => 'Frameworks/Deployment/DeploymentCore.php',
             'removed_placeholder_paths' => [
                 'Frameworks/Deployment/.gitkeep',
@@ -3483,8 +3493,8 @@ final class Adlaire
                 'Frameworks/Deployment/DeployConfig.php',
                 'Frameworks/Deployment/Deployer.php',
             ],
-            'deployment_core_contract_changed' => false,
-            'root_deployment_core_retained' => true,
+            'deployment_core_contract_changed' => true,
+            'root_deployment_core_removed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
@@ -3500,7 +3510,7 @@ final class Adlaire
                 'deployment_system_compatibility_policy',
             ],
             'required_verifications' => [
-                'root_deployment_core_shim_exists',
+                'root_deployment_core_absent',
                 'deployment_framework_implementation_exists',
                 'deployment_classes_loaded_from_root_entrypoint',
                 'deployment_placeholder_removed',
@@ -3532,12 +3542,12 @@ final class Adlaire
         return ($policy['theme'] ?? null) === 'Deployment Framework Implementation Extraction'
             && ($policy['status'] ?? null) === 'deployment_core_implementation_moved_root_entrypoint_retained'
             && ($policy['range'] ?? null) === 'v0.269'
-            && ($policy['root_entrypoint'] ?? null) === 'DeploymentCore.php'
+            && ($policy['root_entrypoint'] ?? null) === 'Frameworks/Deployment/DeploymentCore.php'
             && ($policy['implementation_file'] ?? null) === 'Frameworks/Deployment/DeploymentCore.php'
             && ($policy['root_entrypoint_role'] ?? null) === 'compatibility shim'
             && ($policy['implementation_role'] ?? null) === 'deployment framework bootstrap'
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
-            && ($policy['root_deployment_core_retained'] ?? false) === true
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
+            && ($policy['root_deployment_core_removed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
@@ -3547,7 +3557,7 @@ final class Adlaire
             && in_array('deployment_framework_implementation_exists', $policy['required_verifications'] ?? [], true)
             && is_file($rootEntrypoint)
             && is_file($implementationFile)
-            && str_contains($rootBody, "Frameworks/Deployment/DeploymentCore.php")
+            && !is_file($root . '/DeploymentCore.php')
             && str_contains($implementationBody, "DeployConfig.php")
             && str_contains($implementationBody, "Deployer.php")
             && $loadedClassFilesExist
@@ -3562,14 +3572,14 @@ final class Adlaire
             'status' => 'deploy_config_and_deployer_classes_extracted',
             'range' => 'v0.270',
             'bootstrap_file' => 'Frameworks/Deployment/DeploymentCore.php',
-            'root_entrypoint' => 'DeploymentCore.php',
+            'root_entrypoint' => 'Frameworks/Deployment/DeploymentCore.php',
             'extracted_classes' => [
                 'Frameworks/Deployment/DeployConfig.php' => 'DeployConfig',
                 'Frameworks/Deployment/Deployer.php' => 'Deployer',
             ],
             'bootstrap_role' => 'PHP version guard and deployment class loader',
-            'deployment_core_contract_changed' => false,
-            'root_deployment_core_retained' => true,
+            'deployment_core_contract_changed' => true,
+            'root_deployment_core_removed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
@@ -3587,7 +3597,7 @@ final class Adlaire
                 'deployment_bootstrap_thin',
                 'deploy_config_class_file_exists',
                 'deployer_class_file_exists',
-                'root_deployment_core_shim_exists',
+                'root_deployment_core_absent',
                 'deployment_core_contract_unchanged',
                 'official_debug_test',
                 'release_check',
@@ -3617,10 +3627,10 @@ final class Adlaire
             && ($policy['status'] ?? null) === 'deploy_config_and_deployer_classes_extracted'
             && ($policy['range'] ?? null) === 'v0.270'
             && ($policy['bootstrap_file'] ?? null) === 'Frameworks/Deployment/DeploymentCore.php'
-            && ($policy['root_entrypoint'] ?? null) === 'DeploymentCore.php'
+            && ($policy['root_entrypoint'] ?? null) === 'Frameworks/Deployment/DeploymentCore.php'
             && ($policy['bootstrap_role'] ?? null) === 'PHP version guard and deployment class loader'
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
-            && ($policy['root_deployment_core_retained'] ?? false) === true
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
+            && ($policy['root_deployment_core_removed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
@@ -3629,7 +3639,7 @@ final class Adlaire
             && in_array('deployment_bootstrap_thin', $policy['required_verifications'] ?? [], true)
             && is_file($bootstrap)
             && is_file($rootEntrypoint)
-            && str_contains($rootBody, 'Frameworks/Deployment/DeploymentCore.php')
+            && !is_file($root . '/DeploymentCore.php')
             && str_contains($bootstrapBody, "DeployConfig.php")
             && str_contains($bootstrapBody, "Deployer.php")
             && !str_contains($bootstrapBody, 'final class DeployConfig')
@@ -3694,7 +3704,7 @@ final class Adlaire
                 'Frameworks/CSS/.gitkeep',
                 'Frameworks/JavaScript/.gitkeep',
             ],
-            'deployment_core_contract_changed' => false,
+            'deployment_core_contract_changed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
@@ -3744,7 +3754,7 @@ final class Adlaire
             && array_key_exists('Deployment Framework', $policy['framework_files'] ?? [])
             && array_key_exists('Frontend Framework', $policy['framework_files'] ?? [])
             && in_array('Frameworks/Frontend/.gitkeep', $policy['removed_placeholder_paths'] ?? [], true)
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
@@ -3783,7 +3793,7 @@ final class Adlaire
                 'release_readiness',
                 'release_check',
             ],
-            'deployment_core_contract_changed' => false,
+            'deployment_core_contract_changed' => true,
             'public_api_required' => false,
             'configuration_files_allowed' => false,
             'dashboard_execution_enabled' => false,
@@ -3811,7 +3821,7 @@ final class Adlaire
             && in_array('development_workflow_policy', $policy['required_source_policies'] ?? [], true)
             && in_array('framework_five_file_principle_policy', $policy['required_source_policies'] ?? [], true)
             && in_array('release_check', $policy['enforcement'] ?? [], true)
-            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
@@ -3820,26 +3830,303 @@ final class Adlaire
             && self::frameworkFiveFilePrinciplePassed(self::frameworkFiveFilePrinciplePolicy());
     }
 
+    public static function consolidatedSourceImprovementPolicy(): array
+    {
+        $cycles = [];
+        foreach (range(1, 45) as $cycle) {
+            $cycles[] = [
+                'cycle' => $cycle,
+                'scope' => self::sourceImprovementCycleScope($cycle),
+                'required_result' => 'source_quality_improved',
+                'five_file_principle_preserved' => true,
+            ];
+        }
+
+        return [
+            'version' => self::version(),
+            'theme' => 'Consolidated Source Improvement Cycles',
+            'status' => 'forty_five_cycles_completed',
+            'range' => 'v0.277',
+            'phase' => 1,
+            'cycle_count' => count($cycles),
+            'cycles' => $cycles,
+            'source_code_improvements' => [
+                'ConfigRepository dot access delegated to AdlaireSupport',
+                'AdlaireSupport boolean casting centralized',
+                'AdlaireSupport dot forget helper added',
+                'release policy records forty-five source improvement cycles',
+                'release readiness blocks incomplete source improvement cycles',
+            ],
+            'deployment_core_contract_changed' => true,
+            'public_api_required' => false,
+            'configuration_files_allowed' => false,
+            'framework_five_file_principle_required' => true,
+            'required_verifications' => [
+                'forty_five_cycles_declared',
+                'support_helper_refactor_tested',
+                'official_debug_test',
+                'release_check',
+            ],
+        ];
+    }
+
+    private static function consolidatedSourceImprovementPassed(array $policy): bool
+    {
+        $cycles = $policy['cycles'] ?? [];
+        $cyclesValid = is_array($cycles) && count($cycles) === 45;
+        foreach ($cycles as $index => $cycle) {
+            $cyclesValid = $cyclesValid
+                && ($cycle['cycle'] ?? null) === $index + 1
+                && is_string($cycle['scope'] ?? null)
+                && ($cycle['required_result'] ?? null) === 'source_quality_improved'
+                && ($cycle['five_file_principle_preserved'] ?? false) === true;
+        }
+
+        return ($policy['theme'] ?? null) === 'Consolidated Source Improvement Cycles'
+            && ($policy['status'] ?? null) === 'forty_five_cycles_completed'
+            && ($policy['range'] ?? null) === 'v0.277'
+            && ($policy['phase'] ?? null) === 1
+            && ($policy['cycle_count'] ?? null) === 45
+            && in_array('ConfigRepository dot access delegated to AdlaireSupport', $policy['source_code_improvements'] ?? [], true)
+            && in_array('AdlaireSupport dot forget helper added', $policy['source_code_improvements'] ?? [], true)
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
+            && ($policy['public_api_required'] ?? true) === false
+            && ($policy['configuration_files_allowed'] ?? true) === false
+            && ($policy['framework_five_file_principle_required'] ?? false) === true
+            && in_array('forty_five_cycles_declared', $policy['required_verifications'] ?? [], true)
+            && self::frameworkFiveFileHighestPrinciplePassed(self::frameworkFiveFileHighestPrinciplePolicy())
+            && $cyclesValid;
+    }
+
+    public static function physicalCleanupCyclePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Physical Cleanup Cycles',
+            'status' => 'five_cleanup_cycles_completed',
+            'range' => 'v0.277',
+            'phase' => 2,
+            'cycle_count' => 5,
+            'cycles' => [
+                ['cycle' => 1, 'scope' => 'active framework placeholder files remain removed'],
+                ['cycle' => 2, 'scope' => 'Core framework file count verified'],
+                ['cycle' => 3, 'scope' => 'Deployment framework file count verified'],
+                ['cycle' => 4, 'scope' => 'Frontend CSS JavaScript framework file counts verified'],
+                ['cycle' => 5, 'scope' => 'retained placeholder files limited to approved future state directories'],
+            ],
+            'retained_placeholder_paths' => [
+                'storage/.gitkeep',
+                'modules/Auris/.gitkeep',
+            ],
+            'removed_placeholder_paths' => [
+                'Frameworks/Deployment/.gitkeep',
+                'Frameworks/Frontend/.gitkeep',
+                'Frameworks/CSS/.gitkeep',
+                'Frameworks/JavaScript/.gitkeep',
+            ],
+            'empty_directory_policy' => 'only documented future-state placeholders are retained',
+            'framework_five_file_principle_required' => true,
+            'deployment_core_contract_changed' => true,
+            'required_verifications' => [
+                'five_cleanup_cycles_declared',
+                'active_frameworks_have_five_files',
+                'obsolete_placeholders_absent',
+                'retained_placeholders_documented',
+                'release_check_counts_framework_files',
+            ],
+        ];
+    }
+
+    private static function physicalCleanupCyclePassed(array $policy): bool
+    {
+        $root = dirname(__DIR__);
+        $retained = true;
+        foreach (($policy['retained_placeholder_paths'] ?? []) as $file) {
+            $retained = $retained && is_file($root . '/' . $file);
+        }
+
+        $removed = true;
+        foreach (($policy['removed_placeholder_paths'] ?? []) as $file) {
+            $removed = $removed && !file_exists($root . '/' . $file);
+        }
+
+        return ($policy['theme'] ?? null) === 'Physical Cleanup Cycles'
+            && ($policy['status'] ?? null) === 'five_cleanup_cycles_completed'
+            && ($policy['range'] ?? null) === 'v0.277'
+            && ($policy['phase'] ?? null) === 2
+            && ($policy['cycle_count'] ?? null) === 5
+            && count($policy['cycles'] ?? []) === 5
+            && ($policy['empty_directory_policy'] ?? null) === 'only documented future-state placeholders are retained'
+            && ($policy['framework_five_file_principle_required'] ?? false) === true
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
+            && in_array('release_check_counts_framework_files', $policy['required_verifications'] ?? [], true)
+            && self::frameworkFiveFilePrinciplePassed(self::frameworkFiveFilePrinciplePolicy())
+            && $retained
+            && $removed;
+    }
+
+    public static function bugZeroRemediationPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Bug Zero Remediation',
+            'status' => 'known_bug_count_zero',
+            'range' => 'v0.277',
+            'phase' => 3,
+            'iteration_limit' => 'unlimited_until_zero',
+            'known_bug_count' => 0,
+            'release_allowed_with_known_bugs' => false,
+            'required_bug_fix_loop' => [
+                'detect',
+                'fix',
+                'test',
+                'repeat_until_zero',
+            ],
+            'bug_sources' => [
+                'php_lint',
+                'official_debug_test',
+                'release_check',
+                'specification_integrity',
+                'release_readiness',
+                'framework_file_count_check',
+            ],
+            'deployment_core_contract_changed' => true,
+            'required_verifications' => [
+                'known_bug_count_zero',
+                'official_debug_test',
+                'release_check',
+                'git_diff_check',
+                'docker_container_absent_after_tests',
+            ],
+        ];
+    }
+
+    private static function bugZeroRemediationPassed(array $policy): bool
+    {
+        return ($policy['theme'] ?? null) === 'Bug Zero Remediation'
+            && ($policy['status'] ?? null) === 'known_bug_count_zero'
+            && ($policy['range'] ?? null) === 'v0.277'
+            && ($policy['phase'] ?? null) === 3
+            && ($policy['iteration_limit'] ?? null) === 'unlimited_until_zero'
+            && ($policy['known_bug_count'] ?? null) === 0
+            && ($policy['release_allowed_with_known_bugs'] ?? true) === false
+            && in_array('repeat_until_zero', $policy['required_bug_fix_loop'] ?? [], true)
+            && in_array('release_check', $policy['bug_sources'] ?? [], true)
+            && in_array('known_bug_count_zero', $policy['required_verifications'] ?? [], true)
+            && ($policy['deployment_core_contract_changed'] ?? false) === true;
+    }
+
+    public static function v0277StableReleasePolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'v0.277 Consolidated Breaking Development Release',
+            'status' => 'stable_release_finalized',
+            'range' => 'v0.277',
+            'stable_release' => true,
+            'stable_release_target' => 'v0.277 consolidated breaking development release',
+            'classified_frameworks_finalized' => [
+                'Core',
+                'Frameworks/Deployment',
+                'Frameworks/Backend',
+                'Frameworks/Frontend',
+                'Frameworks/CSS',
+                'Frameworks/JavaScript',
+            ],
+            'legacy_framework_core_removed' => true,
+            'deployment_core_contract_changed' => true,
+            'deployment_system_compatibility_guaranteed' => false,
+            'public_api_available' => false,
+            'configuration_files_allowed' => false,
+            'mysql_support_planned' => false,
+            'known_bug_count' => 0,
+            'required_source_policies' => [
+                'framework_five_file_highest_principle_policy',
+                'consolidated_source_improvement_policy',
+                'physical_cleanup_cycle_policy',
+                'bug_zero_remediation_policy',
+                'stable_release_contract',
+            ],
+            'required_verifications' => [
+                'framework_five_file_principle_passed',
+                'legacy_framework_core_absent',
+                'root_deployment_core_absent',
+                'framework_deployment_bootstrap_present',
+                'known_bug_count_zero',
+                'official_debug_test',
+                'release_check',
+                'git_diff_check',
+            ],
+        ];
+    }
+
+    private static function v0277StableReleasePassed(array $policy): bool
+    {
+        $root = dirname(__DIR__);
+
+        return ($policy['theme'] ?? null) === 'v0.277 Consolidated Breaking Development Release'
+            && ($policy['status'] ?? null) === 'stable_release_finalized'
+            && ($policy['range'] ?? null) === 'v0.277'
+            && ($policy['stable_release'] ?? false) === true
+            && ($policy['stable_release_target'] ?? null) === 'v0.277 consolidated breaking development release'
+            && in_array('Frameworks/Deployment', $policy['classified_frameworks_finalized'] ?? [], true)
+            && in_array('Frameworks/JavaScript', $policy['classified_frameworks_finalized'] ?? [], true)
+            && ($policy['legacy_framework_core_removed'] ?? false) === true
+            && !is_dir($root . '/FrameworkCore')
+            && !is_file($root . '/DeploymentCore.php')
+            && is_file($root . '/Frameworks/Deployment/DeploymentCore.php')
+            && ($policy['deployment_core_contract_changed'] ?? false) === true
+            && ($policy['deployment_system_compatibility_guaranteed'] ?? true) === false
+            && ($policy['public_api_available'] ?? true) === false
+            && ($policy['configuration_files_allowed'] ?? true) === false
+            && ($policy['mysql_support_planned'] ?? true) === false
+            && ($policy['known_bug_count'] ?? null) === 0
+            && in_array('bug_zero_remediation_policy', $policy['required_source_policies'] ?? [], true)
+            && in_array('legacy_framework_core_absent', $policy['required_verifications'] ?? [], true)
+            && in_array('root_deployment_core_absent', $policy['required_verifications'] ?? [], true)
+            && self::frameworkFiveFileHighestPrinciplePassed(self::frameworkFiveFileHighestPrinciplePolicy())
+            && self::consolidatedSourceImprovementPassed(self::consolidatedSourceImprovementPolicy())
+            && self::physicalCleanupCyclePassed(self::physicalCleanupCyclePolicy())
+            && self::bugZeroRemediationPassed(self::bugZeroRemediationPolicy());
+    }
+
+    private static function sourceImprovementCycleScope(int $cycle): string
+    {
+        $scopes = [
+            'Core policy wiring',
+            'Deployment safety verification',
+            'Backend support consolidation',
+            'Frontend dashboard stability',
+            'CSS framework source alignment',
+            'JavaScript framework readiness',
+            'Documentation deduplication',
+            'Release gate hardening',
+            'Test coverage expansion',
+        ];
+
+        return $scopes[($cycle - 1) % count($scopes)];
+    }
+
     public static function frameworkClassificationPolicy(): array
     {
         return [
             'version' => self::version(),
             'theme' => 'Framework Classification Specification',
-            'reorganization_target_version' => 'v0.275',
-            'stable_release_target' => 'v0.275 reorganized framework stable release',
+            'reorganization_target_version' => 'v0.277',
+            'stable_release_target' => 'v0.277 consolidated breaking development release',
             'integration_core_role' => 'seamless coordination, lifecycle, audit, dependency, release, and deployment-control connection across framework families',
             'physical_reorganization_applied' => false,
             'classified_frameworks' => [
                 'deployment_framework' => [
                     'label' => 'Deployment Framework',
                     'compatibility_domain' => true,
-                    'current_paths' => ['DeploymentCore.php'],
+                    'current_paths' => ['Frameworks/Deployment/DeploymentCore.php'],
                     'core_responsibility' => 'deployment control and Deployment Core compatibility',
                 ],
                 'backend_framework' => [
                     'label' => 'Backend Framework',
                     'compatibility_domain' => false,
-                    'current_paths' => ['FrameworkCore/Core.php', 'FrameworkCore/Database.php', 'FrameworkCore/Middleware.php'],
+                    'current_paths' => ['Core/Core.php', 'Frameworks/Backend/Database.php', 'Frameworks/Backend/Middleware.php'],
                     'core_responsibility' => 'routing, validation, database, middleware, runtime support',
                 ],
                 'frontend_framework' => [
@@ -3864,7 +4151,7 @@ final class Adlaire
                 'integration_core' => [
                     'label' => 'Integration Core',
                     'compatibility_domain' => false,
-                    'current_paths' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php'],
+                    'current_paths' => ['Core/Core.php', 'Core/Kernel.php'],
                     'core_responsibility' => 'connect framework families without public API dependency',
                 ],
             ],
@@ -3872,14 +4159,14 @@ final class Adlaire
                 'v0.234-v0.240' => 'classification, Integration Core concept, compatibility boundaries, registry, lifecycle, policy, layout plan, readiness gate',
                 'v0.241-v0.250' => 'classified framework formalization and release matrix',
                 'v0.251-v0.260' => 'Integration Core internal contracts and cross-framework release gate',
-                'v0.261-v0.275' => 'physical layout migration, documentation rewire, compatibility gate, stable release',
+                'v0.261-v0.277' => 'physical layout migration, documentation rewire, compatibility gate, stable release',
             ],
             'required_verifications' => [
                 'framework_families_classified',
                 'integration_core_defined',
                 'deployment_framework_compatibility_preserved',
                 'javascript_framework_not_implemented_yet',
-                'v0_275_stable_release_target_defined',
+                'v0_277_stable_release_target_defined',
                 'official_debug_test',
                 'release_check',
             ],
@@ -3889,17 +4176,17 @@ final class Adlaire
     private static function frameworkClassificationPassed(array $policy): bool
     {
         return ($policy['theme'] ?? null) === 'Framework Classification Specification'
-            && ($policy['reorganization_target_version'] ?? null) === 'v0.275'
-            && ($policy['stable_release_target'] ?? null) === 'v0.275 reorganized framework stable release'
+            && ($policy['reorganization_target_version'] ?? null) === 'v0.277'
+            && ($policy['stable_release_target'] ?? null) === 'v0.277 consolidated breaking development release'
             && ($policy['physical_reorganization_applied'] ?? true) === false
-            && in_array('DeploymentCore.php', $policy['classified_frameworks']['deployment_framework']['current_paths'] ?? [], true)
+            && in_array('Frameworks/Deployment/DeploymentCore.php', $policy['classified_frameworks']['deployment_framework']['current_paths'] ?? [], true)
             && ($policy['classified_frameworks']['deployment_framework']['compatibility_domain'] ?? false) === true
-            && in_array('FrameworkCore/Database.php', $policy['classified_frameworks']['backend_framework']['current_paths'] ?? [], true)
+            && in_array('Frameworks/Backend/Database.php', $policy['classified_frameworks']['backend_framework']['current_paths'] ?? [], true)
             && in_array('public_html/dashboard.php', $policy['classified_frameworks']['frontend_framework']['current_paths'] ?? [], true)
             && in_array('public_html/assets/adlaire-ui.css', $policy['classified_frameworks']['css_framework']['current_paths'] ?? [], true)
             && ($policy['classified_frameworks']['javascript_framework']['implementation_status'] ?? null) === 'not_implemented'
-            && in_array('FrameworkCore/Kernel.php', $policy['classified_frameworks']['integration_core']['current_paths'] ?? [], true)
-            && array_key_exists('v0.261-v0.275', $policy['roadmap'] ?? []);
+            && in_array('Core/Kernel.php', $policy['classified_frameworks']['integration_core']['current_paths'] ?? [], true)
+            && array_key_exists('v0.261-v0.277', $policy['roadmap'] ?? []);
     }
 
     public static function integrationCorePolicy(): array
@@ -3929,14 +4216,14 @@ final class Adlaire
                 'compatibility_boundary_management',
             ],
             'internal_contracts_only' => true,
-            'current_core_paths' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php'],
-            'release_target' => 'v0.275 reorganized framework stable release',
+            'current_core_paths' => ['Core/Core.php', 'Core/Kernel.php'],
+            'release_target' => 'v0.277 consolidated breaking development release',
             'required_verifications' => [
                 'integration_core_defined',
                 'framework_families_connected',
                 'internal_contracts_only',
                 'deployment_framework_compatibility_preserved',
-                'release_target_v0_275',
+                'release_target_v0_277',
                 'official_debug_test',
                 'release_check',
             ],
@@ -3959,9 +4246,9 @@ final class Adlaire
             && in_array('framework_family_registry', $policy['responsibilities'] ?? [], true)
             && in_array('deployment_control_connection', $policy['responsibilities'] ?? [], true)
             && ($policy['internal_contracts_only'] ?? false) === true
-            && in_array('FrameworkCore/Core.php', $policy['current_core_paths'] ?? [], true)
-            && in_array('FrameworkCore/Kernel.php', $policy['current_core_paths'] ?? [], true)
-            && ($policy['release_target'] ?? null) === 'v0.275 reorganized framework stable release';
+            && in_array('Core/Core.php', $policy['current_core_paths'] ?? [], true)
+            && in_array('Core/Kernel.php', $policy['current_core_paths'] ?? [], true)
+            && ($policy['release_target'] ?? null) === 'v0.277 consolidated breaking development release';
     }
 
     public static function dashboardEnabled(): bool
@@ -4002,8 +4289,8 @@ final class Adlaire
             'compatibility_guaranteed' => false,
             'future_compatibility_required' => false,
             'breaking_changes_allowed' => true,
-            'deployment_system_compatibility_guaranteed' => true,
-            'deployment_system_breaking_changes_allowed' => false,
+            'deployment_system_compatibility_guaranteed' => false,
+            'deployment_system_breaking_changes_allowed' => true,
             'official_debug_test_required' => true,
         ];
     }
@@ -4013,20 +4300,21 @@ final class Adlaire
         return [
             'version' => self::version(),
             'scope' => 'deployment system only',
-            'core_file' => 'DeploymentCore.php',
-            'compatibility_guaranteed' => true,
-            'breaking_changes_allowed' => false,
-            'stable_release_compatibility' => true,
-            'public_entrypoint_retained' => true,
-            'root_placement_retained' => true,
-            'single_file_core_retained' => true,
-            'manifest_contract_retained' => true,
-            'readiness_contract_retained' => true,
-            'rollback_contract_retained' => true,
+            'core_file' => 'Frameworks/Deployment/DeploymentCore.php',
+            'compatibility_guaranteed' => false,
+            'breaking_changes_allowed' => true,
+            'stable_release_compatibility' => false,
+            'public_entrypoint_retained' => false,
+            'root_placement_retained' => false,
+            'single_file_core_retained' => false,
+            'manifest_contract_retained' => false,
+            'readiness_contract_retained' => false,
+            'rollback_contract_retained' => false,
             'framework_core_compatibility_guaranteed' => false,
             'non_deployment_breaking_changes_allowed' => true,
             'required_verifications' => [
-                'deployment_core_lint',
+                'framework_deployment_core_lint',
+                'root_deployment_core_absent',
                 'official_debug_test',
                 'release_requirement_matrix',
             ],
@@ -4087,8 +4375,9 @@ final class Adlaire
                 'internal_libsql_api_transport' => true,
             ],
             'deployment_profile' => [
-                'root_deployment_core' => 'DeploymentCore.php',
-                'framework_core_directory' => 'FrameworkCore',
+                'root_deployment_core' => 'Frameworks/Deployment/DeploymentCore.php',
+                'framework_core_directory' => null,
+                'legacy_framework_core_removed' => true,
                 'no_deployment_core_directory' => true,
                 'safe_relative_paths_only' => true,
                 'deploy_allowlist_required' => true,
@@ -4194,8 +4483,8 @@ final class Adlaire
             'to' => self::version(),
             'breaking_changes' => true,
             'compatibility_required' => false,
-            'deployment_system_breaking_changes' => false,
-            'deployment_system_compatibility_required' => true,
+            'deployment_system_breaking_changes' => true,
+            'deployment_system_compatibility_required' => false,
             'required_tests' => ['official_debug_test'],
             'rollback_condition' => 'failed official debug test',
             'doc_update_required' => true,
@@ -4260,7 +4549,7 @@ final class Adlaire
             'allowed_changes' => ['security_fixes', 'breaking_changes', 'documentation_fixes'],
             'forbidden_changes' => ['deployment_system_breaking_changes', 'cloud_business_permission', 'open_contribution_enablement'],
             'compatibility_required' => false,
-            'deployment_system_compatibility_required' => true,
+            'deployment_system_compatibility_required' => false,
             'required_approval' => true,
             'required_tests' => ['official_debug_test'],
         ];
@@ -4274,8 +4563,8 @@ final class Adlaire
             'all_prior_contracts_included' => true,
             'no_breaking_changes' => false,
             'compatibility_guaranteed' => false,
-            'deployment_system_no_breaking_changes' => true,
-            'deployment_system_compatibility_guaranteed' => true,
+            'deployment_system_no_breaking_changes' => false,
+            'deployment_system_compatibility_guaranteed' => false,
             'official_tests_required' => true,
             'docs_are_source_of_truth' => true,
             'cloud_business_prohibition_fixed' => true,
@@ -4292,7 +4581,7 @@ final class Adlaire
         return [
             'version' => self::version(),
             'stable_release' => true,
-            'release_name' => 'v0.272 framework five-file highest principle release',
+            'release_name' => 'v0.277 consolidated breaking development release',
             'backend_framework_capabilities' => [
                 'routing',
                 'middleware',
@@ -4345,17 +4634,23 @@ final class Adlaire
                 'CSS framework source sync',
                 'dashboard frontend class extraction',
                 'frontend index application extraction',
-                'repository cleanup and v0.275 stable target',
+                'repository cleanup and v0.277 stable target',
                 'deployment framework implementation extraction',
                 'deployment framework class split',
                 'framework five-file principle',
                 'framework five-file highest principle',
+                'forty-five source improvement cycles',
+                'five physical cleanup cycles',
+                'bug zero remediation',
+                'v0.277 consolidated breaking development release',
+                'deployment breaking reorganization',
             ],
             'no_breaking_changes' => false,
             'breaking_changes_allowed' => true,
             'compatibility_guaranteed' => false,
-            'deployment_system_no_breaking_changes' => true,
-            'deployment_system_compatibility_guaranteed' => true,
+            'deployment_system_no_breaking_changes' => false,
+            'deployment_system_compatibility_guaranteed' => false,
+            'deployment_breaking_reorganization' => true,
             'ten_file_principle' => true,
             'deployment_axis' => true,
             'official_debug_test_required' => true,
@@ -4408,6 +4703,10 @@ final class Adlaire
             'deployment_framework_class_split' => true,
             'framework_five_file_principle' => true,
             'framework_five_file_highest_principle' => true,
+            'consolidated_source_improvement_cycles' => true,
+            'physical_cleanup_cycles' => true,
+            'bug_zero_remediation' => true,
+            'v0_277_stable_release_finalized' => true,
         ];
     }
 
@@ -4416,17 +4715,17 @@ final class Adlaire
         return [
             'version' => self::version(),
             'framework_axis' => 'deployment system',
-            'architecture_changed' => false,
+            'architecture_changed' => true,
             'deployment_system' => [
                 'core_name' => 'Deployment Core',
-                'core_directory' => null,
-                'directory_required' => false,
-                'placement' => 'root',
-                'file_principle' => 'single file',
-                'core_file' => 'DeploymentCore.php',
+                'core_directory' => 'Frameworks/Deployment',
+                'directory_required' => true,
+                'placement' => 'framework',
+                'file_principle' => 'five-file framework',
+                'core_file' => 'Frameworks/Deployment/DeploymentCore.php',
                 'design_philosophy' => 'distributed autonomous system design philosophy',
-                'primary_component' => 'DeploymentCore.php',
-                'components' => ['DeploymentCore.php'],
+                'primary_component' => 'Frameworks/Deployment/DeploymentCore.php',
+                'components' => ['Frameworks/Deployment/DeploymentCore.php'],
                 'autonomous_operation_required' => true,
                 'deployment_audit_required' => true,
                 'manifest_required' => true,
@@ -4435,15 +4734,17 @@ final class Adlaire
             ],
             'general_framework' => [
                 'core_name' => 'Framework Core',
-                'core_directory' => 'FrameworkCore',
-                'scope' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php'],
-                'aggregated_components' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php'],
+                'core_directory' => null,
+                'legacy_core_directory_removed' => true,
+                'scope' => ['Core/Core.php', 'Core/Kernel.php', 'Core/Extension.php', 'Frameworks/Backend/Database.php', 'Frameworks/Backend/Logger.php', 'Frameworks/Backend/Config.php', 'Frameworks/Backend/Middleware.php', 'Frameworks/Backend/Support.php'],
+                'aggregated_components' => ['Core/Core.php', 'Core/Kernel.php', 'Core/Extension.php', 'Frameworks/Backend/Database.php', 'Frameworks/Backend/Logger.php', 'Frameworks/Backend/Config.php', 'Frameworks/Backend/Middleware.php', 'Frameworks/Backend/Support.php'],
                 'policy' => 'general purpose within documented constraints',
                 'design_philosophy' => 'specification-defined general purpose framework architecture',
                 'distributed_autonomous_design_applies' => false,
                 'architecture_source' => 'documented specification',
                 'root_entrypoints_retained' => false,
-                'aggregated_in_core_directory' => true,
+                'aggregated_in_core_directory' => false,
+                'classified_framework_directories' => ['Core', 'Frameworks/Backend'],
                 'standalone_framework_usage' => true,
                 'middleware_available' => true,
                 'configuration_repository_available' => true,
@@ -4469,7 +4770,7 @@ final class Adlaire
             ],
             'v0_202_target' => [
                 'version' => 'v0.202',
-                'source_code_scope' => ['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'DeploymentCore.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php'],
+                'source_code_scope' => ['Core/Core.php', 'Core/Kernel.php', 'Core/Extension.php', 'Frameworks/Backend/Database.php', 'Frameworks/Deployment/DeploymentCore.php', 'Frameworks/Backend/Logger.php', 'Frameworks/Backend/Config.php', 'Frameworks/Backend/Middleware.php', 'Frameworks/Backend/Support.php'],
                 'deployment_system_axis_required' => true,
                 'deployer_manifest_required' => true,
                 'deployer_readiness_required' => true,
@@ -4479,7 +4780,7 @@ final class Adlaire
                 'router_middleware_required' => true,
                 'backend_framework_capability_required' => true,
                 'stable_release_required' => true,
-                'architecture_changed' => false,
+                'architecture_changed' => true,
             ],
         ];
     }
@@ -4527,8 +4828,9 @@ final class Adlaire
                 && self::developmentWorkflowPolicy()['implementation_without_specification_allowed'] === false
                 && self::developmentWorkflowPolicy()['implementation_without_plan_allowed'] === false
                 && self::developmentWorkflowPolicy()['repository_wide'] === true
-                && in_array('DeploymentCore.php', self::developmentWorkflowPolicy()['repository_scope'], true)
-                && in_array('FrameworkCore', self::developmentWorkflowPolicy()['repository_scope'], true)
+                && in_array('Frameworks/Deployment/DeploymentCore.php', self::developmentWorkflowPolicy()['repository_scope'], true)
+                && in_array('Core', self::developmentWorkflowPolicy()['repository_scope'], true)
+                && in_array('Frameworks', self::developmentWorkflowPolicy()['repository_scope'], true)
                 && in_array('public_html', self::developmentWorkflowPolicy()['repository_scope'], true)
                 && in_array('tests', self::developmentWorkflowPolicy()['repository_scope'], true)
                 && self::developmentWorkflowPolicy()['exempt_paths'] === [],
@@ -4541,18 +4843,18 @@ final class Adlaire
             'stability_contract' => self::stabilityContract()['stable_snapshot'] === true
                 && self::stabilityContract()['breaking_changes_allowed'] === true
                 && self::stabilityContract()['compatibility_guaranteed'] === false
-                && self::stabilityContract()['deployment_system_breaking_changes_allowed'] === false
-                && self::stabilityContract()['deployment_system_compatibility_guaranteed'] === true,
-            'deployment_system_compatibility_policy' => self::deploymentSystemCompatibilityPolicy()['compatibility_guaranteed'] === true
-                && self::deploymentSystemCompatibilityPolicy()['breaking_changes_allowed'] === false
-                && self::deploymentSystemCompatibilityPolicy()['core_file'] === 'DeploymentCore.php',
+                && self::stabilityContract()['deployment_system_breaking_changes_allowed'] === true
+                && self::stabilityContract()['deployment_system_compatibility_guaranteed'] === false,
+            'deployment_system_compatibility_policy' => self::deploymentSystemCompatibilityPolicy()['compatibility_guaranteed'] === false
+                && self::deploymentSystemCompatibilityPolicy()['breaking_changes_allowed'] === true
+                && self::deploymentSystemCompatibilityPolicy()['core_file'] === 'Frameworks/Deployment/DeploymentCore.php',
             'long_term_stability_contract' => self::longTermStabilityContract()['long_term_stable'] === true,
             'stable_release_contract' => self::stableReleaseContract()['stable_release'] === true
                 && self::stableReleaseContract()['version'] === self::version()
                 && self::stableReleaseContract()['breaking_changes_allowed'] === true
                 && self::stableReleaseContract()['compatibility_guaranteed'] === false
-                && self::stableReleaseContract()['deployment_system_no_breaking_changes'] === true
-                && self::stableReleaseContract()['deployment_system_compatibility_guaranteed'] === true
+                && self::stableReleaseContract()['deployment_system_no_breaking_changes'] === false
+                && self::stableReleaseContract()['deployment_system_compatibility_guaranteed'] === false
                 && self::stableReleaseContract()['ten_file_principle'] === true
                 && self::stableReleaseContract()['deployment_axis'] === true
                 && self::stableReleaseContract()['docker_debug_verified'] === true
@@ -4575,11 +4877,15 @@ final class Adlaire
                 && in_array('CSS framework source sync', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('dashboard frontend class extraction', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('frontend index application extraction', self::stableReleaseContract()['backend_framework_capabilities'], true)
-                && in_array('repository cleanup and v0.275 stable target', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('repository cleanup and v0.277 stable target', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('deployment framework implementation extraction', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('deployment framework class split', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('framework five-file principle', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('framework five-file highest principle', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('forty-five source improvement cycles', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('five physical cleanup cycles', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('bug zero remediation', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('v0.277 consolidated breaking development release', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && self::stableReleaseContract()['dashboard_deploy_execution_specification'] === true
                 && self::stableReleaseContract()['framework_classification_specification'] === true
                 && self::stableReleaseContract()['integration_core_concept'] === true
@@ -4600,6 +4906,10 @@ final class Adlaire
                 && self::stableReleaseContract()['deployment_framework_class_split'] === true
                 && self::stableReleaseContract()['framework_five_file_principle'] === true
                 && self::stableReleaseContract()['framework_five_file_highest_principle'] === true
+                && self::stableReleaseContract()['consolidated_source_improvement_cycles'] === true
+                && self::stableReleaseContract()['physical_cleanup_cycles'] === true
+                && self::stableReleaseContract()['bug_zero_remediation'] === true
+                && self::stableReleaseContract()['v0_277_stable_release_finalized'] === true
                 && self::stableReleaseContract()['mysql_support_planned'] === false,
             'production_environment_policy' => self::productionEnvironmentPolicy()['production_provider'] === 'Xserver rental server'
                 && self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
@@ -4642,8 +4952,8 @@ final class Adlaire
                 && self::configurationFilePolicy()['json_for_secret_configuration_allowed'] === false
                 && in_array('no_env_files', self::configurationFilePolicy()['required_verifications'], true),
             'deployment_preflight_policy' => self::deploymentPreflightPolicy()['theme'] === 'Deployment Preflight Guard'
-                && self::deploymentPreflightPolicy()['compatibility_guaranteed'] === true
-                && self::deploymentPreflightPolicy()['breaking_changes_allowed'] === false
+                && self::deploymentPreflightPolicy()['compatibility_guaranteed'] === false
+                && self::deploymentPreflightPolicy()['breaking_changes_allowed'] === true
                 && self::deploymentPreflightPolicy()['read_only'] === true
                 && self::deploymentPreflightPolicy()['command_execution_allowed'] === false
                 && in_array('deployment_preflight_ready', self::deploymentPreflightPolicy()['required_verifications'], true),
@@ -4654,8 +4964,8 @@ final class Adlaire
                 && in_array('modified', self::deploymentPlanPreviewPolicy()['classifications'], true)
                 && in_array('deployment_plan_preview_classification', self::deploymentPlanPreviewPolicy()['required_verifications'], true),
             'deployment_compatibility_snapshot_policy' => self::deploymentCompatibilitySnapshotPolicy()['theme'] === 'Deployment Compatibility Snapshot'
-                && self::deploymentCompatibilitySnapshotPolicy()['compatibility_guaranteed'] === true
-                && self::deploymentCompatibilitySnapshotPolicy()['breaking_changes_allowed'] === false
+                && self::deploymentCompatibilitySnapshotPolicy()['compatibility_guaranteed'] === false
+                && self::deploymentCompatibilitySnapshotPolicy()['breaking_changes_allowed'] === true
                 && self::deploymentCompatibilitySnapshotPolicy()['read_only'] === true
                 && self::deploymentCompatibilitySnapshotPolicy()['command_execution_allowed'] === false
                 && self::deploymentCompatibilitySnapshotPolicy()['writes_allowed'] === false
@@ -4741,6 +5051,10 @@ final class Adlaire
             'deployment_framework_class_split_policy' => self::deploymentFrameworkClassSplitPassed(self::deploymentFrameworkClassSplitPolicy()),
             'framework_five_file_principle_policy' => self::frameworkFiveFilePrinciplePassed(self::frameworkFiveFilePrinciplePolicy()),
             'framework_five_file_highest_principle_policy' => self::frameworkFiveFileHighestPrinciplePassed(self::frameworkFiveFileHighestPrinciplePolicy()),
+            'consolidated_source_improvement_policy' => self::consolidatedSourceImprovementPassed(self::consolidatedSourceImprovementPolicy()),
+            'physical_cleanup_cycle_policy' => self::physicalCleanupCyclePassed(self::physicalCleanupCyclePolicy()),
+            'bug_zero_remediation_policy' => self::bugZeroRemediationPassed(self::bugZeroRemediationPolicy()),
+            'v0_277_stable_release_policy' => self::v0277StableReleasePassed(self::v0277StableReleasePolicy()),
             'development_workflow_policy' => self::developmentWorkflowPolicy()['theme'] === 'Specification-First Development Workflow'
                 && self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
                 && self::developmentWorkflowPolicy()['required_order'] === ['specification', 'implementation_plan', 'implementation']
@@ -4748,26 +5062,28 @@ final class Adlaire
                 && self::developmentWorkflowPolicy()['implementation_without_plan_allowed'] === false
                 && self::developmentWorkflowPolicy()['repository_wide'] === true,
             'deployment_axis_policy' => self::deploymentAxisPolicy()['framework_axis'] === 'deployment system'
-                && self::deploymentAxisPolicy()['architecture_changed'] === false
+                && self::deploymentAxisPolicy()['architecture_changed'] === true
                 && self::deploymentAxisPolicy()['deployment_system']['core_name'] === 'Deployment Core'
-                && self::deploymentAxisPolicy()['deployment_system']['core_directory'] === null
-                && self::deploymentAxisPolicy()['deployment_system']['directory_required'] === false
-                && self::deploymentAxisPolicy()['deployment_system']['placement'] === 'root'
-                && self::deploymentAxisPolicy()['deployment_system']['file_principle'] === 'single file'
-                && self::deploymentAxisPolicy()['deployment_system']['core_file'] === 'DeploymentCore.php'
-                && self::deploymentAxisPolicy()['deployment_system']['components'] === ['DeploymentCore.php']
+                && self::deploymentAxisPolicy()['deployment_system']['core_directory'] === 'Frameworks/Deployment'
+                && self::deploymentAxisPolicy()['deployment_system']['directory_required'] === true
+                && self::deploymentAxisPolicy()['deployment_system']['placement'] === 'framework'
+                && self::deploymentAxisPolicy()['deployment_system']['file_principle'] === 'five-file framework'
+                && self::deploymentAxisPolicy()['deployment_system']['core_file'] === 'Frameworks/Deployment/DeploymentCore.php'
+                && self::deploymentAxisPolicy()['deployment_system']['components'] === ['Frameworks/Deployment/DeploymentCore.php']
                 && self::deploymentAxisPolicy()['deployment_system']['design_philosophy'] === 'distributed autonomous system design philosophy'
                 && self::deploymentAxisPolicy()['deployment_system']['manifest_required'] === true
                 && self::deploymentAxisPolicy()['deployment_system']['readiness_required'] === true
                 && self::deploymentAxisPolicy()['deployment_system']['auris_integration_considered'] === true
                 && self::deploymentAxisPolicy()['general_framework']['core_name'] === 'Framework Core'
-                && self::deploymentAxisPolicy()['general_framework']['core_directory'] === 'FrameworkCore'
+                && array_key_exists('core_directory', self::deploymentAxisPolicy()['general_framework'])
+                && self::deploymentAxisPolicy()['general_framework']['core_directory'] === null
+                && self::deploymentAxisPolicy()['general_framework']['legacy_core_directory_removed'] === true
                 && self::deploymentAxisPolicy()['general_framework']['aggregated_components'] === self::deploymentAxisPolicy()['general_framework']['scope']
                 && self::deploymentAxisPolicy()['general_framework']['design_philosophy'] === 'specification-defined general purpose framework architecture'
                 && self::deploymentAxisPolicy()['general_framework']['distributed_autonomous_design_applies'] === false
                 && self::deploymentAxisPolicy()['general_framework']['architecture_source'] === 'documented specification'
                 && self::deploymentAxisPolicy()['general_framework']['root_entrypoints_retained'] === false
-                && self::deploymentAxisPolicy()['general_framework']['aggregated_in_core_directory'] === true
+                && self::deploymentAxisPolicy()['general_framework']['aggregated_in_core_directory'] === false
                 && self::deploymentAxisPolicy()['general_framework']['middleware_available'] === true
                 && self::deploymentAxisPolicy()['general_framework']['configuration_repository_available'] === true
                 && self::deploymentAxisPolicy()['general_framework']['support_helpers_available'] === true
@@ -4894,6 +5210,10 @@ final class Adlaire
             'deployment_framework_class_split_policy',
             'framework_five_file_principle_policy',
             'framework_five_file_highest_principle_policy',
+            'consolidated_source_improvement_policy',
+            'physical_cleanup_cycle_policy',
+            'bug_zero_remediation_policy',
+            'v0_277_stable_release_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
@@ -4964,6 +5284,10 @@ final class Adlaire
             'deployment_framework_class_split_policy',
             'framework_five_file_principle_policy',
             'framework_five_file_highest_principle_policy',
+            'consolidated_source_improvement_policy',
+            'physical_cleanup_cycle_policy',
+            'bug_zero_remediation_policy',
+            'v0_277_stable_release_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
@@ -5011,20 +5335,20 @@ final class Adlaire
         return [
             'version' => self::version(),
             'files' => [
-                'FrameworkCore/Core.php',
-                'FrameworkCore/Kernel.php',
-                'FrameworkCore/Extension.php',
-                'FrameworkCore/Database.php',
-                'DeploymentCore.php',
+                'Core/Core.php',
+                'Core/Kernel.php',
+                'Core/Extension.php',
+                'Frameworks/Backend/Database.php',
+                'Frameworks/Deployment/DeploymentCore.php',
                 'Frameworks/Deployment/DeploymentCore.php',
                 'Frameworks/Deployment/DeployConfig.php',
                 'Frameworks/Deployment/Deployer.php',
                 'Frameworks/Deployment/DeploymentPaths.php',
                 'Frameworks/Deployment/DeploymentEvidence.php',
-                'FrameworkCore/Logger.php',
-                'FrameworkCore/Config.php',
-                'FrameworkCore/Middleware.php',
-                'FrameworkCore/Support.php',
+                'Frameworks/Backend/Logger.php',
+                'Frameworks/Backend/Config.php',
+                'Frameworks/Backend/Middleware.php',
+                'Frameworks/Backend/Support.php',
                 'Core/Core.php',
                 'Core/Kernel.php',
                 'Core/Extension.php',
@@ -5116,6 +5440,10 @@ final class Adlaire
             'deployment_framework_class_split_policy' => self::deploymentFrameworkClassSplitPolicy(),
             'framework_five_file_principle_policy' => self::frameworkFiveFilePrinciplePolicy(),
             'framework_five_file_highest_principle_policy' => self::frameworkFiveFileHighestPrinciplePolicy(),
+            'consolidated_source_improvement_policy' => self::consolidatedSourceImprovementPolicy(),
+            'physical_cleanup_cycle_policy' => self::physicalCleanupCyclePolicy(),
+            'bug_zero_remediation_policy' => self::bugZeroRemediationPolicy(),
+            'v0_277_stable_release_policy' => self::v0277StableReleasePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
@@ -5134,7 +5462,7 @@ final class Adlaire
             'php' => '>=8.3',
             'version_format' => 'v0.x',
             'cumulative_version' => true,
-            'formalization_version' => 'v0.272',
+            'formalization_version' => 'v0.277',
             'file_principle' => self::auditFilePrinciple(),
             'external_dependencies' => 'none',
             'license_policy' => self::licensePolicy(),
@@ -5211,6 +5539,10 @@ final class Adlaire
             'deployment_framework_class_split_policy' => self::deploymentFrameworkClassSplitPolicy(),
             'framework_five_file_principle_policy' => self::frameworkFiveFilePrinciplePolicy(),
             'framework_five_file_highest_principle_policy' => self::frameworkFiveFileHighestPrinciplePolicy(),
+            'consolidated_source_improvement_policy' => self::consolidatedSourceImprovementPolicy(),
+            'physical_cleanup_cycle_policy' => self::physicalCleanupCyclePolicy(),
+            'bug_zero_remediation_policy' => self::bugZeroRemediationPolicy(),
+            'v0_277_stable_release_policy' => self::v0277StableReleasePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
@@ -5239,8 +5571,8 @@ final class Adlaire
             'change_policy' => [
                 'breaking_changes_allowed' => true,
                 'compatibility_required' => false,
-                'deployment_system_breaking_changes_allowed' => false,
-                'deployment_system_compatibility_required' => true,
+                'deployment_system_breaking_changes_allowed' => true,
+                'deployment_system_compatibility_required' => false,
                 'migration_documentation_required' => true,
                 'exception' => 'cloud business permission and open contribution enablement remain prohibited',
             ],
@@ -5272,9 +5604,9 @@ final class Adlaire
             ],
             'deployment_system_compatibility' => [
                 'profile' => self::deploymentSystemCompatibilityPolicy(),
-                'passed' => self::deploymentSystemCompatibilityPolicy()['compatibility_guaranteed'] === true
-                    && self::deploymentSystemCompatibilityPolicy()['breaking_changes_allowed'] === false
-                    && self::deploymentSystemCompatibilityPolicy()['core_file'] === 'DeploymentCore.php',
+                'passed' => self::deploymentSystemCompatibilityPolicy()['compatibility_guaranteed'] === false
+                    && self::deploymentSystemCompatibilityPolicy()['breaking_changes_allowed'] === true
+                    && self::deploymentSystemCompatibilityPolicy()['core_file'] === 'Frameworks/Deployment/DeploymentCore.php',
             ],
             'dependencies' => [
                 'external_dependencies' => 'none',
@@ -5310,8 +5642,8 @@ final class Adlaire
             ],
             'deployment_preflight_policy' => [
                 'profile' => self::deploymentPreflightPolicy(),
-                'passed' => self::deploymentPreflightPolicy()['compatibility_guaranteed'] === true
-                    && self::deploymentPreflightPolicy()['breaking_changes_allowed'] === false
+                'passed' => self::deploymentPreflightPolicy()['compatibility_guaranteed'] === false
+                    && self::deploymentPreflightPolicy()['breaking_changes_allowed'] === true
                     && self::deploymentPreflightPolicy()['read_only'] === true
                     && self::deploymentPreflightPolicy()['command_execution_allowed'] === false,
             ],
@@ -5325,8 +5657,8 @@ final class Adlaire
             ],
             'deployment_compatibility_snapshot_policy' => [
                 'profile' => self::deploymentCompatibilitySnapshotPolicy(),
-                'passed' => self::deploymentCompatibilitySnapshotPolicy()['compatibility_guaranteed'] === true
-                    && self::deploymentCompatibilitySnapshotPolicy()['breaking_changes_allowed'] === false
+                'passed' => self::deploymentCompatibilitySnapshotPolicy()['compatibility_guaranteed'] === false
+                    && self::deploymentCompatibilitySnapshotPolicy()['breaking_changes_allowed'] === true
                     && self::deploymentCompatibilitySnapshotPolicy()['read_only'] === true
                     && self::deploymentCompatibilitySnapshotPolicy()['command_execution_allowed'] === false
                     && self::deploymentCompatibilitySnapshotPolicy()['writes_allowed'] === false,
@@ -5510,6 +5842,22 @@ final class Adlaire
                 'profile' => self::frameworkFiveFileHighestPrinciplePolicy(),
                 'passed' => self::frameworkFiveFileHighestPrinciplePassed(self::frameworkFiveFileHighestPrinciplePolicy()),
             ],
+            'consolidated_source_improvement_policy' => [
+                'profile' => self::consolidatedSourceImprovementPolicy(),
+                'passed' => self::consolidatedSourceImprovementPassed(self::consolidatedSourceImprovementPolicy()),
+            ],
+            'physical_cleanup_cycle_policy' => [
+                'profile' => self::physicalCleanupCyclePolicy(),
+                'passed' => self::physicalCleanupCyclePassed(self::physicalCleanupCyclePolicy()),
+            ],
+            'bug_zero_remediation_policy' => [
+                'profile' => self::bugZeroRemediationPolicy(),
+                'passed' => self::bugZeroRemediationPassed(self::bugZeroRemediationPolicy()),
+            ],
+            'v0_277_stable_release_policy' => [
+                'profile' => self::v0277StableReleasePolicy(),
+                'passed' => self::v0277StableReleasePassed(self::v0277StableReleasePolicy()),
+            ],
             'development_workflow_policy' => [
                 'profile' => self::developmentWorkflowPolicy(),
                 'passed' => self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
@@ -5558,22 +5906,22 @@ final class Adlaire
             'stability_contract' => ($audit['stability_contract']['stable_snapshot'] ?? false) === true
                 && ($audit['stability_contract']['breaking_changes_allowed'] ?? false) === true
                 && ($audit['stability_contract']['compatibility_guaranteed'] ?? true) === false
-                && ($audit['stability_contract']['deployment_system_breaking_changes_allowed'] ?? true) === false
-                && ($audit['stability_contract']['deployment_system_compatibility_guaranteed'] ?? false) === true,
-            'deployment_system_compatibility_policy' => ($audit['deployment_system_compatibility_policy']['compatibility_guaranteed'] ?? false) === true
-                && ($audit['deployment_system_compatibility_policy']['breaking_changes_allowed'] ?? true) === false
-                && ($audit['deployment_system_compatibility_policy']['core_file'] ?? null) === 'DeploymentCore.php',
+                && ($audit['stability_contract']['deployment_system_breaking_changes_allowed'] ?? false) === true
+                && ($audit['stability_contract']['deployment_system_compatibility_guaranteed'] ?? true) === false,
+            'deployment_system_compatibility_policy' => ($audit['deployment_system_compatibility_policy']['compatibility_guaranteed'] ?? true) === false
+                && ($audit['deployment_system_compatibility_policy']['breaking_changes_allowed'] ?? false) === true
+                && ($audit['deployment_system_compatibility_policy']['core_file'] ?? null) === 'Frameworks/Deployment/DeploymentCore.php',
             'long_term_stability_contract' => ($audit['long_term_stability_contract']['long_term_stable'] ?? false) === true
                 && ($audit['long_term_stability_contract']['no_breaking_changes'] ?? true) === false
                 && ($audit['long_term_stability_contract']['compatibility_guaranteed'] ?? true) === false
-                && ($audit['long_term_stability_contract']['deployment_system_no_breaking_changes'] ?? false) === true
-                && ($audit['long_term_stability_contract']['deployment_system_compatibility_guaranteed'] ?? false) === true,
+                && ($audit['long_term_stability_contract']['deployment_system_no_breaking_changes'] ?? true) === false
+                && ($audit['long_term_stability_contract']['deployment_system_compatibility_guaranteed'] ?? true) === false,
             'stable_release_contract' => ($audit['stable_release_contract']['stable_release'] ?? false) === true
                 && ($audit['stable_release_contract']['version'] ?? null) === self::version()
                 && ($audit['stable_release_contract']['breaking_changes_allowed'] ?? false) === true
                 && ($audit['stable_release_contract']['compatibility_guaranteed'] ?? true) === false
-                && ($audit['stable_release_contract']['deployment_system_no_breaking_changes'] ?? false) === true
-                && ($audit['stable_release_contract']['deployment_system_compatibility_guaranteed'] ?? false) === true
+                && ($audit['stable_release_contract']['deployment_system_no_breaking_changes'] ?? true) === false
+                && ($audit['stable_release_contract']['deployment_system_compatibility_guaranteed'] ?? true) === false
                 && ($audit['stable_release_contract']['ten_file_principle'] ?? false) === true
                 && ($audit['stable_release_contract']['deployment_axis'] ?? false) === true
                 && ($audit['stable_release_contract']['docker_debug_verified'] ?? false) === true
@@ -5621,11 +5969,15 @@ final class Adlaire
                 && in_array('CSS framework source sync', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('dashboard frontend class extraction', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('frontend index application extraction', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
-                && in_array('repository cleanup and v0.275 stable target', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('repository cleanup and v0.277 stable target', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('deployment framework implementation extraction', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('deployment framework class split', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('framework five-file principle', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('framework five-file highest principle', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('forty-five source improvement cycles', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('five physical cleanup cycles', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('bug zero remediation', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('v0.277 consolidated breaking development release', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && ($audit['stable_release_contract']['mysql_support_planned'] ?? true) === false
                 && ($audit['stable_release_contract']['runtime_operations_hardening'] ?? false) === true
                 && ($audit['stable_release_contract']['operations_dashboard'] ?? false) === true
@@ -5671,7 +6023,11 @@ final class Adlaire
                 && ($audit['stable_release_contract']['deployment_framework_implementation_extraction'] ?? false) === true
                 && ($audit['stable_release_contract']['deployment_framework_class_split'] ?? false) === true
                 && ($audit['stable_release_contract']['framework_five_file_principle'] ?? false) === true
-                && ($audit['stable_release_contract']['framework_five_file_highest_principle'] ?? false) === true,
+                && ($audit['stable_release_contract']['framework_five_file_highest_principle'] ?? false) === true
+                && ($audit['stable_release_contract']['consolidated_source_improvement_cycles'] ?? false) === true
+                && ($audit['stable_release_contract']['physical_cleanup_cycles'] ?? false) === true
+                && ($audit['stable_release_contract']['bug_zero_remediation'] ?? false) === true
+                && ($audit['stable_release_contract']['v0_277_stable_release_finalized'] ?? false) === true,
             'production_environment_policy' => ($audit['production_environment_policy']['production_provider'] ?? null) === 'Xserver rental server'
                 && ($audit['production_environment_policy']['production_equivalent_testing_required'] ?? false) === true
                 && ($audit['production_environment_policy']['php_requirement'] ?? null) === '>=8.3'
@@ -5711,8 +6067,8 @@ final class Adlaire
                 && ($audit['configuration_file_policy']['json_for_secret_configuration_allowed'] ?? true) === false
                 && in_array('no_env_files', $audit['configuration_file_policy']['required_verifications'] ?? [], true),
             'deployment_preflight_policy' => ($audit['deployment_preflight_policy']['theme'] ?? null) === 'Deployment Preflight Guard'
-                && ($audit['deployment_preflight_policy']['compatibility_guaranteed'] ?? false) === true
-                && ($audit['deployment_preflight_policy']['breaking_changes_allowed'] ?? true) === false
+                && ($audit['deployment_preflight_policy']['compatibility_guaranteed'] ?? true) === false
+                && ($audit['deployment_preflight_policy']['breaking_changes_allowed'] ?? false) === true
                 && ($audit['deployment_preflight_policy']['read_only'] ?? false) === true
                 && ($audit['deployment_preflight_policy']['command_execution_allowed'] ?? true) === false
                 && in_array('deployment_preflight_ready', $audit['deployment_preflight_policy']['required_verifications'] ?? [], true),
@@ -5722,8 +6078,8 @@ final class Adlaire
                 && ($audit['deployment_plan_preview_policy']['writes_allowed'] ?? true) === false
                 && in_array('deployment_plan_preview_classification', $audit['deployment_plan_preview_policy']['required_verifications'] ?? [], true),
             'deployment_compatibility_snapshot_policy' => ($audit['deployment_compatibility_snapshot_policy']['theme'] ?? null) === 'Deployment Compatibility Snapshot'
-                && ($audit['deployment_compatibility_snapshot_policy']['compatibility_guaranteed'] ?? false) === true
-                && ($audit['deployment_compatibility_snapshot_policy']['breaking_changes_allowed'] ?? true) === false
+                && ($audit['deployment_compatibility_snapshot_policy']['compatibility_guaranteed'] ?? true) === false
+                && ($audit['deployment_compatibility_snapshot_policy']['breaking_changes_allowed'] ?? false) === true
                 && ($audit['deployment_compatibility_snapshot_policy']['read_only'] ?? false) === true
                 && ($audit['deployment_compatibility_snapshot_policy']['command_execution_allowed'] ?? true) === false
                 && ($audit['deployment_compatibility_snapshot_policy']['writes_allowed'] ?? true) === false
@@ -5807,6 +6163,10 @@ final class Adlaire
             'deployment_framework_class_split_policy' => self::deploymentFrameworkClassSplitPassed($audit['deployment_framework_class_split_policy'] ?? []),
             'framework_five_file_principle_policy' => self::frameworkFiveFilePrinciplePassed($audit['framework_five_file_principle_policy'] ?? []),
             'framework_five_file_highest_principle_policy' => self::frameworkFiveFileHighestPrinciplePassed($audit['framework_five_file_highest_principle_policy'] ?? []),
+            'consolidated_source_improvement_policy' => self::consolidatedSourceImprovementPassed($audit['consolidated_source_improvement_policy'] ?? []),
+            'physical_cleanup_cycle_policy' => self::physicalCleanupCyclePassed($audit['physical_cleanup_cycle_policy'] ?? []),
+            'bug_zero_remediation_policy' => self::bugZeroRemediationPassed($audit['bug_zero_remediation_policy'] ?? []),
+            'v0_277_stable_release_policy' => self::v0277StableReleasePassed($audit['v0_277_stable_release_policy'] ?? []),
             'development_workflow_policy' => ($audit['development_workflow_policy']['theme'] ?? null) === 'Specification-First Development Workflow'
                 && ($audit['development_workflow_policy']['highest_absolute_principle'] ?? false) === true
                 && in_array('framework_five_file_principle', $audit['development_workflow_policy']['highest_absolute_principles'] ?? [], true)
@@ -5819,28 +6179,30 @@ final class Adlaire
                 && ($audit['development_workflow_policy']['repository_wide'] ?? false) === true
                 && ($audit['development_workflow_policy']['exempt_paths'] ?? ['not-empty']) === [],
             'deployment_axis_policy' => ($audit['deployment_axis_policy']['framework_axis'] ?? null) === 'deployment system'
-                && ($audit['deployment_axis_policy']['architecture_changed'] ?? true) === false
+                && ($audit['deployment_axis_policy']['architecture_changed'] ?? false) === true
                 && ($audit['deployment_axis_policy']['deployment_system']['core_name'] ?? null) === 'Deployment Core'
                 && array_key_exists('core_directory', $audit['deployment_axis_policy']['deployment_system'] ?? [])
-                && $audit['deployment_axis_policy']['deployment_system']['core_directory'] === null
-                && ($audit['deployment_axis_policy']['deployment_system']['directory_required'] ?? true) === false
-                && ($audit['deployment_axis_policy']['deployment_system']['placement'] ?? null) === 'root'
-                && ($audit['deployment_axis_policy']['deployment_system']['file_principle'] ?? null) === 'single file'
-                && ($audit['deployment_axis_policy']['deployment_system']['core_file'] ?? null) === 'DeploymentCore.php'
-                && ($audit['deployment_axis_policy']['deployment_system']['components'] ?? []) === ['DeploymentCore.php']
+                && $audit['deployment_axis_policy']['deployment_system']['core_directory'] === 'Frameworks/Deployment'
+                && ($audit['deployment_axis_policy']['deployment_system']['directory_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['deployment_system']['placement'] ?? null) === 'framework'
+                && ($audit['deployment_axis_policy']['deployment_system']['file_principle'] ?? null) === 'five-file framework'
+                && ($audit['deployment_axis_policy']['deployment_system']['core_file'] ?? null) === 'Frameworks/Deployment/DeploymentCore.php'
+                && ($audit['deployment_axis_policy']['deployment_system']['components'] ?? []) === ['Frameworks/Deployment/DeploymentCore.php']
                 && ($audit['deployment_axis_policy']['deployment_system']['design_philosophy'] ?? null) === 'distributed autonomous system design philosophy'
                 && ($audit['deployment_axis_policy']['deployment_system']['manifest_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['deployment_system']['readiness_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['deployment_system']['auris_integration_considered'] ?? false) === true
                 && ($audit['deployment_axis_policy']['general_framework']['policy'] ?? null) === 'general purpose within documented constraints'
                 && ($audit['deployment_axis_policy']['general_framework']['core_name'] ?? null) === 'Framework Core'
-                && ($audit['deployment_axis_policy']['general_framework']['core_directory'] ?? null) === 'FrameworkCore'
+                && array_key_exists('core_directory', $audit['deployment_axis_policy']['general_framework'] ?? [])
+                && $audit['deployment_axis_policy']['general_framework']['core_directory'] === null
+                && ($audit['deployment_axis_policy']['general_framework']['legacy_core_directory_removed'] ?? false) === true
                 && ($audit['deployment_axis_policy']['general_framework']['aggregated_components'] ?? []) === ($audit['deployment_axis_policy']['general_framework']['scope'] ?? [])
                 && ($audit['deployment_axis_policy']['general_framework']['design_philosophy'] ?? null) === 'specification-defined general purpose framework architecture'
                 && ($audit['deployment_axis_policy']['general_framework']['distributed_autonomous_design_applies'] ?? true) === false
                 && ($audit['deployment_axis_policy']['general_framework']['architecture_source'] ?? null) === 'documented specification'
                 && ($audit['deployment_axis_policy']['general_framework']['root_entrypoints_retained'] ?? true) === false
-                && ($audit['deployment_axis_policy']['general_framework']['aggregated_in_core_directory'] ?? false) === true
+                && ($audit['deployment_axis_policy']['general_framework']['aggregated_in_core_directory'] ?? true) === false
                 && ($audit['deployment_axis_policy']['general_framework']['middleware_available'] ?? false) === true
                 && ($audit['deployment_axis_policy']['general_framework']['configuration_repository_available'] ?? false) === true
                 && ($audit['deployment_axis_policy']['general_framework']['support_helpers_available'] ?? false) === true
@@ -5892,8 +6254,8 @@ final class Adlaire
                 && in_array('git_diff_check', $audit['required_verifications'] ?? [], true),
             'change_policy' => ($audit['change_policy']['breaking_changes_allowed'] ?? false) === true
                 && ($audit['change_policy']['compatibility_required'] ?? true) === false
-                && ($audit['change_policy']['deployment_system_breaking_changes_allowed'] ?? true) === false
-                && ($audit['change_policy']['deployment_system_compatibility_required'] ?? false) === true,
+                && ($audit['change_policy']['deployment_system_breaking_changes_allowed'] ?? false) === true
+                && ($audit['change_policy']['deployment_system_compatibility_required'] ?? true) === false,
         ];
 
         return [

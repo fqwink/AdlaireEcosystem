@@ -3,18 +3,18 @@
 /**
  * Adlaire Ecosystem - Deployment Deployer
  *
- * @version v0.272
+ * @version v0.277
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__, 2) . '/FrameworkCore/Logger.php';
+require_once dirname(__DIR__, 2) . '/Frameworks/Backend/Logger.php';
 require_once __DIR__ . '/DeployConfig.php';
 
 final class Deployer
 {
-    private const CONTROL_VERSION = 'v0.272';
+    private const CONTROL_VERSION = 'v0.277';
 
     private Logger $logger;
     private array $fileCache = [];
@@ -94,10 +94,10 @@ final class Deployer
         $config = $this->config->deploymentManifest();
 
         return [
-            'component' => 'DeploymentCore.php',
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
             'axis' => 'deployment system',
             'design_philosophy' => 'distributed autonomous system design philosophy',
-            'architecture_changed' => false,
+            'architecture_changed' => true,
             'auris_integration_considered' => $config['auris_integration_considered'],
             'autonomous_operation' => true,
             'required_directories' => [
@@ -118,7 +118,7 @@ final class Deployer
             'deployment_axis' => ($manifest['axis'] ?? null) === 'deployment system',
             'distributed_autonomous_design' => ($manifest['design_philosophy'] ?? null) === 'distributed autonomous system design philosophy',
             'auris_integration_considered' => ($manifest['auris_integration_considered'] ?? false) === true,
-            'architecture_unchanged' => ($manifest['architecture_changed'] ?? true) === false,
+            'architecture_changed' => ($manifest['architecture_changed'] ?? false) === true,
             'target_dir_ready' => is_dir($manifest['required_directories']['target_dir'] ?? ''),
             'work_dir_ready' => is_dir($manifest['required_directories']['work_dir'] ?? ''),
             'backup_dir_ready' => is_dir($manifest['required_directories']['backup_dir'] ?? ''),
@@ -144,9 +144,9 @@ final class Deployer
         $allowlist = $this->config->array('deploy_allowlist');
 
         $checks = [
-            'deployment_core_compatible' => ($manifest['component'] ?? null) === 'DeploymentCore.php'
+            'deployment_core_entrypoint_current' => ($manifest['component'] ?? null) === 'Frameworks/Deployment/DeploymentCore.php'
                 && ($manifest['axis'] ?? null) === 'deployment system'
-                && ($manifest['architecture_changed'] ?? true) === false,
+                && ($manifest['architecture_changed'] ?? false) === true,
             'target_dir_exists' => is_dir($targetDir),
             'target_dir_writable' => is_dir($targetDir) && is_writable($targetDir),
             'work_dir_exists' => is_dir($workDir),
@@ -162,9 +162,9 @@ final class Deployer
         return [
             'ready' => !in_array(false, $checks, true),
             'checks' => $checks,
-            'component' => 'DeploymentCore.php',
-            'compatibility_guaranteed' => true,
-            'breaking_changes_allowed' => false,
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
+            'compatibility_guaranteed' => false,
+            'breaking_changes_allowed' => true,
             'dry_run_available' => true,
             'required_directories' => $manifest['required_directories'],
             'deploy_allowlist' => $allowlist,
@@ -217,8 +217,8 @@ final class Deployer
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
-            'component' => 'DeploymentCore.php',
-            'deployment_core_change_detected' => in_array('DeploymentCore.php', $changed, true),
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
+            'deployment_core_change_detected' => in_array('Frameworks/Deployment/DeploymentCore.php', $changed, true),
             'target_dir' => $target,
             'source_dir' => $source,
             'deploy_allowlist' => $allowlist,
@@ -243,11 +243,11 @@ final class Deployer
             : ($plan['deployment_core_change_detected'] ?? false) === true;
 
         $checks = [
-            'deployment_core_component' => ($manifest['component'] ?? null) === 'DeploymentCore.php',
+            'deployment_core_component' => ($manifest['component'] ?? null) === 'Frameworks/Deployment/DeploymentCore.php',
             'deployment_axis_retained' => ($manifest['axis'] ?? null) === 'deployment system',
-            'architecture_unchanged' => ($manifest['architecture_changed'] ?? true) === false,
+            'architecture_changed' => ($manifest['architecture_changed'] ?? false) === true,
             'preflight_ready' => ($preflight['ready'] ?? false) === true,
-            'breaking_changes_forbidden' => true,
+            'breaking_changes_allowed' => true,
             'plan_preview_read_only' => $plan === null || (($plan['read_only'] ?? false) === true
                 && ($plan['command_execution_allowed'] ?? true) === false
                 && ($plan['writes_allowed'] ?? true) === false),
@@ -258,9 +258,9 @@ final class Deployer
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
-            'component' => 'DeploymentCore.php',
-            'compatibility_guaranteed' => true,
-            'breaking_changes_allowed' => false,
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
+            'compatibility_guaranteed' => false,
+            'breaking_changes_allowed' => true,
             'deployment_core_change_detected' => $deploymentCoreChangeDetected,
             'checks' => $checks,
             'manifest' => [
@@ -289,7 +289,7 @@ final class Deployer
                 'read_only' => true,
                 'command_execution_allowed' => false,
                 'writes_allowed' => false,
-                'component' => 'DeploymentCore.php',
+                'component' => 'Frameworks/Deployment/DeploymentCore.php',
                 'reason' => 'no_snapshot',
                 'snapshot' => null,
                 'summary' => ['restore' => 0, 'remove' => 0, 'missing' => 0],
@@ -332,7 +332,7 @@ final class Deployer
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
-            'component' => 'DeploymentCore.php',
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
             'snapshot' => $snapshot,
             'manifest_available' => is_file($manifestFile),
             'summary' => [
@@ -381,7 +381,7 @@ final class Deployer
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
-            'component' => 'DeploymentCore.php',
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
             'deductions' => $deductions,
             'compatibility_snapshot_ready' => ($snapshot['ready'] ?? false) === true,
             'rollback_preview_ready' => ($rollback['ready'] ?? false) === true,
@@ -463,7 +463,7 @@ final class Deployer
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
-            'component' => 'DeploymentCore.php',
+            'component' => 'Frameworks/Deployment/DeploymentCore.php',
             'preflight' => $this->preflight(),
             'plan_preview' => $sourceDir === null ? null : $this->planPreview($sourceDir),
             'compatibility_snapshot' => $this->compatibilitySnapshot($sourceDir),

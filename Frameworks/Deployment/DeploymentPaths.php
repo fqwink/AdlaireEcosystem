@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Deployment path policy
  *
- * @version v0.272
+ * @version v0.277
  * @php     >= 8.3
  */
 
@@ -13,6 +13,6 @@ final class DeploymentPaths
 {
     public static function compatibilityEntrypoint(): string
     {
-        return 'DeploymentCore.php';
+        return 'Frameworks/Deployment/DeploymentCore.php';
     }
 }

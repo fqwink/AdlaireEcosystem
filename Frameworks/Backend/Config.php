@@ -3,11 +3,15 @@
 /**
  * Adlaire Ecosystem - Config.php
  *
- * @version v0.272
+ * @version v0.277
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
+
+if (is_file(__DIR__ . '/Support.php')) {
+    require_once __DIR__ . '/Support.php';
+}
 
 if (PHP_VERSION_ID < 80300) {
     echo json_encode(['error' => 'Adlaire Ecosystem requires PHP 8.3 or higher. Current version: ' . PHP_VERSION]);
@@ -27,26 +31,12 @@ final class ConfigRepository
 
     public function has(string $key): bool
     {
-        $value = $this->items;
-        foreach (explode('.', $key) as $segment) {
-            if (!is_array($value) || !array_key_exists($segment, $value)) {
-                return false;
-            }
-            $value = $value[$segment];
-        }
-        return true;
+        return AdlaireSupport::dataHas($this->items, $key);
     }
 
     public function get(string $key, mixed $default = null): mixed
     {
-        $value = $this->items;
-        foreach (explode('.', $key) as $segment) {
-            if (!is_array($value) || !array_key_exists($segment, $value)) {
-                return $default;
-            }
-            $value = $value[$segment];
-        }
-        return $value;
+        return AdlaireSupport::dataGet($this->items, $key, $default);
     }
 
     public function required(string $key): mixed
@@ -65,33 +55,18 @@ final class ConfigRepository
 
     public function boolean(string $key, bool $default = false): bool
     {
-        $value = $this->get($key, $default);
-        if (is_bool($value)) {
-            return $value;
-        }
-        if (is_scalar($value)) {
-            return match (strtolower(trim((string)$value))) {
-                '1', 'true', 'yes', 'on' => true,
-                '0', 'false', 'no', 'off' => false,
-                default => $default,
-            };
-        }
-        return $default;
+        return AdlaireSupport::bool($this->get($key, $default), $default);
     }
 
     public function set(string $key, mixed $value): self
     {
-        $target = &$this->items;
-        foreach (explode('.', $key) as $segment) {
-            if ($segment === '') {
-                throw new InvalidArgumentException('Config key segment must not be empty.');
-            }
-            if (!isset($target[$segment]) || !is_array($target[$segment])) {
-                $target[$segment] = [];
-            }
-            $target = &$target[$segment];
-        }
-        $target = $value;
+        AdlaireSupport::dataSet($this->items, $key, $value);
+        return $this;
+    }
+
+    public function forget(string $key): self
+    {
+        AdlaireSupport::dataForget($this->items, $key);
         return $this;
     }
 
