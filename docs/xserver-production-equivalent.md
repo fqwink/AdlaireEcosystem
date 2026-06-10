@@ -35,4 +35,4 @@ The audit checks the Xserver profile files, `public_html` document root, `.htacc
 
 ## Xserver Deployment Notes
 
-Upload `public_html`, `DeploymentCore.php`, `FrameworkCore`, `modules`, and the writable `storage` directory according to the deployment allowlist. Keep real credentials out of source control and use server environment variables. Framework configuration files such as `.env`, `.ini`, `.conf`, `.yaml`, `.yml`, `config.php`, and `*.config.php` are prohibited; JSON is retained only for metadata, history, audit, release evidence, logs, and internal libSQL API transport payloads.
+Upload `public_html`, `DeploymentCore.php`, `FrameworkCore`, `Frameworks`, `modules`, and the writable `storage` directory according to the deployment allowlist. Keep real credentials out of source control and use server environment variables. Framework configuration files such as `.env`, `.ini`, `.conf`, `.yaml`, `.yml`, `config.php`, and `*.config.php` are prohibited; JSON is retained only for metadata, history, audit, release evidence, logs, and internal libSQL API transport payloads.

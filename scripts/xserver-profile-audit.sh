@@ -29,6 +29,11 @@ check_file public_html/dashboard.php
 check_file public_html/assets/adlaire-ui.css
 check_file storage/.gitkeep
 check_file DeploymentCore.php
+check_file Frameworks/Deployment/DeploymentCore.php
+check_file Frameworks/Deployment/DeployConfig.php
+check_file Frameworks/Deployment/Deployer.php
+check_file Frameworks/Deployment/DeploymentPaths.php
+check_file Frameworks/Deployment/DeploymentEvidence.php
 check_file FrameworkCore/Core.php
 check_dir_absent DeploymentCore
 

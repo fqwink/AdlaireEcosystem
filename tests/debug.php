@@ -236,13 +236,13 @@ function test_core_config(): void
 
 function test_adlaire_audit(): void
 {
-    assert_same('v0.266', Adlaire::version(), 'Adlaire version should follow cumulative v0.x release format');
+    assert_same('v0.272', Adlaire::version(), 'Adlaire version should follow cumulative v0.x release format');
     $audit = Adlaire::audit();
-    assert_same('v0.266', $audit['version'] ?? null, 'audit should include version');
+    assert_same('v0.272', $audit['version'] ?? null, 'audit should include version');
     assert_same('>=8.3', $audit['php'] ?? null, 'audit should include PHP requirement');
     assert_same('v0.x', $audit['version_format'] ?? null, 'audit should include cumulative version format');
     assert_same(true, $audit['cumulative_version'] ?? null, 'audit should mark cumulative versions');
-    assert_same('v0.266', $audit['formalization_version'] ?? null, 'audit should include formalization version');
+    assert_same('v0.272', $audit['formalization_version'] ?? null, 'audit should include formalization version');
     assert_same('10 files', $audit['file_principle'] ?? null, 'audit should include 10-file principle');
     assert_same('php -d phar.readonly=0 tests/debug.php', $audit['official_debug_test'] ?? null, 'audit should include official debug test command');
 
@@ -302,9 +302,12 @@ function test_license_governance(): void
     assert_same(false, $governance['implementation_without_plan_allowed'] ?? null, 'governance policy should forbid implementation without plan');
 
     $workflow = Adlaire::developmentWorkflowPolicy();
-    assert_same('v0.266', $workflow['version'] ?? null, 'development workflow policy should include version');
+    assert_same('v0.272', $workflow['version'] ?? null, 'development workflow policy should include version');
     assert_same('Specification-First Development Workflow', $workflow['theme'] ?? null, 'development workflow policy should define theme');
     assert_same(true, $workflow['highest_absolute_principle'] ?? null, 'development workflow should be highest absolute principle');
+    assert_true(in_array('framework_five_file_principle', $workflow['highest_absolute_principles'] ?? [], true), 'development workflow should promote framework five-file principle');
+    assert_same(true, $workflow['framework_five_file_principle_required'] ?? null, 'development workflow should require framework five-file principle');
+    assert_same(Adlaire::frameworkFiveFilePrinciplePolicy(), $workflow['framework_five_file_principle_policy'] ?? null, 'development workflow should link framework five-file principle policy');
     assert_same(['specification', 'implementation_plan', 'implementation'], $workflow['required_order'] ?? null, 'development workflow should define required order');
     assert_same(true, $workflow['specification_required_before_plan'] ?? null, 'development workflow should require specification before plan');
     assert_same(true, $workflow['plan_required_before_implementation'] ?? null, 'development workflow should require plan before implementation');
@@ -317,6 +320,7 @@ function test_license_governance(): void
     }
     assert_same([], $workflow['exempt_paths'] ?? null, 'development workflow should define no exempt paths');
     assert_true(in_array('repository_scope_documented', $workflow['required_verifications'] ?? [], true), 'development workflow should require repository scope documentation');
+    assert_true(in_array('framework_five_file_principle_enforced', $workflow['required_verifications'] ?? [], true), 'development workflow should require framework five-file principle enforcement');
 
     $officialRelease = Adlaire::officialReleasePolicy();
     assert_same(true, $officialRelease['specification_compliance'] ?? null, 'official release policy should require specification compliance');
@@ -353,7 +357,7 @@ function test_release_readiness(): void
     assert_same($requirements, $audit['release_requirement_matrix'] ?? null, 'audit should include release requirement matrix');
 
     $readiness = Adlaire::releaseReadiness();
-    assert_same('v0.266', $readiness['version'] ?? null, 'release readiness should include current version');
+    assert_same('v0.272', $readiness['version'] ?? null, 'release readiness should include current version');
     assert_same(true, $readiness['ready'] ?? null, 'release readiness should be ready when all checks pass');
     foreach ($readiness['checks'] ?? [] as $name => $passed) {
         assert_same(true, $passed, "release readiness check should pass: {$name}");
@@ -363,7 +367,7 @@ function test_release_readiness(): void
 function test_deployment_axis_policy(): void
 {
     $policy = Adlaire::deploymentAxisPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'deployment axis policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'deployment axis policy should include version');
     assert_same('deployment system', $policy['framework_axis'] ?? null, 'deployment axis policy should set deployment system as axis');
     assert_same(false, $policy['architecture_changed'] ?? null, 'deployment axis policy should not change architecture');
     assert_same(
@@ -434,7 +438,7 @@ function test_deployment_axis_policy(): void
 function test_deployment_axis_map_policy(): void
 {
     $policy = Adlaire::deploymentAxisMapPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'deployment axis map should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'deployment axis map should include version');
     assert_same('Deployment Axis Map', $policy['theme'] ?? null, 'deployment axis map should define theme');
     assert_same('deployment system', $policy['repository_axis'] ?? null, 'deployment axis map should define repository axis');
     assert_same(false, $policy['physical_reorganization_applied'] ?? null, 'deployment axis map should not apply physical reorganization yet');
@@ -476,7 +480,7 @@ function test_deployment_axis_map_policy(): void
 function test_dashboard_deploy_execution_policy(): void
 {
     $policy = Adlaire::dashboardDeployExecutionPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'dashboard deploy execution policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'dashboard deploy execution policy should include version');
     assert_same('Dashboard Deploy Execution Specification', $policy['theme'] ?? null, 'dashboard deploy execution policy should define theme');
     assert_same('specified_not_implemented', $policy['status'] ?? null, 'dashboard deploy execution should be specified but not implemented');
     assert_same(false, $policy['default_enabled'] ?? null, 'dashboard deploy execution should be disabled by default');
@@ -512,7 +516,7 @@ function test_dashboard_deploy_execution_policy(): void
 function test_execution_safety_gate_policy(): void
 {
     $policy = Adlaire::executionSafetyGatePolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'execution safety gate policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'execution safety gate policy should include version');
     assert_same('Execution Safety Gate', $policy['theme'] ?? null, 'execution safety gate should define theme');
     assert_same('gate_defined_execution_still_disabled', $policy['status'] ?? null, 'execution safety gate should keep execution disabled');
     assert_same(false, $policy['dashboard_execution_enabled'] ?? null, 'execution safety gate should not enable dashboard execution');
@@ -551,7 +555,7 @@ function test_execution_safety_gate_policy(): void
 function test_deployment_execute_adapter_policy(): void
 {
     $policy = Adlaire::deploymentExecuteAdapterPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'deployment execute adapter policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'deployment execute adapter policy should include version');
     assert_same('Deployment Execute Adapter Contract', $policy['theme'] ?? null, 'deployment execute adapter should define theme');
     assert_same('adapter_contract_defined_execution_disabled', $policy['status'] ?? null, 'deployment execute adapter should keep execution disabled');
     assert_same('DeploymentCoreExecuteAdapter', $policy['adapter_name'] ?? null, 'deployment execute adapter should define adapter name');
@@ -580,7 +584,7 @@ function test_deployment_execute_adapter_policy(): void
 function test_execution_audit_trail_policy(): void
 {
     $policy = Adlaire::executionAuditTrailPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'execution audit trail policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'execution audit trail policy should include version');
     assert_same('Execution Audit Trail', $policy['theme'] ?? null, 'execution audit trail should define theme');
     assert_same('audit_trail_defined_execution_disabled', $policy['status'] ?? null, 'execution audit trail should keep execution disabled');
     assert_same(true, $policy['append_only'] ?? null, 'execution audit trail should be append only');
@@ -609,7 +613,7 @@ function test_execution_audit_trail_policy(): void
 function test_dashboard_gated_controls_policy(): void
 {
     $policy = Adlaire::dashboardGatedControlsPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'dashboard gated controls policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'dashboard gated controls policy should include version');
     assert_same('Dashboard Gated Controls', $policy['theme'] ?? null, 'dashboard gated controls should define theme');
     assert_same('controls_defined_execution_disabled', $policy['status'] ?? null, 'dashboard gated controls should keep execution disabled');
     assert_same(false, $policy['dashboard_execution_enabled'] ?? null, 'dashboard gated controls should not enable execution');
@@ -637,11 +641,11 @@ function test_dashboard_gated_controls_policy(): void
 function test_reorganization_readiness_boundary_policy(): void
 {
     $policy = Adlaire::reorganizationReadinessBoundaryPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'reorganization readiness boundary policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'reorganization readiness boundary policy should include version');
     assert_same('Reorganization Readiness Boundary', $policy['theme'] ?? null, 'reorganization readiness boundary should define theme');
     assert_same('pre_reorganization_boundary_fixed', $policy['status'] ?? null, 'reorganization readiness boundary should fix pre-reorganization boundary');
     assert_same('v0.240', $policy['approval_required_from_version'] ?? null, 'reorganization readiness boundary should require approval from v0.240');
-    assert_same(true, $policy['current_version_requires_approval'] ?? null, 'v0.266 changes should remain approval-gated');
+    assert_same(true, $policy['current_version_requires_approval'] ?? null, 'v0.272 changes should remain approval-gated');
     assert_same(false, $policy['physical_reorganization_applied'] ?? null, 'reorganization readiness boundary should not apply physical reorganization');
     assert_same(false, $policy['public_api_required'] ?? null, 'reorganization readiness boundary should not require public API');
     assert_same(false, $policy['configuration_files_allowed'] ?? null, 'reorganization readiness boundary should not allow configuration files');
@@ -651,7 +655,7 @@ function test_reorganization_readiness_boundary_policy(): void
     assert_true(in_array('dashboard_gated_controls_policy', $policy['ready_inputs'] ?? [], true), 'reorganization readiness boundary should include dashboard gated controls input');
     assert_same(true, $policy['v0_240_requires_explicit_change_presentation'] ?? null, 'v0.240+ should require explicit change presentation');
     assert_same(true, $policy['v0_240_requires_user_approval'] ?? null, 'v0.240+ should require user approval');
-    assert_same('v0.270 reorganized framework stable release', $policy['release_target'] ?? null, 'reorganization readiness boundary should retain v0.270 target');
+    assert_same('v0.275 reorganized framework stable release', $policy['release_target'] ?? null, 'reorganization readiness boundary should retain v0.275 target');
 
     $audit = Adlaire::audit();
     assert_same($policy, $audit['reorganization_readiness_boundary_policy'] ?? null, 'audit should include reorganization readiness boundary policy');
@@ -667,7 +671,7 @@ function test_reorganization_readiness_boundary_policy(): void
 function test_reorganization_architecture_plan_policy(): void
 {
     $policy = Adlaire::reorganizationArchitecturePlanPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'reorganization architecture plan policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'reorganization architecture plan policy should include version');
     assert_same('Reorganization Architecture Plan', $policy['theme'] ?? null, 'reorganization architecture plan should define theme');
     assert_same('architecture_plan_defined_no_physical_movement', $policy['status'] ?? null, 'reorganization architecture plan should not apply physical movement');
     assert_same(true, $policy['approval_obtained'] ?? null, 'reorganization architecture plan should mark approval obtained');
@@ -676,8 +680,8 @@ function test_reorganization_architecture_plan_policy(): void
     assert_same(false, $policy['configuration_files_allowed'] ?? null, 'reorganization architecture plan should not allow configuration files');
     assert_same(true, $policy['deployment_framework_compatibility_required'] ?? null, 'reorganization architecture plan should preserve Deployment Framework compatibility');
     assert_same(false, $policy['deployment_core_contract_change_allowed'] ?? null, 'reorganization architecture plan should prohibit DeploymentCore contract changes');
-    assert_same('v0.270', $policy['target_version'] ?? null, 'reorganization architecture plan should target v0.270');
-    assert_same('v0.270 reorganized framework stable release', $policy['stable_release_target'] ?? null, 'reorganization architecture plan should retain stable release target');
+    assert_same('v0.275', $policy['target_version'] ?? null, 'reorganization architecture plan should target v0.275');
+    assert_same('v0.275 reorganized framework stable release', $policy['stable_release_target'] ?? null, 'reorganization architecture plan should retain stable release target');
     assert_same(true, $policy['target_architecture']['deployment_framework']['compatibility_domain'] ?? null, 'target deployment framework should remain compatibility domain');
     assert_same(false, $policy['target_architecture']['deployment_framework']['contract_breaking_changes_allowed'] ?? null, 'target deployment framework should prohibit contract breaking changes');
     assert_same('planned', $policy['target_architecture']['javascript_framework']['implementation_status'] ?? null, 'target JavaScript framework should remain planned');
@@ -702,7 +706,7 @@ function test_reorganization_architecture_plan_policy(): void
 function test_reorganization_preparation_plan_policy(): void
 {
     $policy = Adlaire::reorganizationPreparationPlanPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'reorganization preparation plan policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'reorganization preparation plan policy should include version');
     assert_same('Non-Deployment Migration Preparation Plan', $policy['theme'] ?? null, 'reorganization preparation plan should define theme');
     assert_same('pre_integration_core_wiring_gate_defined_no_physical_movement', $policy['status'] ?? null, 'reorganization preparation plan should define readiness without movement');
     assert_same('v0.251-v0.260', $policy['range'] ?? null, 'reorganization preparation plan should cover v0.251-v0.260');
@@ -745,7 +749,7 @@ function test_reorganization_preparation_plan_policy(): void
 function test_physical_reorganization_phase_one_policy(): void
 {
     $policy = Adlaire::physicalReorganizationPhaseOnePolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'physical reorganization phase one policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'physical reorganization phase one policy should include version');
     assert_same('Physical Reorganization Phase One', $policy['theme'] ?? null, 'physical reorganization phase one should define theme');
     assert_same('core_backend_moved_with_compatibility_shims', $policy['status'] ?? null, 'physical reorganization phase one should define status');
     assert_same('v0.261-v0.263', $policy['range'] ?? null, 'physical reorganization phase one should cover v0.261-v0.263');
@@ -781,7 +785,7 @@ function test_physical_reorganization_phase_one_policy(): void
 function test_frontend_reorganization_shim_policy(): void
 {
     $policy = Adlaire::frontendReorganizationShimPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'frontend reorganization shim policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'frontend reorganization shim policy should include version');
     assert_same('Frontend Reorganization Shim', $policy['theme'] ?? null, 'frontend reorganization shim should define theme');
     assert_same('frontend_php_bodies_moved_public_html_shims_retained', $policy['status'] ?? null, 'frontend reorganization shim should define status');
     assert_same('v0.264', $policy['range'] ?? null, 'frontend reorganization shim should cover v0.264');
@@ -817,7 +821,7 @@ function test_frontend_reorganization_shim_policy(): void
 function test_css_framework_source_sync_policy(): void
 {
     $policy = Adlaire::cssFrameworkSourceSyncPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'CSS framework source sync policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'CSS framework source sync policy should include version');
     assert_same('CSS Framework Source Sync', $policy['theme'] ?? null, 'CSS framework source sync should define theme');
     assert_same('css_source_moved_distribution_asset_retained', $policy['status'] ?? null, 'CSS framework source sync should define status');
     assert_same('v0.265', $policy['range'] ?? null, 'CSS framework source sync should cover v0.265');
@@ -853,7 +857,7 @@ function test_css_framework_source_sync_policy(): void
 function test_dashboard_frontend_class_extraction_policy(): void
 {
     $policy = Adlaire::dashboardFrontendClassExtractionPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'dashboard frontend class extraction policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'dashboard frontend class extraction policy should include version');
     assert_same('Dashboard Frontend Class Extraction', $policy['theme'] ?? null, 'dashboard frontend class extraction should define theme');
     assert_same('dashboard_security_data_view_classes_extracted', $policy['status'] ?? null, 'dashboard frontend class extraction should define status');
     assert_same('v0.266', $policy['range'] ?? null, 'dashboard frontend class extraction should cover v0.266');
@@ -889,13 +893,225 @@ function test_dashboard_frontend_class_extraction_policy(): void
     assert_same(true, Adlaire::releaseReadiness()['checks']['dashboard_frontend_class_extraction_policy'] ?? null, 'release readiness should include dashboard frontend class extraction policy');
 }
 
+function test_frontend_index_application_extraction_policy(): void
+{
+    $policy = Adlaire::frontendIndexApplicationExtractionPolicy();
+    assert_same('v0.272', $policy['version'] ?? null, 'frontend index application extraction policy should include version');
+    assert_same('Frontend Index Application Extraction', $policy['theme'] ?? null, 'frontend index application extraction should define theme');
+    assert_same('index_routing_and_view_classes_extracted', $policy['status'] ?? null, 'frontend index application extraction should define status');
+    assert_same('v0.267', $policy['range'] ?? null, 'frontend index application extraction should cover v0.267');
+    assert_same(true, $policy['physical_reorganization_applied'] ?? null, 'frontend index application extraction should apply physical reorganization');
+    assert_same(false, $policy['deployment_core_contract_changed'] ?? null, 'frontend index application extraction should not change DeploymentCore contract');
+    assert_same(false, $policy['public_api_required'] ?? null, 'frontend index application extraction should not require public API');
+    assert_same(false, $policy['configuration_files_allowed'] ?? null, 'frontend index application extraction should not allow configuration files');
+    assert_same(false, $policy['dashboard_execution_enabled'] ?? null, 'frontend index application extraction should not enable dashboard execution');
+    assert_same('Frameworks/Frontend/Index.php', $policy['entrypoint'] ?? null, 'frontend index application extraction should define entrypoint');
+    $entrypoint = (string)file_get_contents(__DIR__ . '/../Frameworks/Frontend/Index.php');
+    foreach (['AdlaireIndexApplication', 'AdlaireIndexView'] as $class) {
+        assert_true(in_array($class, $policy['extracted_classes']['Frameworks/Frontend/Index.php'] ?? [], true), "frontend index extraction should map class: {$class}");
+        assert_true(str_contains($entrypoint, 'final class ' . $class), "frontend index class should be declared: {$class}");
+    }
+    assert_true(str_contains($entrypoint, 'AdlaireIndexApplication::dispatch()'), 'frontend index entrypoint should dispatch application class');
+    assert_true(str_contains((string)file_get_contents(__DIR__ . '/../public_html/index.php'), 'Frameworks/Frontend/Index.php'), 'public index shim should remain');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['frontend_index_application_extraction_policy'] ?? null, 'audit should include frontend index application extraction policy');
+    assert_same($policy, Adlaire::distributionManifest()['frontend_index_application_extraction_policy'] ?? null, 'manifest should include frontend index application extraction policy');
+
+    $contract = Adlaire::stableReleaseContract();
+    assert_true(in_array('frontend index application extraction', $contract['backend_framework_capabilities'] ?? [], true), 'stable release contract should include frontend index application extraction capability');
+    assert_same(true, $contract['frontend_index_application_extraction'] ?? null, 'stable release contract should mark frontend index application extraction');
+    assert_policy_release_connection('frontend_index_application_extraction_policy', $policy);
+    assert_same(true, Adlaire::releaseReadiness()['checks']['frontend_index_application_extraction_policy'] ?? null, 'release readiness should include frontend index application extraction policy');
+}
+
+function test_repository_cleanup_stable_target_policy(): void
+{
+    $policy = Adlaire::repositoryCleanupStableTargetPolicy();
+    assert_same('v0.272', $policy['version'] ?? null, 'repository cleanup policy should include version');
+    assert_same('Repository Cleanup and Stable Target', $policy['theme'] ?? null, 'repository cleanup policy should define theme');
+    assert_same('obsolete_config_tree_removed_v0_275_target_defined', $policy['status'] ?? null, 'repository cleanup policy should define status');
+    assert_same('v0.268', $policy['range'] ?? null, 'repository cleanup policy should cover v0.268');
+    assert_same('v0.275', $policy['stable_release_target_version'] ?? null, 'repository cleanup policy should target v0.275');
+    assert_same('v0.275 reorganized framework stable release', $policy['stable_release_target'] ?? null, 'repository cleanup policy should define v0.275 stable release target');
+    assert_true(in_array('config', $policy['removed_paths'] ?? [], true), 'repository cleanup policy should remove obsolete config tree');
+    assert_true(!file_exists(__DIR__ . '/../config'), 'obsolete config directory should be absent');
+    foreach (['DeploymentCore.php', 'FrameworkCore/Core.php', 'public_html/index.php', 'public_html/dashboard.php', 'public_html/assets/adlaire-ui.css'] as $file) {
+        assert_true(in_array($file, $policy['preserved_compatibility_paths'] ?? [], true), "repository cleanup should preserve compatibility path: {$file}");
+        assert_true(is_file(__DIR__ . '/../' . $file), "repository cleanup preserved path should exist: {$file}");
+    }
+    foreach (['modules/Auris/.gitkeep'] as $file) {
+        assert_true(in_array($file, $policy['planned_placeholder_paths_retained'] ?? [], true), "repository cleanup should retain placeholder: {$file}");
+        assert_true(is_file(__DIR__ . '/../' . $file), "repository cleanup retained placeholder should exist: {$file}");
+    }
+    assert_same(false, $policy['deployment_core_contract_changed'] ?? null, 'repository cleanup should not change DeploymentCore contract');
+    assert_same(false, $policy['public_api_required'] ?? null, 'repository cleanup should not require public API');
+    assert_same(false, $policy['configuration_files_allowed'] ?? null, 'repository cleanup should not allow configuration files');
+    assert_same(false, $policy['dashboard_execution_enabled'] ?? null, 'repository cleanup should not enable dashboard execution');
+    assert_true(in_array('obsolete_config_tree_absent', $policy['required_verifications'] ?? [], true), 'repository cleanup should verify obsolete config tree absence');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['repository_cleanup_stable_target_policy'] ?? null, 'audit should include repository cleanup stable target policy');
+    assert_same($policy, Adlaire::distributionManifest()['repository_cleanup_stable_target_policy'] ?? null, 'manifest should include repository cleanup stable target policy');
+
+    $contract = Adlaire::stableReleaseContract();
+    assert_true(in_array('repository cleanup and v0.275 stable target', $contract['backend_framework_capabilities'] ?? [], true), 'stable release contract should include repository cleanup capability');
+    assert_same(true, $contract['repository_cleanup_stable_target'] ?? null, 'stable release contract should mark repository cleanup stable target');
+    assert_policy_release_connection('repository_cleanup_stable_target_policy', $policy);
+    assert_same(true, Adlaire::releaseReadiness()['checks']['repository_cleanup_stable_target_policy'] ?? null, 'release readiness should include repository cleanup stable target policy');
+}
+
+function test_deployment_framework_implementation_extraction_policy(): void
+{
+    $policy = Adlaire::deploymentFrameworkImplementationExtractionPolicy();
+    assert_same('v0.272', $policy['version'] ?? null, 'deployment framework extraction policy should include version');
+    assert_same('Deployment Framework Implementation Extraction', $policy['theme'] ?? null, 'deployment framework extraction should define theme');
+    assert_same('deployment_core_implementation_moved_root_entrypoint_retained', $policy['status'] ?? null, 'deployment framework extraction should define status');
+    assert_same('v0.269', $policy['range'] ?? null, 'deployment framework extraction should cover v0.269');
+    assert_same('DeploymentCore.php', $policy['root_entrypoint'] ?? null, 'deployment framework extraction should keep root entrypoint');
+    assert_same('Frameworks/Deployment/DeploymentCore.php', $policy['implementation_file'] ?? null, 'deployment framework extraction should define implementation file');
+    assert_same('compatibility shim', $policy['root_entrypoint_role'] ?? null, 'root entrypoint should be compatibility shim');
+    assert_same('deployment framework bootstrap', $policy['implementation_role'] ?? null, 'implementation should be deployment framework bootstrap');
+    assert_same(false, $policy['deployment_core_contract_changed'] ?? null, 'deployment framework extraction should not change DeploymentCore contract');
+    assert_same(true, $policy['root_deployment_core_retained'] ?? null, 'deployment framework extraction should retain root DeploymentCore');
+    assert_same(false, $policy['public_api_required'] ?? null, 'deployment framework extraction should not require public API');
+    assert_same(false, $policy['configuration_files_allowed'] ?? null, 'deployment framework extraction should not allow configuration files');
+    assert_same(false, $policy['dashboard_execution_enabled'] ?? null, 'deployment framework extraction should not enable dashboard execution');
+    assert_true(is_file(__DIR__ . '/../DeploymentCore.php'), 'root DeploymentCore shim should exist');
+    assert_true(is_file(__DIR__ . '/../Frameworks/Deployment/DeploymentCore.php'), 'deployment framework implementation should exist');
+    assert_true(str_contains((string)file_get_contents(__DIR__ . '/../DeploymentCore.php'), 'Frameworks/Deployment/DeploymentCore.php'), 'root DeploymentCore should require implementation');
+    $implementation = (string)file_get_contents(__DIR__ . '/../Frameworks/Deployment/DeploymentCore.php');
+    assert_true(str_contains($implementation, 'DeployConfig.php'), 'deployment implementation should load DeployConfig');
+    assert_true(str_contains($implementation, 'Deployer.php'), 'deployment implementation should load Deployer');
+    assert_true(!file_exists(__DIR__ . '/../Frameworks/Deployment/.gitkeep'), 'deployment placeholder should be removed');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['deployment_framework_implementation_extraction_policy'] ?? null, 'audit should include deployment framework extraction policy');
+    assert_same($policy, Adlaire::distributionManifest()['deployment_framework_implementation_extraction_policy'] ?? null, 'manifest should include deployment framework extraction policy');
+
+    $contract = Adlaire::stableReleaseContract();
+    assert_true(in_array('deployment framework implementation extraction', $contract['backend_framework_capabilities'] ?? [], true), 'stable release contract should include deployment framework extraction capability');
+    assert_same(true, $contract['deployment_framework_implementation_extraction'] ?? null, 'stable release contract should mark deployment framework extraction');
+    assert_policy_release_connection('deployment_framework_implementation_extraction_policy', $policy);
+    assert_same(true, Adlaire::releaseReadiness()['checks']['deployment_framework_implementation_extraction_policy'] ?? null, 'release readiness should include deployment framework extraction policy');
+}
+
+function test_deployment_framework_class_split_policy(): void
+{
+    $policy = Adlaire::deploymentFrameworkClassSplitPolicy();
+    assert_same('v0.272', $policy['version'] ?? null, 'deployment framework class split policy should include version');
+    assert_same('Deployment Framework Class Split', $policy['theme'] ?? null, 'deployment framework class split should define theme');
+    assert_same('deploy_config_and_deployer_classes_extracted', $policy['status'] ?? null, 'deployment framework class split should define status');
+    assert_same('v0.270', $policy['range'] ?? null, 'deployment framework class split should cover v0.270');
+    assert_same('Frameworks/Deployment/DeploymentCore.php', $policy['bootstrap_file'] ?? null, 'deployment class split should define bootstrap file');
+    assert_same('DeploymentCore.php', $policy['root_entrypoint'] ?? null, 'deployment class split should keep root entrypoint');
+    assert_same('PHP version guard and deployment class loader', $policy['bootstrap_role'] ?? null, 'deployment class split should define bootstrap role');
+    assert_same(false, $policy['deployment_core_contract_changed'] ?? null, 'deployment class split should not change DeploymentCore contract');
+    assert_same(true, $policy['root_deployment_core_retained'] ?? null, 'deployment class split should retain root DeploymentCore');
+    assert_same(false, $policy['public_api_required'] ?? null, 'deployment class split should not require public API');
+    assert_same(false, $policy['configuration_files_allowed'] ?? null, 'deployment class split should not allow configuration files');
+    assert_same(false, $policy['dashboard_execution_enabled'] ?? null, 'deployment class split should not enable dashboard execution');
+    foreach ([
+        'Frameworks/Deployment/DeployConfig.php' => 'DeployConfig',
+        'Frameworks/Deployment/Deployer.php' => 'Deployer',
+    ] as $file => $class) {
+        assert_same($class, $policy['extracted_classes'][$file] ?? null, "deployment class split should map {$file}");
+        assert_true(is_file(__DIR__ . '/../' . $file), "deployment split class file should exist: {$file}");
+        assert_true(str_contains((string)file_get_contents(__DIR__ . '/../' . $file), 'final class ' . $class), "deployment split class should be declared: {$class}");
+    }
+    $bootstrap = (string)file_get_contents(__DIR__ . '/../Frameworks/Deployment/DeploymentCore.php');
+    assert_true(str_contains($bootstrap, 'DeployConfig.php'), 'deployment bootstrap should load DeployConfig');
+    assert_true(str_contains($bootstrap, 'Deployer.php'), 'deployment bootstrap should load Deployer');
+    assert_true(!str_contains($bootstrap, 'final class DeployConfig'), 'deployment bootstrap should not contain DeployConfig class');
+    assert_true(!str_contains($bootstrap, 'final class Deployer'), 'deployment bootstrap should not contain Deployer class');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['deployment_framework_class_split_policy'] ?? null, 'audit should include deployment framework class split policy');
+    assert_same($policy, Adlaire::distributionManifest()['deployment_framework_class_split_policy'] ?? null, 'manifest should include deployment framework class split policy');
+
+    $contract = Adlaire::stableReleaseContract();
+    assert_true(in_array('deployment framework class split', $contract['backend_framework_capabilities'] ?? [], true), 'stable release contract should include deployment framework class split capability');
+    assert_same(true, $contract['deployment_framework_class_split'] ?? null, 'stable release contract should mark deployment framework class split');
+    assert_policy_release_connection('deployment_framework_class_split_policy', $policy);
+    assert_same(true, Adlaire::releaseReadiness()['checks']['deployment_framework_class_split_policy'] ?? null, 'release readiness should include deployment framework class split policy');
+}
+
+function test_framework_five_file_principle_policy(): void
+{
+    $policy = Adlaire::frameworkFiveFilePrinciplePolicy();
+    assert_same('v0.272', $policy['version'] ?? null, 'framework five-file principle policy should include version');
+    assert_same('Framework Five File Principle', $policy['theme'] ?? null, 'framework five-file principle should define theme');
+    assert_same('active_frameworks_normalized_to_five_files', $policy['status'] ?? null, 'framework five-file principle should define status');
+    assert_same('v0.271', $policy['range'] ?? null, 'framework five-file principle should cover v0.271');
+    assert_same(5, $policy['file_count_per_framework'] ?? null, 'framework five-file principle should require five files');
+    foreach ($policy['framework_files'] ?? [] as $framework => $files) {
+        assert_same(5, count($files), "framework should contain five files: {$framework}");
+        foreach ($files as $file) {
+            assert_true(is_file(__DIR__ . '/../' . $file), "framework five-file path should exist: {$file}");
+        }
+    }
+    foreach (['Frameworks/Frontend/.gitkeep', 'Frameworks/CSS/.gitkeep', 'Frameworks/JavaScript/.gitkeep'] as $file) {
+        assert_true(in_array($file, $policy['removed_placeholder_paths'] ?? [], true), "framework five-file principle should remove placeholder: {$file}");
+        assert_true(!file_exists(__DIR__ . '/../' . $file), "framework placeholder should be absent: {$file}");
+    }
+    assert_same(false, $policy['deployment_core_contract_changed'] ?? null, 'framework five-file principle should not change DeploymentCore contract');
+    assert_same(false, $policy['public_api_required'] ?? null, 'framework five-file principle should not require public API');
+    assert_same(false, $policy['configuration_files_allowed'] ?? null, 'framework five-file principle should not allow configuration files');
+    assert_same(false, $policy['dashboard_execution_enabled'] ?? null, 'framework five-file principle should not enable dashboard execution');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['framework_five_file_principle_policy'] ?? null, 'audit should include framework five-file principle policy');
+    assert_same($policy, Adlaire::distributionManifest()['framework_five_file_principle_policy'] ?? null, 'manifest should include framework five-file principle policy');
+
+    $contract = Adlaire::stableReleaseContract();
+    assert_true(in_array('framework five-file principle', $contract['backend_framework_capabilities'] ?? [], true), 'stable release contract should include framework five-file principle capability');
+    assert_same(true, $contract['framework_five_file_principle'] ?? null, 'stable release contract should mark framework five-file principle');
+    assert_policy_release_connection('framework_five_file_principle_policy', $policy);
+    assert_same(true, Adlaire::releaseReadiness()['checks']['framework_five_file_principle_policy'] ?? null, 'release readiness should include framework five-file principle policy');
+}
+
+function test_framework_five_file_highest_principle_policy(): void
+{
+    $policy = Adlaire::frameworkFiveFileHighestPrinciplePolicy();
+    assert_same('v0.272', $policy['version'] ?? null, 'framework five-file highest principle policy should include version');
+    assert_same('Framework Five File Highest Principle', $policy['theme'] ?? null, 'framework five-file highest principle should define theme');
+    assert_same('five_file_principle_promoted_to_highest_absolute_principle', $policy['status'] ?? null, 'framework five-file highest principle should define status');
+    assert_same('v0.272', $policy['range'] ?? null, 'framework five-file highest principle should cover v0.272');
+    assert_same(true, $policy['highest_absolute_principle'] ?? null, 'framework five-file highest principle should be highest absolute principle');
+    assert_same('framework_five_file_principle', $policy['principle_id'] ?? null, 'framework five-file highest principle should define principle id');
+    foreach (['Core', 'Deployment Framework', 'Backend Framework', 'Frontend Framework', 'CSS Framework', 'JavaScript Framework'] as $framework) {
+        assert_true(in_array($framework, $policy['applies_to'] ?? [], true), "framework five-file highest principle should apply to {$framework}");
+    }
+    assert_true(in_array('development_workflow_policy', $policy['required_source_policies'] ?? [], true), 'framework five-file highest principle should require development workflow policy');
+    assert_true(in_array('framework_five_file_principle_policy', $policy['required_source_policies'] ?? [], true), 'framework five-file highest principle should require framework five-file principle policy');
+    assert_true(in_array('release_check', $policy['enforcement'] ?? [], true), 'framework five-file highest principle should require release check enforcement');
+    assert_same(false, $policy['deployment_core_contract_changed'] ?? null, 'framework five-file highest principle should not change DeploymentCore contract');
+    assert_same(false, $policy['public_api_required'] ?? null, 'framework five-file highest principle should not require public API');
+    assert_same(false, $policy['configuration_files_allowed'] ?? null, 'framework five-file highest principle should not allow configuration files');
+    assert_same(false, $policy['dashboard_execution_enabled'] ?? null, 'framework five-file highest principle should not enable dashboard execution');
+
+    $workflow = Adlaire::developmentWorkflowPolicy();
+    assert_true(in_array('framework_five_file_principle', $workflow['highest_absolute_principles'] ?? [], true), 'development workflow should list framework five-file principle as highest absolute principle');
+    assert_same(true, $workflow['framework_five_file_principle_required'] ?? null, 'development workflow should require framework five-file principle');
+
+    $audit = Adlaire::audit();
+    assert_same($policy, $audit['framework_five_file_highest_principle_policy'] ?? null, 'audit should include framework five-file highest principle policy');
+    assert_same($policy, Adlaire::distributionManifest()['framework_five_file_highest_principle_policy'] ?? null, 'manifest should include framework five-file highest principle policy');
+
+    $contract = Adlaire::stableReleaseContract();
+    assert_true(in_array('framework five-file highest principle', $contract['backend_framework_capabilities'] ?? [], true), 'stable release contract should include framework five-file highest principle capability');
+    assert_same(true, $contract['framework_five_file_highest_principle'] ?? null, 'stable release contract should mark framework five-file highest principle');
+    assert_policy_release_connection('framework_five_file_highest_principle_policy', $policy);
+    assert_same(true, Adlaire::releaseReadiness()['checks']['framework_five_file_highest_principle_policy'] ?? null, 'release readiness should include framework five-file highest principle policy');
+}
+
 function test_framework_classification_policy(): void
 {
     $policy = Adlaire::frameworkClassificationPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'framework classification policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'framework classification policy should include version');
     assert_same('Framework Classification Specification', $policy['theme'] ?? null, 'framework classification policy should define theme');
-    assert_same('v0.270', $policy['reorganization_target_version'] ?? null, 'framework classification should target v0.270');
-    assert_same('v0.270 reorganized framework stable release', $policy['stable_release_target'] ?? null, 'framework classification should define v0.270 stable release target');
+    assert_same('v0.275', $policy['reorganization_target_version'] ?? null, 'framework classification should target v0.275');
+    assert_same('v0.275 reorganized framework stable release', $policy['stable_release_target'] ?? null, 'framework classification should define v0.275 stable release target');
     assert_same(false, $policy['physical_reorganization_applied'] ?? null, 'framework classification should not apply physical reorganization yet');
 
     assert_true(in_array('DeploymentCore.php', $policy['classified_frameworks']['deployment_framework']['current_paths'] ?? [], true), 'deployment framework should include DeploymentCore.php');
@@ -905,7 +1121,7 @@ function test_framework_classification_policy(): void
     assert_true(in_array('public_html/assets/adlaire-ui.css', $policy['classified_frameworks']['css_framework']['current_paths'] ?? [], true), 'CSS framework should include UI CSS');
     assert_same('not_implemented', $policy['classified_frameworks']['javascript_framework']['implementation_status'] ?? null, 'JavaScript framework should not be implemented yet');
     assert_true(in_array('FrameworkCore/Kernel.php', $policy['classified_frameworks']['integration_core']['current_paths'] ?? [], true), 'Integration Core should include Kernel.php');
-    assert_true(array_key_exists('v0.261-v0.270', $policy['roadmap'] ?? []), 'framework classification should include final roadmap range');
+    assert_true(array_key_exists('v0.261-v0.275', $policy['roadmap'] ?? []), 'framework classification should include final roadmap range');
 
     $audit = Adlaire::audit();
     assert_same($policy, $audit['framework_classification_policy'] ?? null, 'audit should include framework classification policy');
@@ -926,7 +1142,7 @@ function test_framework_classification_policy(): void
 function test_integration_core_policy(): void
 {
     $policy = Adlaire::integrationCorePolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'integration core policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'integration core policy should include version');
     assert_same('Integration Core Concept', $policy['theme'] ?? null, 'integration core policy should define theme');
     assert_same('coordinate classified framework families without public API dependency', $policy['role'] ?? null, 'integration core should define coordination role');
     assert_same(false, $policy['physical_reorganization_applied'] ?? null, 'integration core should not apply physical reorganization yet');
@@ -943,7 +1159,7 @@ function test_integration_core_policy(): void
     assert_same(true, $policy['internal_contracts_only'] ?? null, 'integration core should use internal contracts only');
     assert_true(in_array('FrameworkCore/Core.php', $policy['current_core_paths'] ?? [], true), 'integration core should include Core.php');
     assert_true(in_array('FrameworkCore/Kernel.php', $policy['current_core_paths'] ?? [], true), 'integration core should include Kernel.php');
-    assert_same('v0.270 reorganized framework stable release', $policy['release_target'] ?? null, 'integration core should target v0.270 stable release');
+    assert_same('v0.275 reorganized framework stable release', $policy['release_target'] ?? null, 'integration core should target v0.275 stable release');
 
     $audit = Adlaire::audit();
     assert_same($policy, $audit['integration_core_policy'] ?? null, 'audit should include integration core policy');
@@ -964,7 +1180,7 @@ function test_integration_core_policy(): void
 function test_auris_integration_policy(): void
 {
     $policy = Adlaire::aurisIntegrationPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'Auris integration policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'Auris integration policy should include version');
     assert_same(true, $policy['future_integration'] ?? null, 'Auris integration policy should mark future integration');
     assert_same('Auris', $policy['target_system'] ?? null, 'Auris integration policy should identify target system');
     assert_same('https://github.com/fqwink/Auris', $policy['target_repository'] ?? null, 'Auris integration policy should identify target repository');
@@ -1061,7 +1277,7 @@ function test_official_metadata(): void
     assert_true(in_array('managed runtime environment', $boundary['prohibited_categories'] ?? [], true), 'cloud boundary should include managed runtime');
 
     $metadata = Adlaire::officialMetadata();
-    assert_same('v0.266', $metadata['version'] ?? null, 'official metadata should include version');
+    assert_same('v0.272', $metadata['version'] ?? null, 'official metadata should include version');
     assert_same(Adlaire::licensePolicy(), $metadata['license_policy'] ?? null, 'official metadata should include license policy');
     assert_same($distribution, $metadata['distribution_policy'] ?? null, 'official metadata should include distribution policy');
     assert_same($boundary, $metadata['cloud_business_boundary'] ?? null, 'official metadata should include cloud boundary');
@@ -1107,8 +1323,8 @@ function test_specification_drift(): void
 function test_distribution_manifest(): void
 {
     $manifest = Adlaire::distributionManifest();
-    assert_same('v0.266', $manifest['version'] ?? null, 'distribution manifest should include version');
-    foreach (['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'DeploymentCore.php', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php', 'tests/debug.php', 'README.md', 'adlaire-ecosystem.md'] as $file) {
+    assert_same('v0.272', $manifest['version'] ?? null, 'distribution manifest should include version');
+    foreach (['FrameworkCore/Core.php', 'FrameworkCore/Kernel.php', 'FrameworkCore/Extension.php', 'FrameworkCore/Database.php', 'DeploymentCore.php', 'Frameworks/Deployment/DeploymentCore.php', 'Frameworks/Deployment/DeployConfig.php', 'Frameworks/Deployment/Deployer.php', 'Frameworks/Deployment/DeploymentPaths.php', 'Frameworks/Deployment/DeploymentEvidence.php', 'Core/Registry.php', 'Core/Lifecycle.php', 'Frameworks/Frontend/Index.php', 'Frameworks/CSS/reset.css', 'Frameworks/JavaScript/adlaire.js', 'FrameworkCore/Logger.php', 'FrameworkCore/Config.php', 'FrameworkCore/Middleware.php', 'FrameworkCore/Support.php', 'tests/debug.php', 'README.md', 'adlaire-ecosystem.md'] as $file) {
         assert_true(in_array($file, $manifest['files'] ?? [], true), "distribution manifest should include file: {$file}");
     }
     assert_same(Adlaire::licensePolicy(), $manifest['license_policy'] ?? null, 'distribution manifest should include license policy');
@@ -1188,7 +1404,7 @@ function test_autonomous_system(): void
     assert_same(false, Adlaire::stabilityContract()['deployment_system_breaking_changes_allowed'] ?? null, 'stability contract should protect deployment system');
     assert_same(true, Adlaire::stabilityContract()['deployment_system_compatibility_guaranteed'] ?? null, 'stability contract should guarantee deployment system compatibility');
     $report = Adlaire::autonomousAuditReport();
-    assert_same('v0.266', $report['version'] ?? null, 'autonomous audit report should include version');
+    assert_same('v0.272', $report['version'] ?? null, 'autonomous audit report should include version');
     assert_true(isset($report['policies']['cloud_business_use']), 'autonomous audit report should include policies');
 }
 
@@ -1234,7 +1450,7 @@ function test_long_term_stability(): void
     assert_same(true, $freeze['deployment_system_compatibility_required'] ?? null, 'release freeze should require deployment system compatibility');
 
     $lts = Adlaire::longTermStabilityContract();
-    assert_same('v0.266', $lts['version'] ?? null, 'long term stability contract should include version');
+    assert_same('v0.272', $lts['version'] ?? null, 'long term stability contract should include version');
     assert_same(true, $lts['long_term_stable'] ?? null, 'long term stability contract should mark stable');
     assert_same(false, $lts['no_breaking_changes'] ?? null, 'long term stability contract should not forbid breaking changes');
     assert_same(false, $lts['compatibility_guaranteed'] ?? null, 'long term stability contract should not guarantee compatibility');
@@ -1252,10 +1468,10 @@ function test_long_term_stability(): void
 function test_stable_release_contract(): void
 {
     $contract = Adlaire::stableReleaseContract();
-    assert_same('v0.266', $contract['version'] ?? null, 'stable release contract should include version');
+    assert_same('v0.272', $contract['version'] ?? null, 'stable release contract should include version');
     assert_same(true, $contract['stable_release'] ?? null, 'stable release contract should mark stable release');
-    assert_same('v0.266 dashboard frontend class extraction release', $contract['release_name'] ?? null, 'stable release contract should name release');
-    foreach (['routing', 'middleware', 'validation', 'database', 'logging', 'deployment', 'configuration', 'support helpers', 'microkernel', 'Auris module integration', 'SQLite / libSQL API runtime hardening', 'runtime operations hardening', 'operations dashboard', 'configuration file prohibition', 'deployment preflight guard', 'deployment plan preview', 'deployment compatibility snapshot', 'deployment rollback preview', 'deployment safety score', 'dashboard control visibility', 'deployment history visualization', 'deployment control report', 'stable release gate', 'Adlaire UI framework', 'deployment control snapshot', 'deployment safety score details', 'rollback state preview', 'dashboard release gate view', 'deployment timeline view', 'Adlaire UI framework expansion', 'release evidence bundle', 'deployment control diff', 'stable release candidate gate', 'API removal', 'specification-first workflow', 'deployment axis map', 'dashboard deploy execution specification', 'framework classification specification', 'integration core concept', 'execution safety gate', 'deployment execute adapter contract', 'execution audit trail', 'dashboard gated controls', 'reorganization readiness boundary', 'reorganization architecture plan', 'non-deployment migration preparation plan', 'physical reorganization phase one', 'frontend reorganization shim', 'CSS framework source sync', 'dashboard frontend class extraction'] as $capability) {
+    assert_same('v0.272 framework five-file highest principle release', $contract['release_name'] ?? null, 'stable release contract should name release');
+    foreach (['routing', 'middleware', 'validation', 'database', 'logging', 'deployment', 'configuration', 'support helpers', 'microkernel', 'Auris module integration', 'SQLite / libSQL API runtime hardening', 'runtime operations hardening', 'operations dashboard', 'configuration file prohibition', 'deployment preflight guard', 'deployment plan preview', 'deployment compatibility snapshot', 'deployment rollback preview', 'deployment safety score', 'dashboard control visibility', 'deployment history visualization', 'deployment control report', 'stable release gate', 'Adlaire UI framework', 'deployment control snapshot', 'deployment safety score details', 'rollback state preview', 'dashboard release gate view', 'deployment timeline view', 'Adlaire UI framework expansion', 'release evidence bundle', 'deployment control diff', 'stable release candidate gate', 'API removal', 'specification-first workflow', 'deployment axis map', 'dashboard deploy execution specification', 'framework classification specification', 'integration core concept', 'execution safety gate', 'deployment execute adapter contract', 'execution audit trail', 'dashboard gated controls', 'reorganization readiness boundary', 'reorganization architecture plan', 'non-deployment migration preparation plan', 'physical reorganization phase one', 'frontend reorganization shim', 'CSS framework source sync', 'dashboard frontend class extraction', 'frontend index application extraction', 'repository cleanup and v0.275 stable target', 'deployment framework implementation extraction', 'deployment framework class split', 'framework five-file principle', 'framework five-file highest principle'] as $capability) {
         assert_true(in_array($capability, $contract['backend_framework_capabilities'] ?? [], true), "stable release contract should include capability: {$capability}");
     }
     assert_same(false, $contract['no_breaking_changes'] ?? null, 'stable release contract should not forbid breaking changes');
@@ -1306,6 +1522,12 @@ function test_stable_release_contract(): void
     assert_same(true, $contract['frontend_reorganization_shim'] ?? null, 'stable release contract should include frontend reorganization shim');
     assert_same(true, $contract['css_framework_source_sync'] ?? null, 'stable release contract should include CSS framework source sync');
     assert_same(true, $contract['dashboard_frontend_class_extraction'] ?? null, 'stable release contract should include dashboard frontend class extraction');
+    assert_same(true, $contract['frontend_index_application_extraction'] ?? null, 'stable release contract should include frontend index application extraction');
+    assert_same(true, $contract['repository_cleanup_stable_target'] ?? null, 'stable release contract should include repository cleanup stable target');
+    assert_same(true, $contract['deployment_framework_implementation_extraction'] ?? null, 'stable release contract should include deployment framework implementation extraction');
+    assert_same(true, $contract['deployment_framework_class_split'] ?? null, 'stable release contract should include deployment framework class split');
+    assert_same(true, $contract['framework_five_file_principle'] ?? null, 'stable release contract should include framework five-file principle');
+    assert_same(true, $contract['framework_five_file_highest_principle'] ?? null, 'stable release contract should include framework five-file highest principle');
 
     $audit = Adlaire::audit();
     assert_same($contract, $audit['stable_release_contract'] ?? null, 'audit should include stable release contract');
@@ -1317,7 +1539,7 @@ function test_stable_release_contract(): void
 function test_production_equivalent_environment(): void
 {
     $policy = Adlaire::productionEnvironmentPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'production environment policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'production environment policy should include version');
     assert_same('Xserver rental server', $policy['production_provider'] ?? null, 'production environment policy should identify Xserver');
     assert_same('Xserver shared rental server', $policy['production_environment'] ?? null, 'production environment policy should identify rental server environment');
     assert_same(true, $policy['production_equivalent_testing_required'] ?? null, 'production-equivalent testing should be required');
@@ -1355,7 +1577,7 @@ function test_production_equivalent_environment(): void
 function test_database_runtime_hardening_policy(): void
 {
     $policy = Adlaire::databaseRuntimeHardeningPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'database hardening policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'database hardening policy should include version');
     assert_same('SQLite / libSQL API Runtime Hardening', $policy['theme'] ?? null, 'database hardening policy should define theme');
     assert_same(false, $policy['mysql_support_planned'] ?? null, 'database hardening policy should not plan MySQL support');
     assert_true(in_array('sqlite-file', $policy['supported_database_profiles'] ?? [], true), 'database hardening policy should support SQLite file profile');
@@ -1394,7 +1616,7 @@ function test_runtime_operations_hardening(): void
 
     $health = Adlaire::health(['writable_paths' => ['tmp' => $tmp]]);
     assert_same('ok', $health['status'] ?? null, 'runtime health should pass basic checks');
-    assert_same('v0.266', $health['version'] ?? null, 'runtime health should include version');
+    assert_same('v0.272', $health['version'] ?? null, 'runtime health should include version');
     assert_same('ok', $health['checks']['php']['status'] ?? null, 'runtime health should check PHP');
     assert_same('production', $health['checks']['runtime']['environment'] ?? null, 'runtime health should include APP_ENV');
     assert_same('ok', $health['checks']['writable_paths']['tmp']['status'] ?? null, 'runtime health should check writable paths');
@@ -1417,7 +1639,7 @@ function test_runtime_operations_hardening(): void
     putenv('ADLAIRE_REQUIRED');
 
     $policy = Adlaire::runtimeOperationsHardeningPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'runtime operations policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'runtime operations policy should include version');
     assert_same('Runtime Operations Hardening', $policy['theme'] ?? null, 'runtime operations policy should define theme');
     assert_same(true, $policy['standard_health_available'] ?? null, 'runtime operations should expose standard health');
     assert_same(true, $policy['config_audit_available'] ?? null, 'runtime operations should expose config audit');
@@ -1445,7 +1667,7 @@ function test_operations_dashboard(): void
     putenv('ADLAIRE_DASHBOARD_TOKEN');
 
     $policy = Adlaire::dashboardPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'dashboard policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'dashboard policy should include version');
     assert_same('Operations Dashboard', $policy['theme'] ?? null, 'dashboard policy should define theme');
     assert_same(false, $policy['default_enabled'] ?? null, 'dashboard should be disabled by default');
     assert_same(true, $policy['read_only'] ?? null, 'dashboard should be read only');
@@ -1488,7 +1710,7 @@ function test_operations_dashboard(): void
 function test_configuration_file_policy(): void
 {
     $policy = Adlaire::configurationFilePolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'configuration file policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'configuration file policy should include version');
     assert_same('Configuration File Prohibition', $policy['theme'] ?? null, 'configuration file policy should define theme');
     assert_same(false, $policy['framework_configuration_files_allowed'] ?? null, 'framework configuration files should be prohibited');
     assert_same(false, $policy['env_files_allowed'] ?? null, 'env files should be prohibited');
@@ -1525,7 +1747,7 @@ function test_configuration_file_policy(): void
 function test_deployment_preflight_policy(): void
 {
     $policy = Adlaire::deploymentPreflightPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'deployment preflight policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'deployment preflight policy should include version');
     assert_same('Deployment Preflight Guard', $policy['theme'] ?? null, 'deployment preflight policy should define theme');
     assert_same('DeploymentCore.php', $policy['component'] ?? null, 'deployment preflight should target DeploymentCore');
     assert_same(true, $policy['compatibility_guaranteed'] ?? null, 'deployment preflight should guarantee deployment compatibility');
@@ -1551,7 +1773,7 @@ function test_deployment_preflight_policy(): void
 function test_deployment_plan_preview_policy(): void
 {
     $policy = Adlaire::deploymentPlanPreviewPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'deployment plan preview policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'deployment plan preview policy should include version');
     assert_same('Deployment Plan Preview', $policy['theme'] ?? null, 'deployment plan preview policy should define theme');
     assert_same('DeploymentCore.php', $policy['component'] ?? null, 'deployment plan preview should target DeploymentCore');
     assert_same(true, $policy['read_only'] ?? null, 'deployment plan preview should be read only');
@@ -1577,7 +1799,7 @@ function test_deployment_plan_preview_policy(): void
 function test_deployment_compatibility_snapshot_policy(): void
 {
     $policy = Adlaire::deploymentCompatibilitySnapshotPolicy();
-    assert_same('v0.266', $policy['version'] ?? null, 'deployment compatibility snapshot policy should include version');
+    assert_same('v0.272', $policy['version'] ?? null, 'deployment compatibility snapshot policy should include version');
     assert_same('Deployment Compatibility Snapshot', $policy['theme'] ?? null, 'deployment compatibility snapshot policy should define theme');
     assert_same('DeploymentCore.php', $policy['component'] ?? null, 'deployment compatibility snapshot should target DeploymentCore');
     assert_same(true, $policy['compatibility_guaranteed'] ?? null, 'deployment compatibility snapshot should guarantee deployment compatibility');
@@ -1620,7 +1842,7 @@ function assert_policy_release_connection(string $key, array $policy): void
 function test_deployment_control_policy_suite(): void
 {
     $rollback = Adlaire::deploymentRollbackPreviewPolicy();
-    assert_same('v0.266', $rollback['version'] ?? null, 'rollback preview policy should include version');
+    assert_same('v0.272', $rollback['version'] ?? null, 'rollback preview policy should include version');
     assert_same('Deployment Rollback Preview', $rollback['theme'] ?? null, 'rollback preview policy should define theme');
     assert_same(true, $rollback['read_only'] ?? null, 'rollback preview policy should be read only');
     assert_true(in_array('restore', $rollback['classifications'] ?? [], true), 'rollback preview should classify restore files');
@@ -2248,7 +2470,7 @@ function test_deployer_config(): void
     assert_same(true, $safety['rollback_preview_ready'] ?? null, 'deployment safety score should include rollback evidence');
 
     $controlReport = $deployer->deploymentControlReport($previewSource);
-    assert_same('v0.266', $controlReport['version'] ?? null, 'deployment control report should include version');
+    assert_same('v0.272', $controlReport['version'] ?? null, 'deployment control report should include version');
     assert_same(true, $controlReport['read_only'] ?? null, 'deployment control report should be read only');
     assert_same(false, $controlReport['command_execution_allowed'] ?? null, 'deployment control report should avoid command execution');
     assert_same(false, $controlReport['writes_allowed'] ?? null, 'deployment control report should avoid writes');
@@ -2269,7 +2491,7 @@ function test_deployer_config(): void
     assert_same(0, $controlDiff['summary']['changes'] ?? null, 'deployment control diff should be empty against same report');
 
     $evidence = $deployer->releaseEvidenceBundle($previewSource);
-    assert_same('v0.266', $evidence['version'] ?? null, 'release evidence bundle should include version');
+    assert_same('v0.272', $evidence['version'] ?? null, 'release evidence bundle should include version');
     assert_same(true, $evidence['read_only'] ?? null, 'release evidence bundle should be read only');
     assert_true(isset($evidence['evidence']['control_report'], $evidence['evidence']['release_gate_inputs']), 'release evidence bundle should include required evidence');
 
@@ -2367,6 +2589,12 @@ $tests = [
     'frontend_reorganization_shim_policy' => test_frontend_reorganization_shim_policy(...),
     'css_framework_source_sync_policy' => test_css_framework_source_sync_policy(...),
     'dashboard_frontend_class_extraction_policy' => test_dashboard_frontend_class_extraction_policy(...),
+    'frontend_index_application_extraction_policy' => test_frontend_index_application_extraction_policy(...),
+    'repository_cleanup_stable_target_policy' => test_repository_cleanup_stable_target_policy(...),
+    'deployment_framework_implementation_extraction_policy' => test_deployment_framework_implementation_extraction_policy(...),
+    'deployment_framework_class_split_policy' => test_deployment_framework_class_split_policy(...),
+    'framework_five_file_principle_policy' => test_framework_five_file_principle_policy(...),
+    'framework_five_file_highest_principle_policy' => test_framework_five_file_highest_principle_policy(...),
     'framework_classification_policy' => test_framework_classification_policy(...),
     'integration_core_policy' => test_integration_core_policy(...),
     'auris_integration_policy' => test_auris_integration_policy(...),
