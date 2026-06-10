@@ -1460,7 +1460,7 @@ function test_operations_dashboard(): void
     assert_true(in_array('safety_score', $policy['sections'] ?? [], true), 'dashboard policy should include safety score section');
     assert_true(in_array('deploy_history', $policy['sections'] ?? [], true), 'dashboard policy should include deploy history section');
     assert_true(is_file(__DIR__ . '/../public_html/assets/adlaire-ui.css'), 'dashboard UI stylesheet should exist');
-    assert_true(str_contains((string)file_get_contents(__DIR__ . '/../Frameworks/Frontend/Dashboard.php'), '/assets/adlaire-ui.css'), 'dashboard should load UI stylesheet');
+    assert_true(str_contains((string)file_get_contents(__DIR__ . '/../Frameworks/Frontend/DashboardView.php'), '/assets/adlaire-ui.css'), 'dashboard should load UI stylesheet');
     assert_same(false, Adlaire::dashboardEnabled(), 'dashboard should be disabled without env flag');
     assert_same(false, Adlaire::dashboardTokenConfigured(), 'dashboard token should be absent by default');
 
