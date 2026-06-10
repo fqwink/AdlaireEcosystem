@@ -40,6 +40,21 @@ function test_release_identity(): void
 {
     assert_same('v0.277', Adlaire::version(), 'version should be v0.277');
 
+    $spec = Adlaire::currentSpecification();
+    assert_same('v0.277', $spec['version'] ?? null, 'current specification should expose current version');
+    assert_same(false, $spec['compatibility']['guaranteed'] ?? null, 'current specification should reject compatibility guarantees');
+    assert_same(false, $spec['compatibility']['legacy_shims_allowed'] ?? null, 'current specification should reject legacy shims');
+    assert_same('Frameworks/Deployment/DeploymentCore.php', $spec['entrypoints']['deployment'] ?? null, 'current specification should expose deployment entrypoint');
+    assert_same('Applications', $spec['application_modules']['base_directory'] ?? null, 'application modules should use Applications boundary');
+    assert_same(false, $spec['application_modules']['deployment_dependency_allowed'] ?? null, 'application modules should not depend on deployment framework');
+    assert_true(in_array('CMS', $spec['application_modules']['examples'] ?? [], true), 'application modules should include CMS example');
+    assert_true(in_array('Wiki', $spec['application_modules']['examples'] ?? [], true), 'application modules should include Wiki example');
+    assert_same(45, $spec['release_phases']['source_improvement_cycles'] ?? null, 'current specification should expose source improvement cycles');
+    assert_same(5, $spec['release_phases']['physical_cleanup_cycles'] ?? null, 'current specification should expose cleanup cycles');
+    assert_same(0, $spec['release_phases']['known_bug_count'] ?? null, 'current specification should expose zero known bugs');
+    assert_true(is_file(__DIR__ . '/../Applications/.gitkeep'), 'Applications boundary should be retained');
+    assert_true(!is_file(__DIR__ . '/../modules/Auris/.gitkeep'), 'legacy Auris module placeholder should be absent');
+
     $contract = Adlaire::stableReleaseContract();
     assert_same(true, $contract['stable_release'] ?? null, 'stable release should be enabled');
     assert_same('v0.277 consolidated breaking development release', $contract['release_name'] ?? null, 'stable release name should be fixed');

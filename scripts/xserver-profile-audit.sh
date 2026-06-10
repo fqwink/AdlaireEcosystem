@@ -36,6 +36,7 @@ check_file public_html/.htaccess
 check_file public_html/index.php
 check_file public_html/dashboard.php
 check_file public_html/assets/adlaire-ui.css
+check_file Applications/.gitkeep
 check_file storage/.gitkeep
 check_file Frameworks/Deployment/DeploymentCore.php
 check_file Frameworks/Deployment/DeployConfig.php

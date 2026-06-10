@@ -29,7 +29,7 @@ Frameworks/Deployment/DeploymentCore.php
 Core/
 Frameworks/
 public_html/
-modules/
+Applications/
 storage/
 scripts/release-check.sh
 tests/debug.php
