@@ -46,6 +46,7 @@ function test_release_identity(): void
     assert_same(false, $spec['compatibility']['legacy_shims_allowed'] ?? null, 'current specification should reject legacy shims');
     assert_same('Frameworks/Deployment/DeploymentCore.php', $spec['entrypoints']['deployment'] ?? null, 'current specification should expose deployment entrypoint');
     assert_same('Applications', $spec['application_modules']['base_directory'] ?? null, 'application modules should use Applications boundary');
+    assert_same(false, $spec['application_modules']['legacy_modules_directory_allowed'] ?? null, 'legacy modules directory should not be allowed');
     assert_same(false, $spec['application_modules']['deployment_dependency_allowed'] ?? null, 'application modules should not depend on deployment framework');
     assert_true(in_array('CMS', $spec['application_modules']['examples'] ?? [], true), 'application modules should include CMS example');
     assert_true(in_array('Wiki', $spec['application_modules']['examples'] ?? [], true), 'application modules should include Wiki example');
@@ -53,6 +54,7 @@ function test_release_identity(): void
     assert_same(5, $spec['release_phases']['physical_cleanup_cycles'] ?? null, 'current specification should expose cleanup cycles');
     assert_same(0, $spec['release_phases']['known_bug_count'] ?? null, 'current specification should expose zero known bugs');
     assert_true(is_file(__DIR__ . '/../Applications/.gitkeep'), 'Applications boundary should be retained');
+    assert_true(!is_dir(__DIR__ . '/../modules'), 'legacy modules directory should be absent');
     assert_true(!is_file(__DIR__ . '/../modules/Auris/.gitkeep'), 'legacy Auris module placeholder should be absent');
 
     $contract = Adlaire::stableReleaseContract();
@@ -109,6 +111,22 @@ function test_framework_five_file_principle(): void
     assert_absent('Frameworks/JavaScript/.gitkeep', 'JavaScript placeholder should be removed');
 }
 
+function test_application_module_boundary(): void
+{
+    $boundary = new ApplicationModuleBoundary();
+    $policy = $boundary->handle('applications.policy');
+    $manifest = $boundary->handle('applications.manifest');
+    $validation = $boundary->handle('applications.validate', $policy);
+
+    assert_same('Applications', $boundary->id(), 'application boundary id should be Applications');
+    assert_same(['documented specification'], $boundary->dependencies(), 'application boundary should not depend on deployment');
+    assert_same('Applications', $policy['base_directory'] ?? null, 'application boundary policy should use Applications');
+    assert_same(false, $policy['deployment_framework_dependency_allowed'] ?? null, 'application boundary should forbid deployment dependency');
+    assert_same(false, $policy['legacy_modules_directory_allowed'] ?? null, 'application boundary should forbid legacy modules directory');
+    assert_true(in_array('applications.status', $manifest['messages'] ?? [], true), 'application boundary manifest should expose status message');
+    assert_same(true, $validation['valid'] ?? null, 'application boundary policy should validate');
+}
+
 function test_deployment_breaking_boundary(): void
 {
     assert_true(!is_file(__DIR__ . '/../DeploymentCore.php'), 'root DeploymentCore.php compatibility entrypoint should be absent');
@@ -158,7 +176,6 @@ function test_deployment_control_smoke(): void
         'backup_dir' => $backup,
         'log_file' => $logs . '/deploy.log',
         'deploy_allowlist' => ['public_html'],
-        'integration_modules' => ['Auris'],
     ]);
     $deployer = new Deployer($config);
     $preflight = $deployer->preflight();
@@ -219,6 +236,7 @@ $tests = [
     'release_readiness' => test_release_readiness(...),
     'stable_release_policy' => test_stable_release_policy(...),
     'framework_five_file_principle' => test_framework_five_file_principle(...),
+    'application_module_boundary' => test_application_module_boundary(...),
     'deployment_breaking_boundary' => test_deployment_breaking_boundary(...),
     'consolidated_development_phases' => test_consolidated_development_phases(...),
     'deployment_control_smoke' => test_deployment_control_smoke(...),

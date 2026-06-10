@@ -1323,6 +1323,7 @@ final class Adlaire
             ],
             'application_modules' => [
                 'base_directory' => 'Applications',
+                'legacy_modules_directory_allowed' => false,
                 'deployment_dependency_allowed' => false,
                 'purpose' => 'application feature layer',
                 'examples' => ['CMS', 'Commerce', 'StaticGenerator', 'Wiki'],
@@ -4399,7 +4400,7 @@ final class Adlaire
     public static function releaseProfiles(): array
     {
         return [
-            'minimal' => ['php' => '>=8.3', 'files' => '10 files'],
+            'minimal' => ['php' => '>=8.3', 'files' => '5 files per framework'],
             'standard' => ['kernel' => true, 'logger' => true],
             'audited' => ['audit' => true, 'release_readiness' => true],
             'distributed' => ['autonomous_modules' => true, 'policy_decisions' => true],
@@ -4646,7 +4647,7 @@ final class Adlaire
                 'configuration',
                 'support helpers',
                 'microkernel',
-                'Auris module integration',
+                'application module boundary',
                 'SQLite / libSQL API runtime hardening',
                 'runtime operations hardening',
                 'operations dashboard',
@@ -4705,11 +4706,11 @@ final class Adlaire
             'deployment_system_no_breaking_changes' => false,
             'deployment_system_compatibility_guaranteed' => false,
             'deployment_breaking_reorganization' => true,
-            'ten_file_principle' => true,
+            'framework_five_file_principle' => true,
             'deployment_axis' => true,
             'official_debug_test_required' => true,
             'docker_debug_verified' => true,
-            'auris_integration_policy_retained' => true,
+            'application_module_policy_retained' => true,
             'cloud_business_prohibition_fixed' => true,
             'mysql_support_planned' => false,
             'runtime_operations_hardening' => true,
@@ -4784,7 +4785,7 @@ final class Adlaire
                 'deployment_audit_required' => true,
                 'manifest_required' => true,
                 'readiness_required' => true,
-                'auris_integration_considered' => true,
+                'application_boundary_separated' => true,
             ],
             'general_framework' => [
                 'core_name' => 'Framework Core',
@@ -4817,7 +4818,7 @@ final class Adlaire
                 'manifest_required_for_official_modules' => false,
                 'official_module_directories' => [],
                 'application_examples' => ['CMS', 'Commerce', 'StaticGenerator', 'Wiki'],
-                'auris_module_policy_retained' => true,
+                'legacy_named_module_policy_removed' => true,
             ],
             'architecture_policy' => [
                 'current_architecture_retained' => true,
@@ -4830,8 +4831,8 @@ final class Adlaire
                 'deployment_system_axis_required' => true,
                 'deployer_manifest_required' => true,
                 'deployer_readiness_required' => true,
-                'auris_integration_considered' => true,
-                'ten_file_principle_required' => true,
+                'application_boundary_separated' => true,
+                'framework_five_file_principle_required' => true,
                 'general_framework_capability_required' => true,
                 'router_middleware_required' => true,
                 'backend_framework_capability_required' => true,
@@ -4841,28 +4842,19 @@ final class Adlaire
         ];
     }
 
-    public static function aurisIntegrationPolicy(): array
+    public static function applicationModulePolicy(): array
     {
         return [
             'version' => self::version(),
-            'future_integration' => true,
-            'target_system' => 'Auris',
-            'target_repository' => 'https://github.com/fqwink/Auris',
-            'framework_repository_maintained' => true,
-            'repository_role' => 'independent framework repository',
-            'integration_status' => 'planned',
-            'auris_independent_system_after_integration' => 'abolished',
-            'auris_repository_after_integration' => 'deprecated',
-            'auris_name_retained' => true,
-            'auris_module_name' => 'Auris',
-            'auris_moduleization' => true,
-            'auris_module_role' => 'integrated Adlaire module',
-            'auris_module_class' => 'AurisModule',
-            'auris_module_messages' => ['auris.status', 'auris.policy', 'auris.metadata', 'auris.manifest', 'auris.validate'],
-            'auris_manifest_required' => true,
-            'auris_policy_validation_required' => true,
-            'architecture_changed' => false,
-            'source_of_truth' => 'Adlaire Ecosystem documentation until integration specification is formalized',
+            'base_directory' => 'Applications',
+            'purpose' => 'application feature layer',
+            'deployment_framework_dependency_allowed' => false,
+            'legacy_modules_directory_allowed' => false,
+            'examples' => ['CMS', 'Commerce', 'StaticGenerator', 'Wiki'],
+            'default_file_principle' => '5 files',
+            'official_module_directories' => [],
+            'legacy_named_integration_removed' => true,
+            'source_of_truth' => 'Adlaire Ecosystem documentation',
         ];
     }
 
@@ -4893,7 +4885,7 @@ final class Adlaire
             'distribution_policy' => self::distributionPolicy()['unofficial_distribution_may_claim_official'] === false,
             'official_metadata' => self::officialMetadata()['version'] === self::version()
                 && self::officialMetadata()['release_readiness_required'] === true,
-            'file_principle' => self::auditFilePrinciple() === '10 files',
+            'file_principle' => self::auditFilePrinciple() === '5 files per framework',
             'microkernel_policy' => self::microkernelPolicy()['event_bus_available'] === true
                 && self::microkernelPolicy()['extension_manifest_available'] === true,
             'stability_contract' => self::stabilityContract()['stable_snapshot'] === true
@@ -4911,7 +4903,7 @@ final class Adlaire
                 && self::stableReleaseContract()['compatibility_guaranteed'] === false
                 && self::stableReleaseContract()['deployment_system_no_breaking_changes'] === false
                 && self::stableReleaseContract()['deployment_system_compatibility_guaranteed'] === false
-                && self::stableReleaseContract()['ten_file_principle'] === true
+                && self::stableReleaseContract()['framework_five_file_principle'] === true
                 && self::stableReleaseContract()['deployment_axis'] === true
                 && self::stableReleaseContract()['docker_debug_verified'] === true
                 && in_array('database', self::stableReleaseContract()['backend_framework_capabilities'], true)
@@ -5129,7 +5121,7 @@ final class Adlaire
                 && self::deploymentAxisPolicy()['deployment_system']['design_philosophy'] === 'distributed autonomous system design philosophy'
                 && self::deploymentAxisPolicy()['deployment_system']['manifest_required'] === true
                 && self::deploymentAxisPolicy()['deployment_system']['readiness_required'] === true
-                && self::deploymentAxisPolicy()['deployment_system']['auris_integration_considered'] === true
+                && self::deploymentAxisPolicy()['deployment_system']['application_boundary_separated'] === true
                 && self::deploymentAxisPolicy()['general_framework']['core_name'] === 'Framework Core'
                 && array_key_exists('core_directory', self::deploymentAxisPolicy()['general_framework'])
                 && self::deploymentAxisPolicy()['general_framework']['core_directory'] === null
@@ -5156,24 +5148,20 @@ final class Adlaire
                 && self::deploymentAxisPolicy()['v0_202_target']['deployment_system_axis_required'] === true
                 && self::deploymentAxisPolicy()['v0_202_target']['deployer_manifest_required'] === true
                 && self::deploymentAxisPolicy()['v0_202_target']['deployer_readiness_required'] === true
-                && self::deploymentAxisPolicy()['v0_202_target']['ten_file_principle_required'] === true
+                && self::deploymentAxisPolicy()['v0_202_target']['framework_five_file_principle_required'] === true
                 && self::deploymentAxisPolicy()['v0_202_target']['general_framework_capability_required'] === true
                 && self::deploymentAxisPolicy()['v0_202_target']['router_middleware_required'] === true
                 && self::deploymentAxisPolicy()['v0_202_target']['backend_framework_capability_required'] === true
                 && self::deploymentAxisPolicy()['v0_202_target']['stable_release_required'] === true,
-            'auris_integration_policy' => self::aurisIntegrationPolicy()['future_integration'] === true
-                && self::aurisIntegrationPolicy()['target_repository'] === 'https://github.com/fqwink/Auris'
-                && self::aurisIntegrationPolicy()['framework_repository_maintained'] === true
-                && self::aurisIntegrationPolicy()['auris_independent_system_after_integration'] === 'abolished'
-                && self::aurisIntegrationPolicy()['auris_name_retained'] === true
-                && self::aurisIntegrationPolicy()['auris_moduleization'] === true
-                && self::aurisIntegrationPolicy()['auris_module_class'] === 'AurisModule'
-                && in_array('auris.status', self::aurisIntegrationPolicy()['auris_module_messages'], true)
-                && in_array('auris.manifest', self::aurisIntegrationPolicy()['auris_module_messages'], true)
-                && in_array('auris.validate', self::aurisIntegrationPolicy()['auris_module_messages'], true)
-                && self::aurisIntegrationPolicy()['auris_manifest_required'] === true
-                && self::aurisIntegrationPolicy()['auris_policy_validation_required'] === true
-                && self::aurisIntegrationPolicy()['architecture_changed'] === false,
+            'application_module_policy' => self::applicationModulePolicy()['base_directory'] === 'Applications'
+                && self::applicationModulePolicy()['purpose'] === 'application feature layer'
+                && self::applicationModulePolicy()['deployment_framework_dependency_allowed'] === false
+                && self::applicationModulePolicy()['legacy_modules_directory_allowed'] === false
+                && in_array('CMS', self::applicationModulePolicy()['examples'], true)
+                && in_array('Wiki', self::applicationModulePolicy()['examples'], true)
+                && self::applicationModulePolicy()['default_file_principle'] === '5 files'
+                && self::applicationModulePolicy()['official_module_directories'] === []
+                && self::applicationModulePolicy()['legacy_named_integration_removed'] === true,
             'official_debug_test' => self::officialMetadata()['official_debug_test'] === 'php -d phar.readonly=0 tests/debug.php',
         ];
 
@@ -5274,7 +5262,7 @@ final class Adlaire
             'v0_277_stable_release_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
-            'auris_integration_policy',
+            'application_module_policy',
         ];
         $auditKeys = [
             'version',
@@ -5349,7 +5337,7 @@ final class Adlaire
             'v0_277_stable_release_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
-            'auris_integration_policy',
+            'application_module_policy',
         ];
 
         $requiredReadinessChecks = [
@@ -5373,7 +5361,7 @@ final class Adlaire
             'stable_release_contract',
             'production_environment_policy',
             'deployment_axis_policy',
-            'auris_integration_policy',
+            'application_module_policy',
             'design_philosophy',
             'release_requirements',
             'required_verifications',
@@ -5507,13 +5495,13 @@ final class Adlaire
             'v0_277_stable_release_policy' => self::v0277StableReleasePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
-            'auris_integration_policy' => self::aurisIntegrationPolicy(),
+            'application_module_policy' => self::applicationModulePolicy(),
         ];
     }
 
     private static function auditFilePrinciple(): string
     {
-        return '10 files';
+        return '5 files per framework';
     }
 
     public static function audit(): array
@@ -5607,7 +5595,7 @@ final class Adlaire
             'v0_277_stable_release_policy' => self::v0277StableReleasePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
-            'auris_integration_policy' => self::aurisIntegrationPolicy(),
+            'application_module_policy' => self::applicationModulePolicy(),
             'design_philosophy' => [
                 'framework_axis' => 'deployment system',
                 'deployment_system' => 'distributed autonomous system design philosophy',
@@ -5945,6 +5933,7 @@ final class Adlaire
                 && ($audit['current_specification']['entrypoints']['deployment'] ?? null) === 'Frameworks/Deployment/DeploymentCore.php'
                 && ($audit['current_specification']['entrypoints']['root_deployment_core_allowed'] ?? true) === false
                 && ($audit['current_specification']['application_modules']['base_directory'] ?? null) === 'Applications'
+                && ($audit['current_specification']['application_modules']['legacy_modules_directory_allowed'] ?? true) === false
                 && ($audit['current_specification']['application_modules']['deployment_dependency_allowed'] ?? true) === false
                 && in_array('CMS', $audit['current_specification']['application_modules']['examples'] ?? [], true)
                 && in_array('Wiki', $audit['current_specification']['application_modules']['examples'] ?? [], true)
@@ -5975,7 +5964,7 @@ final class Adlaire
                 && ($audit['specification_drift']['missing_tests'] ?? []) === [],
             'distribution_manifest' => ($audit['distribution_manifest']['version'] ?? null) === self::version()
                 && ($audit['distribution_manifest']['release_readiness']['ready'] ?? false) === true,
-            'file_principle' => ($audit['file_principle'] ?? null) === '10 files',
+            'file_principle' => ($audit['file_principle'] ?? null) === '5 files per framework',
             'microkernel_policy' => ($audit['microkernel_policy']['event_bus_available'] ?? false) === true,
             'stability_contract' => ($audit['stability_contract']['stable_snapshot'] ?? false) === true
                 && ($audit['stability_contract']['breaking_changes_allowed'] ?? false) === true
@@ -5996,7 +5985,7 @@ final class Adlaire
                 && ($audit['stable_release_contract']['compatibility_guaranteed'] ?? true) === false
                 && ($audit['stable_release_contract']['deployment_system_no_breaking_changes'] ?? true) === false
                 && ($audit['stable_release_contract']['deployment_system_compatibility_guaranteed'] ?? true) === false
-                && ($audit['stable_release_contract']['ten_file_principle'] ?? false) === true
+                && ($audit['stable_release_contract']['framework_five_file_principle'] ?? false) === true
                 && ($audit['stable_release_contract']['deployment_axis'] ?? false) === true
                 && ($audit['stable_release_contract']['docker_debug_verified'] ?? false) === true
                 && in_array('routing', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
@@ -6265,7 +6254,7 @@ final class Adlaire
                 && ($audit['deployment_axis_policy']['deployment_system']['design_philosophy'] ?? null) === 'distributed autonomous system design philosophy'
                 && ($audit['deployment_axis_policy']['deployment_system']['manifest_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['deployment_system']['readiness_required'] ?? false) === true
-                && ($audit['deployment_axis_policy']['deployment_system']['auris_integration_considered'] ?? false) === true
+                && ($audit['deployment_axis_policy']['deployment_system']['application_boundary_separated'] ?? false) === true
                 && ($audit['deployment_axis_policy']['general_framework']['policy'] ?? null) === 'general purpose within documented constraints'
                 && ($audit['deployment_axis_policy']['general_framework']['core_name'] ?? null) === 'Framework Core'
                 && array_key_exists('core_directory', $audit['deployment_axis_policy']['general_framework'] ?? [])
@@ -6292,24 +6281,20 @@ final class Adlaire
                 && ($audit['deployment_axis_policy']['v0_202_target']['deployment_system_axis_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['v0_202_target']['deployer_manifest_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['v0_202_target']['deployer_readiness_required'] ?? false) === true
-                && ($audit['deployment_axis_policy']['v0_202_target']['ten_file_principle_required'] ?? false) === true
+                && ($audit['deployment_axis_policy']['v0_202_target']['framework_five_file_principle_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['v0_202_target']['general_framework_capability_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['v0_202_target']['router_middleware_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['v0_202_target']['backend_framework_capability_required'] ?? false) === true
                 && ($audit['deployment_axis_policy']['v0_202_target']['stable_release_required'] ?? false) === true,
-            'auris_integration_policy' => ($audit['auris_integration_policy']['future_integration'] ?? false) === true
-                && ($audit['auris_integration_policy']['target_repository'] ?? null) === 'https://github.com/fqwink/Auris'
-                && ($audit['auris_integration_policy']['framework_repository_maintained'] ?? false) === true
-                && ($audit['auris_integration_policy']['auris_independent_system_after_integration'] ?? null) === 'abolished'
-                && ($audit['auris_integration_policy']['auris_name_retained'] ?? false) === true
-                && ($audit['auris_integration_policy']['auris_moduleization'] ?? false) === true
-                && ($audit['auris_integration_policy']['auris_module_class'] ?? null) === 'AurisModule'
-                && in_array('auris.status', $audit['auris_integration_policy']['auris_module_messages'] ?? [], true)
-                && in_array('auris.manifest', $audit['auris_integration_policy']['auris_module_messages'] ?? [], true)
-                && in_array('auris.validate', $audit['auris_integration_policy']['auris_module_messages'] ?? [], true)
-                && ($audit['auris_integration_policy']['auris_manifest_required'] ?? false) === true
-                && ($audit['auris_integration_policy']['auris_policy_validation_required'] ?? false) === true
-                && ($audit['auris_integration_policy']['architecture_changed'] ?? true) === false,
+            'application_module_policy' => ($audit['application_module_policy']['base_directory'] ?? null) === 'Applications'
+                && ($audit['application_module_policy']['purpose'] ?? null) === 'application feature layer'
+                && ($audit['application_module_policy']['deployment_framework_dependency_allowed'] ?? true) === false
+                && ($audit['application_module_policy']['legacy_modules_directory_allowed'] ?? true) === false
+                && in_array('CMS', $audit['application_module_policy']['examples'] ?? [], true)
+                && in_array('Wiki', $audit['application_module_policy']['examples'] ?? [], true)
+                && ($audit['application_module_policy']['default_file_principle'] ?? null) === '5 files'
+                && ($audit['application_module_policy']['official_module_directories'] ?? ['not-empty']) === []
+                && ($audit['application_module_policy']['legacy_named_integration_removed'] ?? false) === true,
             'design_philosophy' => ($audit['design_philosophy']['framework_axis'] ?? null) === 'deployment system'
                 && ($audit['design_philosophy']['deployment_system'] ?? null) === 'distributed autonomous system design philosophy'
                 && ($audit['design_philosophy']['distributed_autonomous_scope'] ?? null) === 'deployment system only'

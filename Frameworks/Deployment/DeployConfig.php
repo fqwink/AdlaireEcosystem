@@ -76,9 +76,6 @@ final class DeployConfig
 
     public function deploymentManifest(): array
     {
-        $integrationModules = $this->array('integration_modules');
-        $aurisConsidered = $this->bool('auris_integration', false) || in_array('Auris', $integrationModules, true);
-
         return [
             'axis' => 'deployment system',
             'repository' => $this->requiredString('repository'),
@@ -88,8 +85,9 @@ final class DeployConfig
             'backup_dir' => $this->requiredString('backup_dir'),
             'log_file' => $this->requiredString('log_file'),
             'deploy_allowlist' => $this->array('deploy_allowlist'),
-            'integration_modules' => $integrationModules,
-            'auris_integration_considered' => $aurisConsidered,
+            'application_boundary' => 'Applications',
+            'application_dependency_allowed' => false,
+            'legacy_modules_directory_allowed' => false,
             'autonomous_operation' => true,
             'architecture_changed' => true,
         ];

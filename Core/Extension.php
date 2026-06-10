@@ -43,37 +43,37 @@ interface PolicyRule
     public function evaluate(array $context = []): array;
 }
 
-final class AurisModule implements AutonomousModule
+final class ApplicationModuleBoundary implements AutonomousModule
 {
     public function id(): string
     {
-        return 'Auris';
+        return 'Applications';
     }
 
     public function responsibility(): string
     {
-        return 'Auris system name retention and moduleized integration boundary';
+        return 'Application feature module boundary';
     }
 
     public function dependencies(): array
     {
-        return ['deployment system', 'documented specification'];
+        return ['documented specification'];
     }
 
     public function handle(string $message, array $payload = []): mixed
     {
         return match ($message) {
-            'auris.status' => $this->status(),
-            'auris.policy' => $this->policy(),
-            'auris.manifest' => $this->manifest(),
-            'auris.validate' => $this->validatePolicy($payload),
-            'auris.metadata' => [
+            'applications.status' => $this->status(),
+            'applications.policy' => $this->policy(),
+            'applications.manifest' => $this->manifest(),
+            'applications.validate' => $this->validatePolicy($payload),
+            'applications.metadata' => [
                 'module' => $this->id(),
                 'payload' => $payload,
                 'responsibility' => $this->responsibility(),
                 'dependencies' => $this->dependencies(),
             ],
-            default => throw new RuntimeException("Unsupported Auris module message: {$message}"),
+            default => throw new RuntimeException("Unsupported application module boundary message: {$message}"),
         };
     }
 
@@ -82,30 +82,31 @@ final class AurisModule implements AutonomousModule
         return [
             'status' => 'ready',
             'module' => $this->id(),
-            'integration_status' => 'moduleized',
-            'independent_system' => 'abolished after integration',
-            'manifest_valid' => true,
+            'base_directory' => 'Applications',
+            'deployment_dependency_allowed' => false,
+            'legacy_modules_directory_allowed' => false,
         ];
     }
 
     private function status(): array
     {
         return [
-            'name' => 'Auris',
-            'moduleized' => true,
-            'name_retained' => true,
-            'independent_system_after_integration' => 'abolished',
-            'repository_after_integration' => 'deprecated',
+            'base_directory' => 'Applications',
+            'purpose' => 'application feature layer',
+            'examples' => ['CMS', 'Commerce', 'StaticGenerator', 'Wiki'],
+            'deployment_dependency_allowed' => false,
+            'legacy_modules_directory_allowed' => false,
         ];
     }
 
     private function policy(): array
     {
         return [
-            'target_system' => 'Auris',
-            'module_name' => 'Auris',
-            'module_role' => 'integrated Adlaire module',
-            'architecture_changed' => false,
+            'base_directory' => 'Applications',
+            'module_role' => 'application feature module',
+            'deployment_framework_dependency_allowed' => false,
+            'legacy_modules_directory_allowed' => false,
+            'default_file_principle' => '5 files',
             'source_of_truth' => 'Adlaire Ecosystem documentation',
         ];
     }
@@ -114,11 +115,8 @@ final class AurisModule implements AutonomousModule
     {
         return [
             'id' => $this->id(),
-            'name_retained' => true,
-            'moduleized' => true,
-            'independent_system_after_integration' => 'abolished',
-            'repository_after_integration' => 'deprecated',
-            'messages' => ['auris.status', 'auris.policy', 'auris.metadata', 'auris.manifest', 'auris.validate'],
+            'base_directory' => 'Applications',
+            'messages' => ['applications.status', 'applications.policy', 'applications.metadata', 'applications.manifest', 'applications.validate'],
             'health' => $this->health(),
             'policy' => $this->policy(),
         ];
@@ -127,13 +125,10 @@ final class AurisModule implements AutonomousModule
     private function validatePolicy(array $policy): array
     {
         $checks = [
-            'module_name' => ($policy['auris_module_name'] ?? null) === $this->id(),
-            'moduleized' => ($policy['auris_moduleization'] ?? false) === true,
-            'name_retained' => ($policy['auris_name_retained'] ?? false) === true,
-            'independent_system_abolished' => ($policy['auris_independent_system_after_integration'] ?? null) === 'abolished',
-            'repository_deprecated' => ($policy['auris_repository_after_integration'] ?? null) === 'deprecated',
-            'module_class' => ($policy['auris_module_class'] ?? null) === self::class,
-            'architecture_unchanged' => ($policy['architecture_changed'] ?? true) === false,
+            'base_directory' => ($policy['base_directory'] ?? null) === 'Applications',
+            'deployment_framework_dependency_allowed' => ($policy['deployment_framework_dependency_allowed'] ?? true) === false,
+            'legacy_modules_directory_allowed' => ($policy['legacy_modules_directory_allowed'] ?? true) === false,
+            'default_file_principle' => ($policy['default_file_principle'] ?? null) === '5 files',
         ];
 
         return [

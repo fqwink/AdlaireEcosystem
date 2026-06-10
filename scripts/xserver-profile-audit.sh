@@ -45,6 +45,7 @@ check_file Frameworks/Deployment/DeploymentPaths.php
 check_file Frameworks/Deployment/DeploymentEvidence.php
 check_file Core/Core.php
 check_dir_absent DeploymentCore
+check_dir_absent modules
 check_file_absent DeploymentCore.php
 
 if grep -q "DocumentRoot /var/www/html/public_html" Dockerfile.xserver; then
