@@ -143,7 +143,7 @@ final class DeployConfig
 
 final class Deployer
 {
-    private const CONTROL_VERSION = 'v0.263';
+    private const CONTROL_VERSION = 'v0.266';
 
     private Logger $logger;
     private array $fileCache = [];

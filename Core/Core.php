@@ -3,13 +3,13 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version v0.263
+ * @version v0.266
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-const ADLAIRE_VERSION = 'v0.263';
+const ADLAIRE_VERSION = 'v0.266';
 
 if (is_file(__DIR__ . '/Extension.php')) {
     require_once __DIR__ . '/Extension.php';
@@ -1400,6 +1400,9 @@ final class Adlaire
                 'RELEASE-REQ-048' => 'The v0.240 reorganization architecture plan release defines the approved target architecture without physical file movement.',
                 'RELEASE-REQ-049' => 'The v0.251-v0.260 pre-integration core wiring release fixes non-deployment migration units, compatibility shims, contract validation, dashboard integration boundary, and risk gate without physical movement.',
                 'RELEASE-REQ-050' => 'The v0.261-v0.263 physical reorganization phase one release moves Core and Backend files behind compatibility shims while preserving the DeploymentCore root contract.',
+                'RELEASE-REQ-051' => 'The v0.264 frontend reorganization shim release moves frontend PHP bodies into Frameworks/Frontend while preserving public_html entrypoint compatibility.',
+                'RELEASE-REQ-052' => 'The v0.265 CSS framework source sync release establishes Frameworks/CSS as the stylesheet source while preserving the public_html distribution asset.',
+                'RELEASE-REQ-053' => 'The v0.266 dashboard frontend class extraction release splits dashboard security, data collection, and rendering into dedicated frontend classes.',
             ],
         ];
     }
@@ -1445,6 +1448,9 @@ final class Adlaire
             'reorganization_architecture_plan_policy' => ['CORE-REQ-010', 'CORE-REQ-011', 'RELEASE-REQ-048'],
             'reorganization_preparation_plan_policy' => ['CORE-REQ-010', 'CORE-REQ-011', 'RELEASE-REQ-049'],
             'physical_reorganization_phase_one_policy' => ['CORE-REQ-010', 'CORE-REQ-011', 'RELEASE-REQ-050'],
+            'frontend_reorganization_shim_policy' => ['CORE-REQ-004', 'CORE-REQ-010', 'RELEASE-REQ-051'],
+            'css_framework_source_sync_policy' => ['CORE-REQ-004', 'CORE-REQ-010', 'RELEASE-REQ-052'],
+            'dashboard_frontend_class_extraction_policy' => ['CORE-REQ-004', 'CORE-REQ-010', 'RELEASE-REQ-053'],
             'adlaire_audit' => ['CORE-REQ-002', 'TEST-REQ-001', 'TEST-REQ-002', 'RELEASE-REQ-001', 'RELEASE-REQ-002'],
             'release_readiness' => ['RELEASE-REQ-001', 'RELEASE-REQ-002', 'RELEASE-REQ-003'],
             'license_governance' => ['RELEASE-REQ-003', 'RELEASE-REQ-004', 'CORE-REQ-006', 'RELEASE-REQ-036', 'RELEASE-REQ-037'],
@@ -2030,11 +2036,12 @@ final class Adlaire
             'version' => self::version(),
             'theme' => 'Adlaire UI Framework',
             'scope' => 'dashboard presentation only',
+            'source_asset' => 'Frameworks/CSS/adlaire-ui.css',
             'asset' => 'public_html/assets/adlaire-ui.css',
             'configuration_files_allowed' => false,
             'json_metadata_exception_retained' => true,
             'read_only_dashboard_required' => true,
-            'required_verifications' => ['ui_asset_present', 'dashboard_uses_ui_asset', 'official_debug_test'],
+            'required_verifications' => ['ui_source_asset_present', 'ui_asset_present', 'dashboard_uses_ui_asset', 'official_debug_test'],
         ];
     }
 
@@ -2103,6 +2110,7 @@ final class Adlaire
         return [
             'version' => self::version(),
             'theme' => 'Adlaire UI Framework Expansion',
+            'source_asset' => 'Frameworks/CSS/adlaire-ui.css',
             'asset' => 'public_html/assets/adlaire-ui.css',
             'components' => ['table', 'badge', 'details', 'section', 'status_layout'],
             'configuration_files_allowed' => false,
@@ -3033,6 +3041,235 @@ final class Adlaire
             && $filesExist;
     }
 
+    public static function frontendReorganizationShimPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Frontend Reorganization Shim',
+            'status' => 'frontend_php_bodies_moved_public_html_shims_retained',
+            'range' => 'v0.264',
+            'physical_reorganization_applied' => true,
+            'deployment_core_contract_changed' => false,
+            'public_api_required' => false,
+            'configuration_files_allowed' => false,
+            'dashboard_execution_enabled' => false,
+            'document_root_retained' => 'public_html',
+            'moved_paths' => [
+                'public_html/index.php' => 'Frameworks/Frontend/Index.php',
+                'public_html/dashboard.php' => 'Frameworks/Frontend/Dashboard.php',
+            ],
+            'compatibility_shims' => [
+                'public_html/index.php',
+                'public_html/dashboard.php',
+            ],
+            'public_assets_retained' => [
+                'public_html/assets/adlaire-ui.css',
+            ],
+            'source_code_improvements' => [
+                'frontend entrypoints are thin shims',
+                'dashboard entrypoint delegates to frontend classes',
+                'frontend root path resolution uses dirname with explicit depth',
+            ],
+            'required_source_policies' => [
+                'physical_reorganization_phase_one_policy',
+                'dashboard_gated_controls_policy',
+                'dashboard_deploy_execution_policy',
+            ],
+            'required_verifications' => [
+                'frontend_framework_files_exist',
+                'public_html_shims_exist',
+                'document_root_retained',
+                'dashboard_execution_disabled',
+                'official_debug_test',
+                'release_check',
+            ],
+        ];
+    }
+
+    private static function frontendReorganizationShimPassed(array $policy): bool
+    {
+        $root = dirname(__DIR__);
+        $requiredFiles = array_merge(
+            array_values($policy['moved_paths'] ?? []),
+            $policy['compatibility_shims'] ?? [],
+            $policy['public_assets_retained'] ?? [],
+        );
+        $filesExist = true;
+        foreach ($requiredFiles as $file) {
+            $filesExist = $filesExist && is_file($root . '/' . $file);
+        }
+
+        $indexShim = is_file($root . '/public_html/index.php')
+            ? (string)file_get_contents($root . '/public_html/index.php')
+            : '';
+        $dashboardShim = is_file($root . '/public_html/dashboard.php')
+            ? (string)file_get_contents($root . '/public_html/dashboard.php')
+            : '';
+        $dashboardBody = is_file($root . '/Frameworks/Frontend/Dashboard.php')
+            ? (string)file_get_contents($root . '/Frameworks/Frontend/Dashboard.php')
+            : '';
+
+        return ($policy['theme'] ?? null) === 'Frontend Reorganization Shim'
+            && ($policy['status'] ?? null) === 'frontend_php_bodies_moved_public_html_shims_retained'
+            && ($policy['range'] ?? null) === 'v0.264'
+            && ($policy['physical_reorganization_applied'] ?? false) === true
+            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['public_api_required'] ?? true) === false
+            && ($policy['configuration_files_allowed'] ?? true) === false
+            && ($policy['dashboard_execution_enabled'] ?? true) === false
+            && ($policy['document_root_retained'] ?? null) === 'public_html'
+            && ($policy['moved_paths']['public_html/index.php'] ?? null) === 'Frameworks/Frontend/Index.php'
+            && ($policy['moved_paths']['public_html/dashboard.php'] ?? null) === 'Frameworks/Frontend/Dashboard.php'
+            && in_array('public_html/dashboard.php', $policy['compatibility_shims'] ?? [], true)
+            && in_array('public_html/assets/adlaire-ui.css', $policy['public_assets_retained'] ?? [], true)
+            && in_array('dashboard entrypoint delegates to frontend classes', $policy['source_code_improvements'] ?? [], true)
+            && in_array('physical_reorganization_phase_one_policy', $policy['required_source_policies'] ?? [], true)
+            && in_array('public_html_shims_exist', $policy['required_verifications'] ?? [], true)
+            && str_contains($indexShim, 'Frameworks/Frontend/Index.php')
+            && str_contains($dashboardShim, 'Frameworks/Frontend/Dashboard.php')
+            && str_contains($dashboardBody, 'AdlaireDashboardSecurity::authorized()')
+            && $filesExist;
+    }
+
+    public static function cssFrameworkSourceSyncPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'CSS Framework Source Sync',
+            'status' => 'css_source_moved_distribution_asset_retained',
+            'range' => 'v0.265',
+            'physical_reorganization_applied' => true,
+            'deployment_core_contract_changed' => false,
+            'public_api_required' => false,
+            'configuration_files_allowed' => false,
+            'dashboard_execution_enabled' => false,
+            'source_asset' => 'Frameworks/CSS/adlaire-ui.css',
+            'distribution_asset' => 'public_html/assets/adlaire-ui.css',
+            'sync_required' => true,
+            'document_root_asset_retained' => true,
+            'source_code_improvements' => [
+                'CSS framework source has a classified framework path',
+                'public asset remains deployable without a build step',
+                'release checks validate source and distribution synchronization',
+            ],
+            'required_source_policies' => [
+                'frontend_reorganization_shim_policy',
+                'ui_framework_policy',
+                'ui_framework_expansion_policy',
+            ],
+            'required_verifications' => [
+                'css_source_exists',
+                'public_css_asset_exists',
+                'css_source_distribution_hash_match',
+                'dashboard_uses_public_css_asset',
+                'official_debug_test',
+                'release_check',
+            ],
+        ];
+    }
+
+    private static function cssFrameworkSourceSyncPassed(array $policy): bool
+    {
+        $root = dirname(__DIR__);
+        $source = $root . '/' . ($policy['source_asset'] ?? '');
+        $distribution = $root . '/' . ($policy['distribution_asset'] ?? '');
+        $filesExist = is_file($source) && is_file($distribution);
+
+        return ($policy['theme'] ?? null) === 'CSS Framework Source Sync'
+            && ($policy['status'] ?? null) === 'css_source_moved_distribution_asset_retained'
+            && ($policy['range'] ?? null) === 'v0.265'
+            && ($policy['physical_reorganization_applied'] ?? false) === true
+            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['public_api_required'] ?? true) === false
+            && ($policy['configuration_files_allowed'] ?? true) === false
+            && ($policy['dashboard_execution_enabled'] ?? true) === false
+            && ($policy['source_asset'] ?? null) === 'Frameworks/CSS/adlaire-ui.css'
+            && ($policy['distribution_asset'] ?? null) === 'public_html/assets/adlaire-ui.css'
+            && ($policy['sync_required'] ?? false) === true
+            && ($policy['document_root_asset_retained'] ?? false) === true
+            && in_array('CSS framework source has a classified framework path', $policy['source_code_improvements'] ?? [], true)
+            && in_array('frontend_reorganization_shim_policy', $policy['required_source_policies'] ?? [], true)
+            && in_array('css_source_distribution_hash_match', $policy['required_verifications'] ?? [], true)
+            && $filesExist
+            && hash_file('sha256', $source) === hash_file('sha256', $distribution);
+    }
+
+    public static function dashboardFrontendClassExtractionPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'Dashboard Frontend Class Extraction',
+            'status' => 'dashboard_security_data_view_classes_extracted',
+            'range' => 'v0.266',
+            'physical_reorganization_applied' => true,
+            'deployment_core_contract_changed' => false,
+            'public_api_required' => false,
+            'configuration_files_allowed' => false,
+            'dashboard_execution_enabled' => false,
+            'entrypoint' => 'Frameworks/Frontend/Dashboard.php',
+            'extracted_classes' => [
+                'Frameworks/Frontend/DashboardSecurity.php' => 'AdlaireDashboardSecurity',
+                'Frameworks/Frontend/DashboardData.php' => 'AdlaireDashboardData',
+                'Frameworks/Frontend/DashboardView.php' => 'AdlaireDashboardView',
+            ],
+            'source_code_improvements' => [
+                'dashboard entrypoint contains only control flow',
+                'authorization logic is isolated',
+                'data collection is isolated',
+                'HTML rendering is isolated',
+                'global dashboard helper functions removed',
+            ],
+            'required_source_policies' => [
+                'frontend_reorganization_shim_policy',
+                'css_framework_source_sync_policy',
+                'dashboard_gated_controls_policy',
+            ],
+            'required_verifications' => [
+                'dashboard_entrypoint_thin',
+                'dashboard_classes_exist',
+                'global_dashboard_helper_functions_removed',
+                'dashboard_uses_public_css_asset',
+                'official_debug_test',
+                'release_check',
+            ],
+        ];
+    }
+
+    private static function dashboardFrontendClassExtractionPassed(array $policy): bool
+    {
+        $root = dirname(__DIR__);
+        $entrypoint = $root . '/' . ($policy['entrypoint'] ?? '');
+        $entrypointBody = is_file($entrypoint) ? (string)file_get_contents($entrypoint) : '';
+
+        $classesExist = true;
+        foreach (($policy['extracted_classes'] ?? []) as $file => $class) {
+            $path = $root . '/' . $file;
+            $body = is_file($path) ? (string)file_get_contents($path) : '';
+            $classesExist = $classesExist
+                && is_file($path)
+                && is_string($class)
+                && str_contains($body, 'final class ' . $class);
+        }
+
+        return ($policy['theme'] ?? null) === 'Dashboard Frontend Class Extraction'
+            && ($policy['status'] ?? null) === 'dashboard_security_data_view_classes_extracted'
+            && ($policy['range'] ?? null) === 'v0.266'
+            && ($policy['physical_reorganization_applied'] ?? false) === true
+            && ($policy['deployment_core_contract_changed'] ?? true) === false
+            && ($policy['public_api_required'] ?? true) === false
+            && ($policy['configuration_files_allowed'] ?? true) === false
+            && ($policy['dashboard_execution_enabled'] ?? true) === false
+            && ($policy['entrypoint'] ?? null) === 'Frameworks/Frontend/Dashboard.php'
+            && in_array('global dashboard helper functions removed', $policy['source_code_improvements'] ?? [], true)
+            && in_array('frontend_reorganization_shim_policy', $policy['required_source_policies'] ?? [], true)
+            && in_array('dashboard_entrypoint_thin', $policy['required_verifications'] ?? [], true)
+            && $classesExist
+            && str_contains($entrypointBody, 'AdlaireDashboardSecurity::authorized()')
+            && str_contains($entrypointBody, 'AdlaireDashboardData::collect($root)')
+            && str_contains($entrypointBody, 'AdlaireDashboardView::render')
+            && !str_contains($entrypointBody, 'function adlaire_dashboard_');
+    }
+
     public static function frameworkClassificationPolicy(): array
     {
         return [
@@ -3505,7 +3742,7 @@ final class Adlaire
         return [
             'version' => self::version(),
             'stable_release' => true,
-            'release_name' => 'v0.263 physical reorganization phase one release',
+            'release_name' => 'v0.266 dashboard frontend class extraction release',
             'backend_framework_capabilities' => [
                 'routing',
                 'middleware',
@@ -3554,6 +3791,9 @@ final class Adlaire
                 'reorganization architecture plan',
                 'non-deployment migration preparation plan',
                 'physical reorganization phase one',
+                'frontend reorganization shim',
+                'CSS framework source sync',
+                'dashboard frontend class extraction',
             ],
             'no_breaking_changes' => false,
             'breaking_changes_allowed' => true,
@@ -3603,6 +3843,9 @@ final class Adlaire
             'reorganization_architecture_plan' => true,
             'reorganization_preparation_plan' => true,
             'physical_reorganization_phase_one' => true,
+            'frontend_reorganization_shim' => true,
+            'css_framework_source_sync' => true,
+            'dashboard_frontend_class_extraction' => true,
         ];
     }
 
@@ -3764,6 +4007,9 @@ final class Adlaire
                 && in_array('reorganization architecture plan', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('non-deployment migration preparation plan', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('physical reorganization phase one', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('frontend reorganization shim', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('CSS framework source sync', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('dashboard frontend class extraction', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && self::stableReleaseContract()['dashboard_deploy_execution_specification'] === true
                 && self::stableReleaseContract()['framework_classification_specification'] === true
                 && self::stableReleaseContract()['integration_core_concept'] === true
@@ -3775,6 +4021,9 @@ final class Adlaire
                 && self::stableReleaseContract()['reorganization_architecture_plan'] === true
                 && self::stableReleaseContract()['reorganization_preparation_plan'] === true
                 && self::stableReleaseContract()['physical_reorganization_phase_one'] === true
+                && self::stableReleaseContract()['frontend_reorganization_shim'] === true
+                && self::stableReleaseContract()['css_framework_source_sync'] === true
+                && self::stableReleaseContract()['dashboard_frontend_class_extraction'] === true
                 && self::stableReleaseContract()['mysql_support_planned'] === false,
             'production_environment_policy' => self::productionEnvironmentPolicy()['production_provider'] === 'Xserver rental server'
                 && self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
@@ -3858,6 +4107,7 @@ final class Adlaire
                 && self::stableReleaseGatePolicy()['read_only'] === true,
             'ui_framework_policy' => self::uiFrameworkPolicy()['theme'] === 'Adlaire UI Framework'
                 && self::uiFrameworkPolicy()['configuration_files_allowed'] === false
+                && self::uiFrameworkPolicy()['source_asset'] === 'Frameworks/CSS/adlaire-ui.css'
                 && self::uiFrameworkPolicy()['asset'] === 'public_html/assets/adlaire-ui.css',
             'deployment_control_snapshot_policy' => self::deploymentControlSnapshotPolicy()['theme'] === 'Deployment Control Snapshot'
                 && self::deploymentControlSnapshotPolicy()['configuration_files_allowed'] === false
@@ -3906,6 +4156,9 @@ final class Adlaire
             'reorganization_architecture_plan_policy' => self::reorganizationArchitecturePlanPassed(self::reorganizationArchitecturePlanPolicy()),
             'reorganization_preparation_plan_policy' => self::reorganizationPreparationPlanPassed(self::reorganizationPreparationPlanPolicy()),
             'physical_reorganization_phase_one_policy' => self::physicalReorganizationPhaseOnePassed(self::physicalReorganizationPhaseOnePolicy()),
+            'frontend_reorganization_shim_policy' => self::frontendReorganizationShimPassed(self::frontendReorganizationShimPolicy()),
+            'css_framework_source_sync_policy' => self::cssFrameworkSourceSyncPassed(self::cssFrameworkSourceSyncPolicy()),
+            'dashboard_frontend_class_extraction_policy' => self::dashboardFrontendClassExtractionPassed(self::dashboardFrontendClassExtractionPolicy()),
             'development_workflow_policy' => self::developmentWorkflowPolicy()['theme'] === 'Specification-First Development Workflow'
                 && self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
                 && self::developmentWorkflowPolicy()['required_order'] === ['specification', 'implementation_plan', 'implementation']
@@ -4050,6 +4303,9 @@ final class Adlaire
             'reorganization_architecture_plan_policy',
             'reorganization_preparation_plan_policy',
             'physical_reorganization_phase_one_policy',
+            'frontend_reorganization_shim_policy',
+            'css_framework_source_sync_policy',
+            'dashboard_frontend_class_extraction_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
@@ -4111,6 +4367,9 @@ final class Adlaire
             'reorganization_architecture_plan_policy',
             'reorganization_preparation_plan_policy',
             'physical_reorganization_phase_one_policy',
+            'frontend_reorganization_shim_policy',
+            'css_framework_source_sync_policy',
+            'dashboard_frontend_class_extraction_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'auris_integration_policy',
@@ -4175,6 +4434,12 @@ final class Adlaire
                 'Frameworks/Backend/Config.php',
                 'Frameworks/Backend/Middleware.php',
                 'Frameworks/Backend/Support.php',
+                'Frameworks/Frontend/Index.php',
+                'Frameworks/Frontend/Dashboard.php',
+                'Frameworks/Frontend/DashboardSecurity.php',
+                'Frameworks/Frontend/DashboardData.php',
+                'Frameworks/Frontend/DashboardView.php',
+                'Frameworks/CSS/adlaire-ui.css',
                 'public_html/assets/adlaire-ui.css',
                 'tests/debug.php',
                 'README.md',
@@ -4232,6 +4497,9 @@ final class Adlaire
             'reorganization_architecture_plan_policy' => self::reorganizationArchitecturePlanPolicy(),
             'reorganization_preparation_plan_policy' => self::reorganizationPreparationPlanPolicy(),
             'physical_reorganization_phase_one_policy' => self::physicalReorganizationPhaseOnePolicy(),
+            'frontend_reorganization_shim_policy' => self::frontendReorganizationShimPolicy(),
+            'css_framework_source_sync_policy' => self::cssFrameworkSourceSyncPolicy(),
+            'dashboard_frontend_class_extraction_policy' => self::dashboardFrontendClassExtractionPolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
@@ -4250,7 +4518,7 @@ final class Adlaire
             'php' => '>=8.3',
             'version_format' => 'v0.x',
             'cumulative_version' => true,
-            'formalization_version' => 'v0.263',
+            'formalization_version' => 'v0.266',
             'file_principle' => self::auditFilePrinciple(),
             'external_dependencies' => 'none',
             'license_policy' => self::licensePolicy(),
@@ -4318,6 +4586,9 @@ final class Adlaire
             'reorganization_architecture_plan_policy' => self::reorganizationArchitecturePlanPolicy(),
             'reorganization_preparation_plan_policy' => self::reorganizationPreparationPlanPolicy(),
             'physical_reorganization_phase_one_policy' => self::physicalReorganizationPhaseOnePolicy(),
+            'frontend_reorganization_shim_policy' => self::frontendReorganizationShimPolicy(),
+            'css_framework_source_sync_policy' => self::cssFrameworkSourceSyncPolicy(),
+            'dashboard_frontend_class_extraction_policy' => self::dashboardFrontendClassExtractionPolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'auris_integration_policy' => self::aurisIntegrationPolicy(),
@@ -4472,6 +4743,7 @@ final class Adlaire
             'ui_framework_policy' => [
                 'profile' => self::uiFrameworkPolicy(),
                 'passed' => self::uiFrameworkPolicy()['configuration_files_allowed'] === false
+                    && self::uiFrameworkPolicy()['source_asset'] === 'Frameworks/CSS/adlaire-ui.css'
                     && self::uiFrameworkPolicy()['asset'] === 'public_html/assets/adlaire-ui.css',
             ],
             'deployment_control_snapshot_policy' => [
@@ -4580,6 +4852,18 @@ final class Adlaire
                 'profile' => self::physicalReorganizationPhaseOnePolicy(),
                 'passed' => self::physicalReorganizationPhaseOnePassed(self::physicalReorganizationPhaseOnePolicy()),
             ],
+            'frontend_reorganization_shim_policy' => [
+                'profile' => self::frontendReorganizationShimPolicy(),
+                'passed' => self::frontendReorganizationShimPassed(self::frontendReorganizationShimPolicy()),
+            ],
+            'css_framework_source_sync_policy' => [
+                'profile' => self::cssFrameworkSourceSyncPolicy(),
+                'passed' => self::cssFrameworkSourceSyncPassed(self::cssFrameworkSourceSyncPolicy()),
+            ],
+            'dashboard_frontend_class_extraction_policy' => [
+                'profile' => self::dashboardFrontendClassExtractionPolicy(),
+                'passed' => self::dashboardFrontendClassExtractionPassed(self::dashboardFrontendClassExtractionPolicy()),
+            ],
             'development_workflow_policy' => [
                 'profile' => self::developmentWorkflowPolicy(),
                 'passed' => self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
@@ -4685,6 +4969,9 @@ final class Adlaire
                 && in_array('reorganization architecture plan', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('non-deployment migration preparation plan', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('physical reorganization phase one', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('frontend reorganization shim', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('CSS framework source sync', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('dashboard frontend class extraction', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && ($audit['stable_release_contract']['mysql_support_planned'] ?? true) === false
                 && ($audit['stable_release_contract']['runtime_operations_hardening'] ?? false) === true
                 && ($audit['stable_release_contract']['operations_dashboard'] ?? false) === true
@@ -4721,7 +5008,10 @@ final class Adlaire
                 && ($audit['stable_release_contract']['reorganization_readiness_boundary'] ?? false) === true
                 && ($audit['stable_release_contract']['reorganization_architecture_plan'] ?? false) === true
                 && ($audit['stable_release_contract']['reorganization_preparation_plan'] ?? false) === true
-                && ($audit['stable_release_contract']['physical_reorganization_phase_one'] ?? false) === true,
+                && ($audit['stable_release_contract']['physical_reorganization_phase_one'] ?? false) === true
+                && ($audit['stable_release_contract']['frontend_reorganization_shim'] ?? false) === true
+                && ($audit['stable_release_contract']['css_framework_source_sync'] ?? false) === true
+                && ($audit['stable_release_contract']['dashboard_frontend_class_extraction'] ?? false) === true,
             'production_environment_policy' => ($audit['production_environment_policy']['production_provider'] ?? null) === 'Xserver rental server'
                 && ($audit['production_environment_policy']['production_equivalent_testing_required'] ?? false) === true
                 && ($audit['production_environment_policy']['php_requirement'] ?? null) === '>=8.3'
@@ -4799,6 +5089,7 @@ final class Adlaire
                 && ($audit['stable_release_gate_policy']['read_only'] ?? false) === true,
             'ui_framework_policy' => ($audit['ui_framework_policy']['theme'] ?? null) === 'Adlaire UI Framework'
                 && ($audit['ui_framework_policy']['configuration_files_allowed'] ?? true) === false
+                && ($audit['ui_framework_policy']['source_asset'] ?? null) === 'Frameworks/CSS/adlaire-ui.css'
                 && ($audit['ui_framework_policy']['asset'] ?? null) === 'public_html/assets/adlaire-ui.css',
             'deployment_control_snapshot_policy' => ($audit['deployment_control_snapshot_policy']['theme'] ?? null) === 'Deployment Control Snapshot'
                 && ($audit['deployment_control_snapshot_policy']['configuration_files_allowed'] ?? true) === false
@@ -4847,6 +5138,9 @@ final class Adlaire
             'reorganization_architecture_plan_policy' => self::reorganizationArchitecturePlanPassed($audit['reorganization_architecture_plan_policy'] ?? []),
             'reorganization_preparation_plan_policy' => self::reorganizationPreparationPlanPassed($audit['reorganization_preparation_plan_policy'] ?? []),
             'physical_reorganization_phase_one_policy' => self::physicalReorganizationPhaseOnePassed($audit['physical_reorganization_phase_one_policy'] ?? []),
+            'frontend_reorganization_shim_policy' => self::frontendReorganizationShimPassed($audit['frontend_reorganization_shim_policy'] ?? []),
+            'css_framework_source_sync_policy' => self::cssFrameworkSourceSyncPassed($audit['css_framework_source_sync_policy'] ?? []),
+            'dashboard_frontend_class_extraction_policy' => self::dashboardFrontendClassExtractionPassed($audit['dashboard_frontend_class_extraction_policy'] ?? []),
             'development_workflow_policy' => ($audit['development_workflow_policy']['theme'] ?? null) === 'Specification-First Development Workflow'
                 && ($audit['development_workflow_policy']['highest_absolute_principle'] ?? false) === true
                 && ($audit['development_workflow_policy']['required_order'] ?? []) === ['specification', 'implementation_plan', 'implementation']
