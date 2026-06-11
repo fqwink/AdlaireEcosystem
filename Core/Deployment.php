@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Deployment Core bootstrap and support
  *
- * @version v0.277
+ * @version v0.278
  * @php     >= 8.3
  */
 

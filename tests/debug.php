@@ -38,10 +38,10 @@ function assert_file_count(string $directory, int $expected): void
 
 function test_release_identity(): void
 {
-    assert_same('v0.277', Adlaire::version(), 'version should be v0.277');
+    assert_same('v0.278', Adlaire::version(), 'version should be v0.278');
 
     $spec = Adlaire::currentSpecification();
-    assert_same('v0.277', $spec['version'] ?? null, 'current specification should expose current version');
+    assert_same('v0.278', $spec['version'] ?? null, 'current specification should expose current version');
     assert_same(false, $spec['compatibility']['guaranteed'] ?? null, 'current specification should reject compatibility guarantees');
     assert_same(false, $spec['compatibility']['legacy_shims_allowed'] ?? null, 'current specification should reject legacy shims');
     assert_same('Core/Deployment.php', $spec['entrypoints']['deployment'] ?? null, 'current specification should expose deployment entrypoint');
@@ -54,6 +54,13 @@ function test_release_identity(): void
     assert_same('Docker/Dockerfile.xserver', $spec['docker_profile']['dockerfile'] ?? null, 'Dockerfile should use Docker directory');
     assert_same('Docker/docker-compose.xserver.yml', $spec['docker_profile']['compose_file'] ?? null, 'compose profile should use Docker directory');
     assert_same(false, $spec['docker_profile']['root_docker_files_allowed'] ?? null, 'root Docker files should not be allowed');
+    assert_same(false, $spec['repository_hygiene']['os_metadata_files_allowed'] ?? null, 'OS metadata files should not be allowed');
+    assert_same(false, $spec['repository_hygiene']['duplicate_agent_docs_allowed'] ?? null, 'duplicate agent docs should not be allowed');
+    assert_same('AGENTS.md', $spec['repository_hygiene']['agent_docs_source'] ?? null, 'AGENTS should be the agent docs source');
+    assert_same('dashboard display assistance', $spec['javascript_framework']['purpose'] ?? null, 'JavaScript framework should be dashboard display assistance');
+    assert_same(false, $spec['javascript_framework']['public_api_dependency_allowed'] ?? null, 'JavaScript framework should not depend on Public API');
+    assert_same(false, $spec['javascript_framework']['configuration_file_dependency_allowed'] ?? null, 'JavaScript framework should not depend on config files');
+    assert_same(false, $spec['javascript_framework']['json_request_response_helpers_allowed'] ?? null, 'JavaScript framework should not provide JSON helpers');
     assert_same(45, $spec['release_phases']['source_improvement_cycles'] ?? null, 'current specification should expose source improvement cycles');
     assert_same(5, $spec['release_phases']['physical_cleanup_cycles'] ?? null, 'current specification should expose cleanup cycles');
     assert_same(0, $spec['release_phases']['known_bug_count'] ?? null, 'current specification should expose zero known bugs');
@@ -61,23 +68,27 @@ function test_release_identity(): void
     assert_true(is_file(__DIR__ . '/../Docker/Dockerfile.xserver'), 'Dockerfile should be collected under Docker');
     assert_true(is_file(__DIR__ . '/../Docker/docker-compose.xserver.yml'), 'docker compose profile should be collected under Docker');
     assert_true(!is_dir(__DIR__ . '/../modules'), 'legacy modules directory should be absent');
-    assert_true(!is_file(__DIR__ . '/../modules/Auris/.gitkeep'), 'legacy Auris module placeholder should be absent');
+    assert_true(!is_file(__DIR__ . '/../modules/Auris/.gitkeep'), 'legacy named module marker should be absent');
     assert_true(!is_file(__DIR__ . '/../Dockerfile.xserver'), 'root Dockerfile.xserver should be absent');
     assert_true(!is_file(__DIR__ . '/../docker-compose.xserver.yml'), 'root docker-compose.xserver.yml should be absent');
+    assert_true(!is_file(__DIR__ . '/../.DS_Store'), 'OS metadata files should be absent');
+    assert_true(!is_file(__DIR__ . '/../CLAUDE.md'), 'empty duplicate agent documentation should be absent');
 
     $contract = Adlaire::stableReleaseContract();
     assert_same(true, $contract['stable_release'] ?? null, 'stable release should be enabled');
-    assert_same('v0.277 consolidated breaking development release', $contract['release_name'] ?? null, 'stable release name should be fixed');
+    assert_same('v0.278 stable improvement release', $contract['release_name'] ?? null, 'stable release name should be fixed');
     assert_same(false, $contract['deployment_system_compatibility_guaranteed'] ?? null, 'deployment compatibility should be removed');
-    assert_same(false, $contract['deployment_system_no_breaking_changes'] ?? null, 'deployment breaking changes should be allowed for v0.277');
-    assert_same(true, $contract['v0_277_stable_release_finalized'] ?? null, 'v0.277 stable release should be finalized');
+    assert_same(false, $contract['deployment_system_no_breaking_changes'] ?? null, 'deployment breaking changes should be allowed for v0.278');
+    assert_same(true, $contract['v0_278_stable_release_finalized'] ?? null, 'v0.278 stable release should be finalized');
+    assert_same(true, $contract['javascript_framework_implemented'] ?? null, 'stable contract should include JavaScript implementation');
+    assert_same(true, $contract['repository_hygiene_enforced'] ?? null, 'stable contract should include repository hygiene');
     assert_same(false, $contract['mysql_support_planned'] ?? null, 'MySQL support should remain unplanned');
 }
 
 function test_release_readiness(): void
 {
     $readiness = Adlaire::releaseReadiness();
-    assert_same('v0.277', $readiness['version'] ?? null, 'release readiness should include current version');
+    assert_same('v0.278', $readiness['version'] ?? null, 'release readiness should include current version');
     assert_same(true, $readiness['ready'] ?? null, 'release readiness should pass');
 
     foreach ($readiness['checks'] ?? [] as $name => $passed) {
@@ -87,8 +98,8 @@ function test_release_readiness(): void
 
 function test_stable_release_policy(): void
 {
-    $policy = Adlaire::v0277StableReleasePolicy();
-    assert_same('v0.277 Consolidated Breaking Development Release', $policy['theme'] ?? null, 'stable policy should define theme');
+    $policy = Adlaire::v0278StableReleasePolicy();
+    assert_same('v0.278 Stable Improvement Release', $policy['theme'] ?? null, 'stable policy should define theme');
     assert_same('stable_release_finalized', $policy['status'] ?? null, 'stable policy should be finalized');
     assert_same(true, $policy['stable_release'] ?? null, 'stable policy should mark stable release');
     assert_same(0, $policy['known_bug_count'] ?? null, 'known bug count should be zero');
@@ -97,6 +108,9 @@ function test_stable_release_policy(): void
     assert_same(false, $policy['public_api_available'] ?? null, 'public API should remain removed');
     assert_same(false, $policy['configuration_files_allowed'] ?? null, 'configuration files should remain prohibited');
     assert_same(false, $policy['mysql_support_planned'] ?? null, 'MySQL support should remain unplanned');
+    assert_same(true, $policy['javascript_framework_implemented'] ?? null, 'JavaScript framework should be implemented');
+    assert_same(true, $policy['javascript_placeholder_free'] ?? null, 'JavaScript framework should be placeholder-free');
+    assert_same(true, $policy['repository_hygiene_enforced'] ?? null, 'repository hygiene should be enforced');
     assert_true(!is_dir(__DIR__ . '/../FrameworkCore'), 'legacy FrameworkCore shim should be absent');
 
     $manifest = Adlaire::distributionManifest();
@@ -112,7 +126,6 @@ function test_framework_five_file_principle(): void
 {
     foreach ([
         'Core',
-        'Core',
         'Frameworks/Backend',
         'Frameworks/Frontend',
         'Frameworks/CSS',
@@ -125,6 +138,11 @@ function test_framework_five_file_principle(): void
     assert_absent('Frameworks/Frontend/.gitkeep', 'frontend placeholder should be removed');
     assert_absent('Frameworks/CSS/.gitkeep', 'CSS placeholder should be removed');
     assert_absent('Frameworks/JavaScript/.gitkeep', 'JavaScript placeholder should be removed');
+
+    foreach (glob(__DIR__ . '/../Frameworks/JavaScript/*.js') ?: [] as $file) {
+        $contents = file_get_contents($file);
+        assert_true(is_string($contents) && !str_contains(strtolower($contents), 'placeholder'), basename($file) . ' should be implemented');
+    }
 }
 
 function test_application_module_boundary(): void

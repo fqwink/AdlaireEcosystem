@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Deployment Deployer
  *
- * @version v0.277
+ * @version v0.278
  * @php     >= 8.3
  */
 
@@ -14,7 +14,7 @@ require_once __DIR__ . '/DeployConfig.php';
 
 final class Deployer
 {
-    private const CONTROL_VERSION = 'v0.277';
+    private const CONTROL_VERSION = 'v0.278';
 
     private Logger $logger;
     private array $fileCache = [];

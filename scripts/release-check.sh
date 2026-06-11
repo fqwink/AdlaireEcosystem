@@ -39,6 +39,16 @@ if [ -f Dockerfile.xserver ] || [ -f docker-compose.xserver.yml ]; then
     exit 1
 fi
 
+if find . \( -path './.git' -o -path './.git/*' \) -prune -o -name .DS_Store -type f -print | grep . >/dev/null; then
+    echo "OS metadata files must not be committed or left in the repository"
+    exit 1
+fi
+
+if [ -f CLAUDE.md ]; then
+    echo "Empty duplicate agent documentation must be absent; use AGENTS.md"
+    exit 1
+fi
+
 for dir in Core Frameworks/Backend Frameworks/Frontend Frameworks/CSS Frameworks/JavaScript; do
     count=$(find "$dir" -maxdepth 1 -type f | wc -l | tr -d ' ')
     if [ "$count" -ne 5 ]; then
@@ -53,6 +63,11 @@ for file in Frameworks/CSS/adlaire-ui.css Frameworks/CSS/reset.css Frameworks/CS
         exit 1
     fi
 done
+
+if grep -Ri "placeholder" Frameworks/JavaScript >/dev/null; then
+    echo "JavaScript framework files must contain implemented modules, not placeholder text"
+    exit 1
+fi
 
 cmp -s Frameworks/CSS/adlaire-ui.css public_html/assets/adlaire-ui.css
 

@@ -2,21 +2,21 @@
 
 Adlaire Ecosystemは、デプロイメント制御を中核にしたPHP 8.3+向け軽量フレームワークです。
 
-仕様の正本は`adlaire-ecosystem.md`です。`adlaire-ecosystem.md` is the source of truth.
+仕様の正本は`adlaire-ecosystem.md`です。
 
 ## 現行バージョン
 
-`v0.277`: Consolidated Breaking Development Release
+`v0.278`: Stable Improvement Release
 
-v0.277で、リポジトリ全体に破壊的変更前提の統合開発を適用しました。45回の大規模ソース改善、5回の物理整理、既知バグ0件をリリース条件にし、Deployment SystemをCoreへ統合します。
+v0.278は安定版改善リリースです。5ファイル原則、Deployment SystemのCore統合、Public API廃止、設定ファイル禁止、既知バグ0件をリリース条件にします。
 
 ## 主要方針
 
 - Deployment Core互換性は保証しない
 - Deployment Core正式入口は`Core/Deployment.php`
 - 各フレームワークは5ファイル原則を維持する
-- Public API: removed.
-- Configuration files はフレームワーク設定として禁止
+- Public APIは廃止
+- 設定ファイルはフレームワーク設定として禁止
 - JSONは監査、履歴、証跡、ログ、内部libSQL transport payload用途のみ許可
 - SQLiteと内部libSQL transportを軸とする
 - MySQL対応予定なし
@@ -42,7 +42,7 @@ adlaire-ecosystem.md
 sh scripts/release-check.sh
 ```
 
-Docker equivalent:
+Dockerで検証する場合:
 
 ```sh
 docker run --rm -v "$PWD:/app" -w /app php:8.3-cli sh scripts/release-check.sh

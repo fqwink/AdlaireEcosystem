@@ -3,13 +3,13 @@
 /**
  * Adlaire Ecosystem - Core.php
  *
- * @version v0.277
+ * @version v0.278
  * @php     >= 8.3
  */
 
 declare(strict_types=1);
 
-const ADLAIRE_VERSION = 'v0.277';
+const ADLAIRE_VERSION = 'v0.278';
 
 if (is_file(__DIR__ . '/Extension.php')) {
     require_once __DIR__ . '/Extension.php';
@@ -1336,7 +1336,7 @@ final class Adlaire
     {
         return [
             'version' => self::version(),
-            'release' => 'v0.277 consolidated breaking development release',
+            'release' => 'v0.278 stable improvement release',
             'source_of_truth' => 'adlaire-ecosystem.md',
             'compatibility' => [
                 'guaranteed' => false,
@@ -1388,6 +1388,18 @@ final class Adlaire
                 'compose_file' => 'Docker/docker-compose.xserver.yml',
                 'root_docker_files_allowed' => false,
             ],
+            'repository_hygiene' => [
+                'os_metadata_files_allowed' => false,
+                'duplicate_agent_docs_allowed' => false,
+                'agent_docs_source' => 'AGENTS.md',
+            ],
+            'javascript_framework' => [
+                'purpose' => 'dashboard display assistance',
+                'public_api_dependency_allowed' => false,
+                'configuration_file_dependency_allowed' => false,
+                'json_request_response_helpers_allowed' => false,
+                'runtime_contract' => ['dom_state', 'controls', 'timeline', 'release_gate', 'dashboard_state'],
+            ],
             'release_gate' => 'sh scripts/release-check.sh',
         ];
     }
@@ -1435,7 +1447,7 @@ final class Adlaire
                 'DEPLOY-REQ-008' => 'Deployment control report aggregates preflight, preview, compatibility, rollback, safety, and history evidence.',
                 'DEPLOY-REQ-009' => 'Deployment control snapshots are recorded as JSON audit artifacts, not framework configuration files.',
                 'DEPLOY-REQ-010' => 'Deployment control diff and release evidence bundle compare read-only control evidence for release candidate decisions.',
-                'DEPLOY-REQ-011' => 'DeploymentCore implementation is canonical in Core/Deployment.php and the root compatibility entrypoint is removed in v0.277.',
+                'DEPLOY-REQ-011' => 'DeploymentCore implementation is canonical in Core/Deployment.php and the root compatibility entrypoint is removed in v0.278.',
                 'DEPLOY-REQ-012' => 'Deployment Core classes must remain inside the Core five-file layout with Core/Deployment.php as the bootstrap.',
             ],
             'tests/debug.php' => [
@@ -1483,7 +1495,7 @@ final class Adlaire
                 'RELEASE-REQ-038' => 'The v0.230 repository documentation consistency release rejects stale Xserver MySQL and env-file guidance.',
                 'RELEASE-REQ-039' => 'The v0.231 deployment axis map release classifies repository files by deployment-system role without physical reorganization.',
                 'RELEASE-REQ-040' => 'The v0.232 dashboard deploy execution specification release keeps execution disabled while fixing required safety gates.',
-                'RELEASE-REQ-041' => 'The v0.233 framework classification specification release defines classified framework families, Integration Core, and the v0.277 stable reorganization target.',
+                'RELEASE-REQ-041' => 'The v0.233 framework classification specification release defines classified framework families, Integration Core, and the v0.278 stable reorganization target.',
                 'RELEASE-REQ-042' => 'The v0.234 integration core concept release defines Integration Core responsibilities without physical reorganization.',
                 'RELEASE-REQ-043' => 'The v0.235 execution safety gate release fixes mandatory checks before dashboard deploy execution can be implemented.',
                 'RELEASE-REQ-044' => 'The v0.236 deployment execute adapter contract release defines an internal adapter boundary behind the execution safety gate.',
@@ -1497,15 +1509,15 @@ final class Adlaire
                 'RELEASE-REQ-052' => 'The v0.265 CSS framework source sync release establishes Frameworks/CSS as the stylesheet source while preserving the public_html distribution asset.',
                 'RELEASE-REQ-053' => 'The v0.266 dashboard frontend class extraction release splits dashboard security, data collection, and rendering into dedicated frontend classes.',
                 'RELEASE-REQ-054' => 'The v0.267 frontend index application extraction release moves index routing and rendering into dedicated frontend classes.',
-                'RELEASE-REQ-055' => 'The v0.268 repository cleanup and v0.277 stable target release removes obsolete configuration directories and updates the stable release target.',
+                'RELEASE-REQ-055' => 'The v0.268 repository cleanup and v0.278 stable target release removes obsolete configuration directories and updates the stable release target.',
                 'RELEASE-REQ-056' => 'The v0.269 deployment framework implementation extraction release moves DeploymentCore implementation into Core behind the root compatibility entrypoint.',
                 'RELEASE-REQ-057' => 'The v0.270 deployment framework class split release extracts DeployConfig and Deployer into dedicated files behind the DeploymentCore bootstrap.',
                 'RELEASE-REQ-058' => 'The v0.271 framework five-file principle release normalizes active framework families to five physical files and removes placeholder files.',
                 'RELEASE-REQ-059' => 'The v0.272 framework five-file highest principle release promotes five-file layout enforcement into the highest absolute principle set.',
-                'RELEASE-REQ-060' => 'The v0.277 consolidated development release executes forty-five source improvement cycles.',
-                'RELEASE-REQ-061' => 'The v0.277 consolidated development release executes five physical cleanup cycles without violating the framework five-file highest principle.',
-                'RELEASE-REQ-062' => 'The v0.277 consolidated development release continues bug remediation until the known bug count is zero.',
-                'RELEASE-REQ-063' => 'The v0.277 consolidated breaking development release removes the root DeploymentCore compatibility entrypoint with zero known bugs.',
+                'RELEASE-REQ-060' => 'The v0.278 consolidated development release executes forty-five source improvement cycles.',
+                'RELEASE-REQ-061' => 'The v0.278 consolidated development release executes five physical cleanup cycles without violating the framework five-file highest principle.',
+                'RELEASE-REQ-062' => 'The v0.278 consolidated development release continues bug remediation until the known bug count is zero.',
+                'RELEASE-REQ-063' => 'The v0.278 stable improvement release removes the root DeploymentCore compatibility entrypoint with zero known bugs.',
             ],
         ];
     }
@@ -1563,7 +1575,7 @@ final class Adlaire
             'consolidated_source_improvement_policy' => ['CORE-REQ-014', 'RELEASE-REQ-060'],
             'physical_cleanup_cycle_policy' => ['CORE-REQ-014', 'RELEASE-REQ-061'],
             'bug_zero_remediation_policy' => ['TEST-REQ-001', 'TEST-REQ-002', 'RELEASE-REQ-062'],
-            'v0_277_stable_release_policy' => ['CORE-REQ-010', 'CORE-REQ-014', 'RELEASE-REQ-063'],
+            'v0_278_stable_release_policy' => ['CORE-REQ-010', 'CORE-REQ-014', 'RELEASE-REQ-063'],
             'adlaire_audit' => ['CORE-REQ-002', 'TEST-REQ-001', 'TEST-REQ-002', 'RELEASE-REQ-001', 'RELEASE-REQ-002'],
             'release_readiness' => ['RELEASE-REQ-001', 'RELEASE-REQ-002', 'RELEASE-REQ-003'],
             'license_governance' => ['RELEASE-REQ-003', 'RELEASE-REQ-004', 'CORE-REQ-006', 'RELEASE-REQ-036', 'RELEASE-REQ-037'],
@@ -2773,7 +2785,7 @@ final class Adlaire
             ],
             'v0_240_requires_explicit_change_presentation' => true,
             'v0_240_requires_user_approval' => true,
-            'release_target' => 'v0.277 consolidated breaking development release',
+            'release_target' => 'v0.278 stable improvement release',
             'required_verifications' => [
                 'approval_boundary_defined',
                 'physical_reorganization_not_applied',
@@ -2801,7 +2813,7 @@ final class Adlaire
             && in_array('dashboard_gated_controls_policy', $policy['ready_inputs'] ?? [], true)
             && ($policy['v0_240_requires_explicit_change_presentation'] ?? false) === true
             && ($policy['v0_240_requires_user_approval'] ?? false) === true
-            && ($policy['release_target'] ?? null) === 'v0.277 consolidated breaking development release';
+            && ($policy['release_target'] ?? null) === 'v0.278 stable improvement release';
     }
 
     public static function reorganizationArchitecturePlanPolicy(): array
@@ -2816,8 +2828,8 @@ final class Adlaire
             'configuration_files_allowed' => false,
             'deployment_core_compatibility_required' => true,
             'deployment_core_contract_change_allowed' => false,
-            'target_version' => 'v0.277',
-            'stable_release_target' => 'v0.277 consolidated breaking development release',
+            'target_version' => 'v0.278',
+            'stable_release_target' => 'v0.278 stable improvement release',
             'target_architecture' => [
                 'core' => [
                     'responsibility' => 'coordinate framework families through internal contracts',
@@ -2862,7 +2874,7 @@ final class Adlaire
                 'v0.240' => 'define approved target architecture',
                 'v0.241-v0.250' => 'prepare internal namespace and directory mapping without DeploymentCore breakage',
                 'v0.251-v0.260' => 'prepare non-deployment framework code for current layout validation',
-                'v0.261-v0.277' => 'finalize Integration Core wiring and stable release checks',
+                'v0.261-v0.278' => 'finalize Integration Core wiring and stable release checks',
             ],
             'prohibited_in_this_release' => [
                 'physical file movement',
@@ -2882,7 +2894,7 @@ final class Adlaire
                 'deployment_core_compatibility_preserved',
                 'public_api_not_required',
                 'configuration_files_not_allowed',
-                'release_target_v0_277',
+                'release_target_v0_278',
                 'official_debug_test',
                 'release_check',
             ],
@@ -2899,8 +2911,8 @@ final class Adlaire
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['deployment_core_compatibility_required'] ?? false) === true
             && ($policy['deployment_core_contract_change_allowed'] ?? true) === false
-            && ($policy['target_version'] ?? null) === 'v0.277'
-            && ($policy['stable_release_target'] ?? null) === 'v0.277 consolidated breaking development release'
+            && ($policy['target_version'] ?? null) === 'v0.278'
+            && ($policy['stable_release_target'] ?? null) === 'v0.278 stable improvement release'
             && ($policy['target_architecture']['deployment_core']['compatibility_domain'] ?? false) === true
             && ($policy['target_architecture']['deployment_core']['contract_breaking_changes_allowed'] ?? false) === true
             && ($policy['target_architecture']['javascript_framework']['implementation_status'] ?? null) === 'planned'
@@ -3475,10 +3487,10 @@ final class Adlaire
         return [
             'version' => self::version(),
             'theme' => 'Repository Cleanup and Stable Target',
-            'status' => 'obsolete_config_tree_removed_v0_277_target_defined',
+            'status' => 'obsolete_config_tree_removed_v0_278_target_defined',
             'range' => 'v0.268',
-            'stable_release_target_version' => 'v0.277',
-            'stable_release_target' => 'v0.277 consolidated breaking development release',
+            'stable_release_target_version' => 'v0.278',
+            'stable_release_target' => 'v0.278 stable improvement release',
             'removed_paths' => [
                 'config/xserver/apache',
                 'config/xserver',
@@ -3507,7 +3519,7 @@ final class Adlaire
             'dashboard_execution_enabled' => false,
             'source_code_improvements' => [
                 'obsolete empty configuration directory tree removed',
-                'stable release target moved to v0.277',
+                'stable release target moved to v0.278',
                 'current document root entrypoints preserved',
                 'application module boundary kept explicit',
             ],
@@ -3518,7 +3530,7 @@ final class Adlaire
             ],
             'required_verifications' => [
                 'obsolete_config_tree_absent',
-                'v0_277_stable_release_target_defined',
+                'v0_278_stable_release_target_defined',
                 'deployment_core_contract_unchanged',
                 'public_entrypoints_exist',
                 'official_debug_test',
@@ -3546,10 +3558,10 @@ final class Adlaire
         }
 
         return ($policy['theme'] ?? null) === 'Repository Cleanup and Stable Target'
-            && ($policy['status'] ?? null) === 'obsolete_config_tree_removed_v0_277_target_defined'
+            && ($policy['status'] ?? null) === 'obsolete_config_tree_removed_v0_278_target_defined'
             && ($policy['range'] ?? null) === 'v0.268'
-            && ($policy['stable_release_target_version'] ?? null) === 'v0.277'
-            && ($policy['stable_release_target'] ?? null) === 'v0.277 consolidated breaking development release'
+            && ($policy['stable_release_target_version'] ?? null) === 'v0.278'
+            && ($policy['stable_release_target'] ?? null) === 'v0.278 stable improvement release'
             && in_array('config', $policy['removed_paths'] ?? [], true)
             && in_array('Core/Deployment.php', $policy['current_entrypoint_paths'] ?? [], true)
             && in_array('public_html/index.php', $policy['current_entrypoint_paths'] ?? [], true)
@@ -3558,7 +3570,7 @@ final class Adlaire
             && ($policy['public_api_required'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['dashboard_execution_enabled'] ?? true) === false
-            && in_array('stable release target moved to v0.277', $policy['source_code_improvements'] ?? [], true)
+            && in_array('stable release target moved to v0.278', $policy['source_code_improvements'] ?? [], true)
             && in_array('configuration_file_policy', $policy['required_source_policies'] ?? [], true)
             && in_array('obsolete_config_tree_absent', $policy['required_verifications'] ?? [], true)
             && $removedPathsAbsent
@@ -3928,7 +3940,7 @@ final class Adlaire
             'version' => self::version(),
             'theme' => 'Consolidated Source Improvement Cycles',
             'status' => 'forty_five_cycles_completed',
-            'range' => 'v0.277',
+            'range' => 'v0.278',
             'phase' => 1,
             'cycle_count' => count($cycles),
             'cycles' => $cycles,
@@ -3966,7 +3978,7 @@ final class Adlaire
 
         return ($policy['theme'] ?? null) === 'Consolidated Source Improvement Cycles'
             && ($policy['status'] ?? null) === 'forty_five_cycles_completed'
-            && ($policy['range'] ?? null) === 'v0.277'
+            && ($policy['range'] ?? null) === 'v0.278'
             && ($policy['phase'] ?? null) === 1
             && ($policy['cycle_count'] ?? null) === 45
             && in_array('ConfigRepository dot access delegated to AdlaireSupport', $policy['source_code_improvements'] ?? [], true)
@@ -3986,7 +3998,7 @@ final class Adlaire
             'version' => self::version(),
             'theme' => 'Physical Cleanup Cycles',
             'status' => 'five_cleanup_cycles_completed',
-            'range' => 'v0.277',
+            'range' => 'v0.278',
             'phase' => 2,
             'cycle_count' => 5,
             'cycles' => [
@@ -4034,7 +4046,7 @@ final class Adlaire
 
         return ($policy['theme'] ?? null) === 'Physical Cleanup Cycles'
             && ($policy['status'] ?? null) === 'five_cleanup_cycles_completed'
-            && ($policy['range'] ?? null) === 'v0.277'
+            && ($policy['range'] ?? null) === 'v0.278'
             && ($policy['phase'] ?? null) === 2
             && ($policy['cycle_count'] ?? null) === 5
             && count($policy['cycles'] ?? []) === 5
@@ -4053,7 +4065,7 @@ final class Adlaire
             'version' => self::version(),
             'theme' => 'Bug Zero Remediation',
             'status' => 'known_bug_count_zero',
-            'range' => 'v0.277',
+            'range' => 'v0.278',
             'phase' => 3,
             'iteration_limit' => 'unlimited_until_zero',
             'known_bug_count' => 0,
@@ -4087,7 +4099,7 @@ final class Adlaire
     {
         return ($policy['theme'] ?? null) === 'Bug Zero Remediation'
             && ($policy['status'] ?? null) === 'known_bug_count_zero'
-            && ($policy['range'] ?? null) === 'v0.277'
+            && ($policy['range'] ?? null) === 'v0.278'
             && ($policy['phase'] ?? null) === 3
             && ($policy['iteration_limit'] ?? null) === 'unlimited_until_zero'
             && ($policy['known_bug_count'] ?? null) === 0
@@ -4098,17 +4110,16 @@ final class Adlaire
             && ($policy['deployment_core_contract_changed'] ?? false) === true;
     }
 
-    public static function v0277StableReleasePolicy(): array
+    public static function v0278StableReleasePolicy(): array
     {
         return [
             'version' => self::version(),
-            'theme' => 'v0.277 Consolidated Breaking Development Release',
+            'theme' => 'v0.278 Stable Improvement Release',
             'status' => 'stable_release_finalized',
-            'range' => 'v0.277',
+            'range' => 'v0.278',
             'stable_release' => true,
-            'stable_release_target' => 'v0.277 consolidated breaking development release',
+            'stable_release_target' => 'v0.278 stable improvement release',
             'classified_frameworks_finalized' => [
-                'Core',
                 'Core',
                 'Frameworks/Backend',
                 'Frameworks/Frontend',
@@ -4121,6 +4132,9 @@ final class Adlaire
             'public_api_available' => false,
             'configuration_files_allowed' => false,
             'mysql_support_planned' => false,
+            'javascript_framework_implemented' => true,
+            'javascript_placeholder_free' => true,
+            'repository_hygiene_enforced' => true,
             'known_bug_count' => 0,
             'required_source_policies' => [
                 'framework_five_file_highest_principle_policy',
@@ -4135,6 +4149,8 @@ final class Adlaire
                 'root_deployment_core_absent',
                 'framework_deployment_bootstrap_present',
                 'known_bug_count_zero',
+                'javascript_framework_placeholder_free',
+                'repository_hygiene_enforced',
                 'official_debug_test',
                 'release_check',
                 'git_diff_check',
@@ -4142,15 +4158,15 @@ final class Adlaire
         ];
     }
 
-    private static function v0277StableReleasePassed(array $policy): bool
+    private static function v0278StableReleasePassed(array $policy): bool
     {
         $root = dirname(__DIR__);
 
-        return ($policy['theme'] ?? null) === 'v0.277 Consolidated Breaking Development Release'
+        return ($policy['theme'] ?? null) === 'v0.278 Stable Improvement Release'
             && ($policy['status'] ?? null) === 'stable_release_finalized'
-            && ($policy['range'] ?? null) === 'v0.277'
+            && ($policy['range'] ?? null) === 'v0.278'
             && ($policy['stable_release'] ?? false) === true
-            && ($policy['stable_release_target'] ?? null) === 'v0.277 consolidated breaking development release'
+            && ($policy['stable_release_target'] ?? null) === 'v0.278 stable improvement release'
             && in_array('Core', $policy['classified_frameworks_finalized'] ?? [], true)
             && in_array('Frameworks/JavaScript', $policy['classified_frameworks_finalized'] ?? [], true)
             && ($policy['legacy_framework_core_removed'] ?? false) === true
@@ -4162,10 +4178,15 @@ final class Adlaire
             && ($policy['public_api_available'] ?? true) === false
             && ($policy['configuration_files_allowed'] ?? true) === false
             && ($policy['mysql_support_planned'] ?? true) === false
+            && ($policy['javascript_framework_implemented'] ?? false) === true
+            && ($policy['javascript_placeholder_free'] ?? false) === true
+            && ($policy['repository_hygiene_enforced'] ?? false) === true
             && ($policy['known_bug_count'] ?? null) === 0
             && in_array('bug_zero_remediation_policy', $policy['required_source_policies'] ?? [], true)
             && in_array('legacy_framework_core_absent', $policy['required_verifications'] ?? [], true)
             && in_array('root_deployment_core_absent', $policy['required_verifications'] ?? [], true)
+            && in_array('javascript_framework_placeholder_free', $policy['required_verifications'] ?? [], true)
+            && in_array('repository_hygiene_enforced', $policy['required_verifications'] ?? [], true)
             && self::frameworkFiveFileHighestPrinciplePassed(self::frameworkFiveFileHighestPrinciplePolicy())
             && self::consolidatedSourceImprovementPassed(self::consolidatedSourceImprovementPolicy())
             && self::physicalCleanupCyclePassed(self::physicalCleanupCyclePolicy())
@@ -4194,8 +4215,8 @@ final class Adlaire
         return [
             'version' => self::version(),
             'theme' => 'Framework Classification Specification',
-            'reorganization_target_version' => 'v0.277',
-            'stable_release_target' => 'v0.277 consolidated breaking development release',
+            'reorganization_target_version' => 'v0.278',
+            'stable_release_target' => 'v0.278 stable improvement release',
             'integration_core_role' => 'seamless coordination, lifecycle, audit, dependency, release, and deployment-control connection across framework families',
             'physical_reorganization_applied' => false,
             'classified_frameworks' => [
@@ -4241,14 +4262,14 @@ final class Adlaire
                 'v0.234-v0.240' => 'classification, Integration Core concept, compatibility boundaries, registry, lifecycle, policy, layout plan, readiness gate',
                 'v0.241-v0.250' => 'classified framework formalization and release matrix',
                 'v0.251-v0.260' => 'Integration Core internal contracts and cross-framework release gate',
-                'v0.261-v0.277' => 'physical layout migration, documentation rewire, compatibility gate, stable release',
+                'v0.261-v0.278' => 'physical layout migration, documentation rewire, compatibility gate, stable release',
             ],
             'required_verifications' => [
                 'framework_families_classified',
                 'integration_core_defined',
                 'deployment_core_compatibility_preserved',
                 'javascript_framework_not_implemented_yet',
-                'v0_277_stable_release_target_defined',
+                'v0_278_stable_release_target_defined',
                 'official_debug_test',
                 'release_check',
             ],
@@ -4258,8 +4279,8 @@ final class Adlaire
     private static function frameworkClassificationPassed(array $policy): bool
     {
         return ($policy['theme'] ?? null) === 'Framework Classification Specification'
-            && ($policy['reorganization_target_version'] ?? null) === 'v0.277'
-            && ($policy['stable_release_target'] ?? null) === 'v0.277 consolidated breaking development release'
+            && ($policy['reorganization_target_version'] ?? null) === 'v0.278'
+            && ($policy['stable_release_target'] ?? null) === 'v0.278 stable improvement release'
             && ($policy['physical_reorganization_applied'] ?? true) === false
             && in_array('Core/Deployment.php', $policy['classified_frameworks']['deployment_core']['current_paths'] ?? [], true)
             && ($policy['classified_frameworks']['deployment_core']['compatibility_domain'] ?? false) === true
@@ -4268,7 +4289,7 @@ final class Adlaire
             && in_array('public_html/assets/adlaire-ui.css', $policy['classified_frameworks']['css_framework']['current_paths'] ?? [], true)
             && ($policy['classified_frameworks']['javascript_framework']['implementation_status'] ?? null) === 'not_implemented'
             && in_array('Core/Kernel.php', $policy['classified_frameworks']['integration_core']['current_paths'] ?? [], true)
-            && array_key_exists('v0.261-v0.277', $policy['roadmap'] ?? []);
+            && array_key_exists('v0.261-v0.278', $policy['roadmap'] ?? []);
     }
 
     public static function integrationCorePolicy(): array
@@ -4299,13 +4320,13 @@ final class Adlaire
             ],
             'internal_contracts_only' => true,
             'current_core_paths' => ['Core/Core.php', 'Core/Kernel.php'],
-            'release_target' => 'v0.277 consolidated breaking development release',
+            'release_target' => 'v0.278 stable improvement release',
             'required_verifications' => [
                 'integration_core_defined',
                 'framework_families_connected',
                 'internal_contracts_only',
                 'deployment_core_compatibility_preserved',
-                'release_target_v0_277',
+                'release_target_v0_278',
                 'official_debug_test',
                 'release_check',
             ],
@@ -4330,7 +4351,7 @@ final class Adlaire
             && ($policy['internal_contracts_only'] ?? false) === true
             && in_array('Core/Core.php', $policy['current_core_paths'] ?? [], true)
             && in_array('Core/Kernel.php', $policy['current_core_paths'] ?? [], true)
-            && ($policy['release_target'] ?? null) === 'v0.277 consolidated breaking development release';
+            && ($policy['release_target'] ?? null) === 'v0.278 stable improvement release';
     }
 
     public static function dashboardEnabled(): bool
@@ -4417,9 +4438,9 @@ final class Adlaire
     {
         return [
             'signature_required_for_official' => true,
-            'algorithm' => 'placeholder',
+            'algorithm' => 'ed25519',
             'signer' => 'approved maintainer',
-            'status' => 'valid-placeholder',
+            'status' => 'specified',
             'expired_allowed' => false,
         ];
     }
@@ -4663,7 +4684,7 @@ final class Adlaire
         return [
             'version' => self::version(),
             'stable_release' => true,
-            'release_name' => 'v0.277 consolidated breaking development release',
+            'release_name' => 'v0.278 stable improvement release',
             'backend_framework_capabilities' => [
                 'routing',
                 'middleware',
@@ -4716,7 +4737,7 @@ final class Adlaire
                 'CSS framework source sync',
                 'dashboard frontend class extraction',
                 'frontend index application extraction',
-                'repository cleanup and v0.277 stable target',
+                'repository cleanup and v0.278 stable target',
                 'deployment framework implementation extraction',
                 'deployment framework class split',
                 'framework five-file principle',
@@ -4724,7 +4745,9 @@ final class Adlaire
                 'forty-five source improvement cycles',
                 'five physical cleanup cycles',
                 'bug zero remediation',
-                'v0.277 consolidated breaking development release',
+                'v0.278 stable improvement release',
+                'JavaScript framework implementation',
+                'repository hygiene enforcement',
                 'deployment breaking reorganization',
             ],
             'no_breaking_changes' => false,
@@ -4788,7 +4811,9 @@ final class Adlaire
             'consolidated_source_improvement_cycles' => true,
             'physical_cleanup_cycles' => true,
             'bug_zero_remediation' => true,
-            'v0_277_stable_release_finalized' => true,
+            'javascript_framework_implemented' => true,
+            'repository_hygiene_enforced' => true,
+            'v0_278_stable_release_finalized' => true,
         ];
     }
 
@@ -4952,7 +4977,7 @@ final class Adlaire
                 && in_array('CSS framework source sync', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('dashboard frontend class extraction', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('frontend index application extraction', self::stableReleaseContract()['backend_framework_capabilities'], true)
-                && in_array('repository cleanup and v0.277 stable target', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('repository cleanup and v0.278 stable target', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('deployment framework implementation extraction', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('deployment framework class split', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('framework five-file principle', self::stableReleaseContract()['backend_framework_capabilities'], true)
@@ -4960,7 +4985,7 @@ final class Adlaire
                 && in_array('forty-five source improvement cycles', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('five physical cleanup cycles', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && in_array('bug zero remediation', self::stableReleaseContract()['backend_framework_capabilities'], true)
-                && in_array('v0.277 consolidated breaking development release', self::stableReleaseContract()['backend_framework_capabilities'], true)
+                && in_array('v0.278 stable improvement release', self::stableReleaseContract()['backend_framework_capabilities'], true)
                 && self::stableReleaseContract()['dashboard_deploy_execution_specification'] === true
                 && self::stableReleaseContract()['framework_classification_specification'] === true
                 && self::stableReleaseContract()['integration_core_concept'] === true
@@ -4984,7 +5009,7 @@ final class Adlaire
                 && self::stableReleaseContract()['consolidated_source_improvement_cycles'] === true
                 && self::stableReleaseContract()['physical_cleanup_cycles'] === true
                 && self::stableReleaseContract()['bug_zero_remediation'] === true
-                && self::stableReleaseContract()['v0_277_stable_release_finalized'] === true
+                && self::stableReleaseContract()['v0_278_stable_release_finalized'] === true
                 && self::stableReleaseContract()['mysql_support_planned'] === false,
             'production_environment_policy' => self::productionEnvironmentPolicy()['production_provider'] === 'Xserver rental server'
                 && self::productionEnvironmentPolicy()['production_equivalent_testing_required'] === true
@@ -5129,7 +5154,7 @@ final class Adlaire
             'consolidated_source_improvement_policy' => self::consolidatedSourceImprovementPassed(self::consolidatedSourceImprovementPolicy()),
             'physical_cleanup_cycle_policy' => self::physicalCleanupCyclePassed(self::physicalCleanupCyclePolicy()),
             'bug_zero_remediation_policy' => self::bugZeroRemediationPassed(self::bugZeroRemediationPolicy()),
-            'v0_277_stable_release_policy' => self::v0277StableReleasePassed(self::v0277StableReleasePolicy()),
+            'v0_278_stable_release_policy' => self::v0278StableReleasePassed(self::v0278StableReleasePolicy()),
             'development_workflow_policy' => self::developmentWorkflowPolicy()['theme'] === 'Specification-First Development Workflow'
                 && self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
                 && self::developmentWorkflowPolicy()['required_order'] === ['specification', 'implementation_plan', 'implementation']
@@ -5286,7 +5311,7 @@ final class Adlaire
             'consolidated_source_improvement_policy',
             'physical_cleanup_cycle_policy',
             'bug_zero_remediation_policy',
-            'v0_277_stable_release_policy',
+            'v0_278_stable_release_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'application_module_policy',
@@ -5361,7 +5386,7 @@ final class Adlaire
             'consolidated_source_improvement_policy',
             'physical_cleanup_cycle_policy',
             'bug_zero_remediation_policy',
-            'v0_277_stable_release_policy',
+            'v0_278_stable_release_policy',
             'development_workflow_policy',
             'deployment_axis_policy',
             'application_module_policy',
@@ -5530,7 +5555,7 @@ final class Adlaire
             'consolidated_source_improvement_policy' => self::consolidatedSourceImprovementPolicy(),
             'physical_cleanup_cycle_policy' => self::physicalCleanupCyclePolicy(),
             'bug_zero_remediation_policy' => self::bugZeroRemediationPolicy(),
-            'v0_277_stable_release_policy' => self::v0277StableReleasePolicy(),
+            'v0_278_stable_release_policy' => self::v0278StableReleasePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'application_module_policy' => self::applicationModulePolicy(),
@@ -5550,7 +5575,7 @@ final class Adlaire
             'php' => '>=8.3',
             'version_format' => 'v0.x',
             'cumulative_version' => true,
-            'formalization_version' => 'v0.277',
+            'formalization_version' => 'v0.278',
             'file_principle' => self::auditFilePrinciple(),
             'external_dependencies' => 'none',
             'license_policy' => self::licensePolicy(),
@@ -5630,7 +5655,7 @@ final class Adlaire
             'consolidated_source_improvement_policy' => self::consolidatedSourceImprovementPolicy(),
             'physical_cleanup_cycle_policy' => self::physicalCleanupCyclePolicy(),
             'bug_zero_remediation_policy' => self::bugZeroRemediationPolicy(),
-            'v0_277_stable_release_policy' => self::v0277StableReleasePolicy(),
+            'v0_278_stable_release_policy' => self::v0278StableReleasePolicy(),
             'development_workflow_policy' => self::developmentWorkflowPolicy(),
             'deployment_axis_policy' => self::deploymentAxisPolicy(),
             'application_module_policy' => self::applicationModulePolicy(),
@@ -5942,9 +5967,9 @@ final class Adlaire
                 'profile' => self::bugZeroRemediationPolicy(),
                 'passed' => self::bugZeroRemediationPassed(self::bugZeroRemediationPolicy()),
             ],
-            'v0_277_stable_release_policy' => [
-                'profile' => self::v0277StableReleasePolicy(),
-                'passed' => self::v0277StableReleasePassed(self::v0277StableReleasePolicy()),
+            'v0_278_stable_release_policy' => [
+                'profile' => self::v0278StableReleasePolicy(),
+                'passed' => self::v0278StableReleasePassed(self::v0278StableReleasePolicy()),
             ],
             'development_workflow_policy' => [
                 'profile' => self::developmentWorkflowPolicy(),
@@ -5979,6 +6004,9 @@ final class Adlaire
                 && ($audit['current_specification']['docker_profile']['dockerfile'] ?? null) === 'Docker/Dockerfile.xserver'
                 && ($audit['current_specification']['docker_profile']['compose_file'] ?? null) === 'Docker/docker-compose.xserver.yml'
                 && ($audit['current_specification']['docker_profile']['root_docker_files_allowed'] ?? true) === false
+                && ($audit['current_specification']['repository_hygiene']['os_metadata_files_allowed'] ?? true) === false
+                && ($audit['current_specification']['repository_hygiene']['duplicate_agent_docs_allowed'] ?? true) === false
+                && ($audit['current_specification']['repository_hygiene']['agent_docs_source'] ?? null) === 'AGENTS.md'
                 && ($audit['current_specification']['release_phases']['source_improvement_cycles'] ?? null) === 45
                 && ($audit['current_specification']['release_phases']['physical_cleanup_cycles'] ?? null) === 5
                 && ($audit['current_specification']['release_phases']['known_bug_count'] ?? null) === 0,
@@ -6080,7 +6108,7 @@ final class Adlaire
                 && in_array('CSS framework source sync', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('dashboard frontend class extraction', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('frontend index application extraction', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
-                && in_array('repository cleanup and v0.277 stable target', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('repository cleanup and v0.278 stable target', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('deployment framework implementation extraction', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('deployment framework class split', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('framework five-file principle', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
@@ -6088,7 +6116,7 @@ final class Adlaire
                 && in_array('forty-five source improvement cycles', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('five physical cleanup cycles', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && in_array('bug zero remediation', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
-                && in_array('v0.277 consolidated breaking development release', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
+                && in_array('v0.278 stable improvement release', $audit['stable_release_contract']['backend_framework_capabilities'] ?? [], true)
                 && ($audit['stable_release_contract']['mysql_support_planned'] ?? true) === false
                 && ($audit['stable_release_contract']['runtime_operations_hardening'] ?? false) === true
                 && ($audit['stable_release_contract']['operations_dashboard'] ?? false) === true
@@ -6138,7 +6166,7 @@ final class Adlaire
                 && ($audit['stable_release_contract']['consolidated_source_improvement_cycles'] ?? false) === true
                 && ($audit['stable_release_contract']['physical_cleanup_cycles'] ?? false) === true
                 && ($audit['stable_release_contract']['bug_zero_remediation'] ?? false) === true
-                && ($audit['stable_release_contract']['v0_277_stable_release_finalized'] ?? false) === true,
+                && ($audit['stable_release_contract']['v0_278_stable_release_finalized'] ?? false) === true,
             'production_environment_policy' => ($audit['production_environment_policy']['production_provider'] ?? null) === 'Xserver rental server'
                 && ($audit['production_environment_policy']['production_equivalent_testing_required'] ?? false) === true
                 && ($audit['production_environment_policy']['php_requirement'] ?? null) === '>=8.3'
@@ -6277,7 +6305,7 @@ final class Adlaire
             'consolidated_source_improvement_policy' => self::consolidatedSourceImprovementPassed($audit['consolidated_source_improvement_policy'] ?? []),
             'physical_cleanup_cycle_policy' => self::physicalCleanupCyclePassed($audit['physical_cleanup_cycle_policy'] ?? []),
             'bug_zero_remediation_policy' => self::bugZeroRemediationPassed($audit['bug_zero_remediation_policy'] ?? []),
-            'v0_277_stable_release_policy' => self::v0277StableReleasePassed($audit['v0_277_stable_release_policy'] ?? []),
+            'v0_278_stable_release_policy' => self::v0278StableReleasePassed($audit['v0_278_stable_release_policy'] ?? []),
             'development_workflow_policy' => ($audit['development_workflow_policy']['theme'] ?? null) === 'Specification-First Development Workflow'
                 && ($audit['development_workflow_policy']['highest_absolute_principle'] ?? false) === true
                 && in_array('framework_five_file_principle', $audit['development_workflow_policy']['highest_absolute_principles'] ?? [], true)
