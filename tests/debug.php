@@ -137,7 +137,7 @@ function test_application_module_boundary(): void
     assert_same('Applications', $boundary->id(), 'application boundary id should be Applications');
     assert_same(['documented specification'], $boundary->dependencies(), 'application boundary should not depend on deployment');
     assert_same('Applications', $policy['base_directory'] ?? null, 'application boundary policy should use Applications');
-    assert_same(false, $policy['deployment_framework_dependency_allowed'] ?? null, 'application boundary should forbid deployment dependency');
+    assert_same(false, $policy['deployment_core_dependency_allowed'] ?? null, 'application boundary should forbid deployment dependency');
     assert_same(false, $policy['legacy_modules_directory_allowed'] ?? null, 'application boundary should forbid legacy modules directory');
     assert_true(in_array('applications.status', $manifest['messages'] ?? [], true), 'application boundary manifest should expose status message');
     assert_same(true, $validation['valid'] ?? null, 'application boundary policy should validate');
@@ -195,7 +195,7 @@ function test_deployment_control_smoke(): void
     ]);
     $deployer = new Deployer($config);
     $preflight = $deployer->preflight();
-    $snapshot = $deployer->compatibilitySnapshot();
+    $snapshot = $deployer->controlSnapshot();
 
     assert_same(true, $preflight['ready'] ?? null, 'deployment preflight should pass with writable directories');
     assert_same(false, $preflight['compatibility_guaranteed'] ?? null, 'deployment preflight should not guarantee compatibility');

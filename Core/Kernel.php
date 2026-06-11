@@ -104,7 +104,7 @@ final class ApplicationModuleBoundary implements AutonomousModule
         return [
             'base_directory' => 'Applications',
             'module_role' => 'application feature module',
-            'deployment_framework_dependency_allowed' => false,
+            'deployment_core_dependency_allowed' => false,
             'legacy_modules_directory_allowed' => false,
             'default_file_principle' => '5 files',
             'source_of_truth' => 'Adlaire Ecosystem documentation',
@@ -126,7 +126,7 @@ final class ApplicationModuleBoundary implements AutonomousModule
     {
         $checks = [
             'base_directory' => ($policy['base_directory'] ?? null) === 'Applications',
-            'deployment_framework_dependency_allowed' => ($policy['deployment_framework_dependency_allowed'] ?? true) === false,
+            'deployment_core_dependency_allowed' => ($policy['deployment_core_dependency_allowed'] ?? true) === false,
             'legacy_modules_directory_allowed' => ($policy['legacy_modules_directory_allowed'] ?? true) === false,
             'default_file_principle' => ($policy['default_file_principle'] ?? null) === '5 files',
         ];

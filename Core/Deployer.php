@@ -237,7 +237,7 @@ final class Deployer
         ];
     }
 
-    public function compatibilitySnapshot(?string $sourceDir = null): array
+    public function controlSnapshot(?string $sourceDir = null): array
     {
         $preflight = $this->preflight();
         $manifest = $this->deploymentSystemManifest();
@@ -354,14 +354,14 @@ final class Deployer
 
     public function deploymentSafetyScore(?string $sourceDir = null): array
     {
-        $snapshot = $this->compatibilitySnapshot($sourceDir);
+        $snapshot = $this->controlSnapshot($sourceDir);
         $rollback = $this->rollbackPreview();
         $score = 100;
         $deductions = [];
 
         if (($snapshot['ready'] ?? false) !== true) {
             $score -= 40;
-            $deductions['compatibility_snapshot'] = 40;
+            $deductions['control_snapshot'] = 40;
         }
         if (($rollback['ready'] ?? false) !== true) {
             $score -= 20;
@@ -387,7 +387,7 @@ final class Deployer
             'writes_allowed' => false,
             'component' => 'Core/Deployment.php',
             'deductions' => $deductions,
-            'compatibility_snapshot_ready' => ($snapshot['ready'] ?? false) === true,
+            'control_snapshot_ready' => ($snapshot['ready'] ?? false) === true,
             'rollback_preview_ready' => ($rollback['ready'] ?? false) === true,
             'deployment_core_change_detected' => ($snapshot['deployment_core_change_detected'] ?? false) === true,
         ];
@@ -470,7 +470,7 @@ final class Deployer
             'component' => 'Core/Deployment.php',
             'preflight' => $this->preflight(),
             'plan_preview' => $sourceDir === null ? null : $this->planPreview($sourceDir),
-            'compatibility_snapshot' => $this->compatibilitySnapshot($sourceDir),
+            'control_snapshot' => $this->controlSnapshot($sourceDir),
             'rollback_preview' => $this->rollbackPreview(),
             'safety_score' => $this->deploymentSafetyScore($sourceDir),
             'safety_score_details' => $this->deploymentSafetyScoreDetails($sourceDir),
@@ -529,7 +529,7 @@ final class Deployer
     {
         $current = $this->deploymentControlReport($sourceDir);
         $changes = [];
-        foreach (['preflight', 'compatibility_snapshot', 'rollback_preview', 'safety_score'] as $section) {
+        foreach (['preflight', 'control_snapshot', 'rollback_preview', 'safety_score'] as $section) {
             if (($previous[$section] ?? null) !== ($current[$section] ?? null)) {
                 $changes[] = $section;
             }
@@ -559,7 +559,7 @@ final class Deployer
             'evidence' => [
                 'control_report' => $report,
                 'release_gate_inputs' => [
-                    'compatibility_snapshot_ready' => $report['compatibility_snapshot']['ready'] ?? false,
+                    'control_snapshot_ready' => $report['control_snapshot']['ready'] ?? false,
                     'rollback_preview_ready' => $report['rollback_preview']['ready'] ?? false,
                     'deployment_safety_score' => $report['safety_score']['score'] ?? 0,
                 ],
@@ -571,7 +571,7 @@ final class Deployer
     {
         $bundle = $this->releaseEvidenceBundle($sourceDir);
         $inputs = $bundle['evidence']['release_gate_inputs'];
-        $ready = ($inputs['compatibility_snapshot_ready'] ?? false) === true
+        $ready = ($inputs['control_snapshot_ready'] ?? false) === true
             && ($inputs['rollback_preview_ready'] ?? false) === true
             && ($inputs['deployment_safety_score'] ?? 0) >= 70;
 

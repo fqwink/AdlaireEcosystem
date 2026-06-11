@@ -32,7 +32,7 @@ final class DeploymentEvidence
         return [
             'preflight',
             'plan_preview',
-            'compatibility_snapshot',
+            'control_snapshot',
             'rollback_preview',
             'safety_score',
         ];
