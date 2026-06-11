@@ -49,13 +49,13 @@
 AdlaireEcosystem/
 ├── Core/
 ├── Frameworks/
-│   ├── Deployment/
 │   ├── Backend/
 │   ├── Frontend/
 │   ├── CSS/
 │   └── JavaScript/
 ├── public_html/
 ├── Applications/
+├── Docker/
 ├── storage/
 ├── scripts/
 └── tests/
@@ -65,33 +65,32 @@ AdlaireEcosystem/
 
 | Framework | 5ファイル |
 |-----------|-----------|
-| Core | `Core.php`, `Kernel.php`, `Extension.php`, `Registry.php`, `Lifecycle.php` |
-| Deployment | `DeploymentCore.php`, `DeployConfig.php`, `Deployer.php`, `DeploymentPaths.php`, `DeploymentEvidence.php` |
+| Core | `Core.php`, `Kernel.php`, `Deployment.php`, `DeployConfig.php`, `Deployer.php` |
 | Backend | `Config.php`, `Database.php`, `Logger.php`, `Middleware.php`, `Support.php` |
 | Frontend | `Index.php`, `Dashboard.php`, `DashboardSecurity.php`, `DashboardData.php`, `DashboardView.php` |
 | CSS | `adlaire-ui.css`, `reset.css`, `layout.css`, `controls.css`, `dashboard.css` |
 | JavaScript | `adlaire.js`, `controls.js`, `timeline.js`, `release-gate.js`, `dashboard-state.js` |
 
-## Deployment Framework
+## Deployment Core
 
-正式入口は`Frameworks/Deployment/DeploymentCore.php`。rootの`DeploymentCore.php`互換入口は廃止済みであり、復活させない。`DeploymentCore`ディレクトリも作成しない。
+Deployment Systemはこのフレームワークの中核であり、Coreとして扱う。
 
-Deployment Frameworkも互換性なしの破壊的変更を前提にする。
+正式入口は`Core/Deployment.php`。rootの`DeploymentCore.php`互換入口と`Frameworks/Deployment/`は廃止済みであり、復活させない。`DeploymentCore`ディレクトリも作成しない。
 
 ## Application Modules
 
-Application ModulesはCMS、EC、静的生成ジェネレーター、Wikiなどのアプリ機能層であり、Deployment Frameworkとは直接関係しない。
+Application ModulesはCMS、EC、静的生成ジェネレーター、Wikiなどのアプリ機能層であり、Deployment Coreとは直接関係しない。
 
 | 項目 | 方針 |
 |------|------|
 | 物理境界 | `Applications/` |
 | 役割 | アプリケーション機能 |
-| Deployment依存 | 禁止 |
+| Deployment Core依存 | 禁止 |
 | 旧`modules/` | 廃止。復活させない |
 | 例 | CMS, Commerce, StaticGenerator, Wiki |
 | 標準ファイル原則 | 1 Application = 5 files |
 
-Deployment Frameworkは配置・実行基盤であり、Application Modulesはアプリ機能を構成する。両者を混ぜない。
+Deployment Coreは配置・実行基盤であり、Application Modulesはアプリ機能を構成する。両者を混ぜない。
 
 ## v0.277 統合開発条件
 
@@ -117,7 +116,7 @@ config.php
 *.config.php
 ```
 
-例外はテスト基盤としての`docker-compose.xserver.yml`のみ。
+例外はテスト基盤としての`Docker/docker-compose.xserver.yml`のみ。
 
 ## ダッシュボード実行方針
 

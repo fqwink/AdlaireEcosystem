@@ -1,8 +1,10 @@
+name: adlaire-ecosystem
+
 services:
   adlaire-xserver:
     build:
-      context: .
-      dockerfile: Dockerfile.xserver
+      context: ..
+      dockerfile: Docker/Dockerfile.xserver
     image: adlaire-ecosystem:xserver
     environment:
       APP_ENV: production
@@ -15,7 +17,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./:/var/www/html:ro
+      - ../:/var/www/html:ro
       - adlaire_xserver_tmp:/var/www/html/storage
     tmpfs:
       - /tmp

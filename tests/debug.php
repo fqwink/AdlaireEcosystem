@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../Core/Core.php';
 require_once __DIR__ . '/../Frameworks/Backend/Database.php';
-require_once __DIR__ . '/../Frameworks/Deployment/DeploymentCore.php';
+require_once __DIR__ . '/../Core/Deployment.php';
 
 final class DebugTestFailure extends RuntimeException
 {
@@ -44,18 +44,26 @@ function test_release_identity(): void
     assert_same('v0.277', $spec['version'] ?? null, 'current specification should expose current version');
     assert_same(false, $spec['compatibility']['guaranteed'] ?? null, 'current specification should reject compatibility guarantees');
     assert_same(false, $spec['compatibility']['legacy_shims_allowed'] ?? null, 'current specification should reject legacy shims');
-    assert_same('Frameworks/Deployment/DeploymentCore.php', $spec['entrypoints']['deployment'] ?? null, 'current specification should expose deployment entrypoint');
+    assert_same('Core/Deployment.php', $spec['entrypoints']['deployment'] ?? null, 'current specification should expose deployment entrypoint');
     assert_same('Applications', $spec['application_modules']['base_directory'] ?? null, 'application modules should use Applications boundary');
     assert_same(false, $spec['application_modules']['legacy_modules_directory_allowed'] ?? null, 'legacy modules directory should not be allowed');
     assert_same(false, $spec['application_modules']['deployment_dependency_allowed'] ?? null, 'application modules should not depend on deployment framework');
     assert_true(in_array('CMS', $spec['application_modules']['examples'] ?? [], true), 'application modules should include CMS example');
     assert_true(in_array('Wiki', $spec['application_modules']['examples'] ?? [], true), 'application modules should include Wiki example');
+    assert_same('Docker', $spec['docker_profile']['base_directory'] ?? null, 'Docker profile should use Docker directory');
+    assert_same('Docker/Dockerfile.xserver', $spec['docker_profile']['dockerfile'] ?? null, 'Dockerfile should use Docker directory');
+    assert_same('Docker/docker-compose.xserver.yml', $spec['docker_profile']['compose_file'] ?? null, 'compose profile should use Docker directory');
+    assert_same(false, $spec['docker_profile']['root_docker_files_allowed'] ?? null, 'root Docker files should not be allowed');
     assert_same(45, $spec['release_phases']['source_improvement_cycles'] ?? null, 'current specification should expose source improvement cycles');
     assert_same(5, $spec['release_phases']['physical_cleanup_cycles'] ?? null, 'current specification should expose cleanup cycles');
     assert_same(0, $spec['release_phases']['known_bug_count'] ?? null, 'current specification should expose zero known bugs');
     assert_true(is_file(__DIR__ . '/../Applications/.gitkeep'), 'Applications boundary should be retained');
+    assert_true(is_file(__DIR__ . '/../Docker/Dockerfile.xserver'), 'Dockerfile should be collected under Docker');
+    assert_true(is_file(__DIR__ . '/../Docker/docker-compose.xserver.yml'), 'docker compose profile should be collected under Docker');
     assert_true(!is_dir(__DIR__ . '/../modules'), 'legacy modules directory should be absent');
     assert_true(!is_file(__DIR__ . '/../modules/Auris/.gitkeep'), 'legacy Auris module placeholder should be absent');
+    assert_true(!is_file(__DIR__ . '/../Dockerfile.xserver'), 'root Dockerfile.xserver should be absent');
+    assert_true(!is_file(__DIR__ . '/../docker-compose.xserver.yml'), 'root docker-compose.xserver.yml should be absent');
 
     $contract = Adlaire::stableReleaseContract();
     assert_same(true, $contract['stable_release'] ?? null, 'stable release should be enabled');
@@ -90,13 +98,21 @@ function test_stable_release_policy(): void
     assert_same(false, $policy['configuration_files_allowed'] ?? null, 'configuration files should remain prohibited');
     assert_same(false, $policy['mysql_support_planned'] ?? null, 'MySQL support should remain unplanned');
     assert_true(!is_dir(__DIR__ . '/../FrameworkCore'), 'legacy FrameworkCore shim should be absent');
+
+    $manifest = Adlaire::distributionManifest();
+    assert_same(true, $manifest['files_unique'] ?? null, 'distribution manifest files should be unique');
+    assert_same(true, $manifest['files_exist'] ?? null, 'distribution manifest files should exist');
+    assert_same(true, $manifest['docker_profile_collected'] ?? null, 'distribution manifest should include Docker profile files');
+    assert_same(true, $manifest['root_docker_files_absent'] ?? null, 'distribution manifest should reject root Docker files');
+    assert_true(in_array('Docker/Dockerfile.xserver', $manifest['files'] ?? [], true), 'distribution manifest should include Dockerfile');
+    assert_true(in_array('Docker/docker-compose.xserver.yml', $manifest['files'] ?? [], true), 'distribution manifest should include compose profile');
 }
 
 function test_framework_five_file_principle(): void
 {
     foreach ([
         'Core',
-        'Frameworks/Deployment',
+        'Core',
         'Frameworks/Backend',
         'Frameworks/Frontend',
         'Frameworks/CSS',
@@ -105,7 +121,7 @@ function test_framework_five_file_principle(): void
         assert_file_count($directory, 5);
     }
 
-    assert_absent('Frameworks/Deployment/.gitkeep', 'deployment placeholder should be removed');
+    assert_absent('Core/.gitkeep', 'deployment placeholder should be removed');
     assert_absent('Frameworks/Frontend/.gitkeep', 'frontend placeholder should be removed');
     assert_absent('Frameworks/CSS/.gitkeep', 'CSS placeholder should be removed');
     assert_absent('Frameworks/JavaScript/.gitkeep', 'JavaScript placeholder should be removed');
@@ -130,7 +146,7 @@ function test_application_module_boundary(): void
 function test_deployment_breaking_boundary(): void
 {
     assert_true(!is_file(__DIR__ . '/../DeploymentCore.php'), 'root DeploymentCore.php compatibility entrypoint should be absent');
-    assert_true(is_file(__DIR__ . '/../Frameworks/Deployment/DeploymentCore.php'), 'deployment framework bootstrap should exist');
+    assert_true(is_file(__DIR__ . '/../Core/Deployment.php'), 'deployment framework bootstrap should exist');
     assert_true(class_exists(DeployConfig::class), 'DeployConfig should load through deployment bootstrap');
     assert_true(class_exists(Deployer::class), 'Deployer should load through deployment bootstrap');
     assert_true(class_exists(DeploymentPaths::class), 'DeploymentPaths should load through deployment bootstrap');
@@ -205,7 +221,7 @@ function test_no_framework_configuration_files(): void
 {
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__), FilesystemIterator::SKIP_DOTS));
     $allowed = [
-        realpath(__DIR__ . '/../docker-compose.xserver.yml') => true,
+        realpath(__DIR__ . '/../Docker/docker-compose.xserver.yml') => true,
     ];
 
     foreach ($iterator as $file) {
