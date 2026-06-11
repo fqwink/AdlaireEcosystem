@@ -2,4 +2,4 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/Frameworks/Frontend/Dashboard.php';
+require_once dirname(__DIR__) . '/Frameworks/Runtime/Dashboard.php';

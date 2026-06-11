@@ -6,7 +6,7 @@
     }
 
     var ui = global.AdlaireUI || {};
-    ui.version = 'v0.278';
+    ui.version = 'v0.284';
 
     ui.ready = function (callback) {
         if (typeof callback !== 'function') {

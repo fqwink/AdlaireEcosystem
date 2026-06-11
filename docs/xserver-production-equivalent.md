@@ -1,38 +1,24 @@
-# Xserver Production-Equivalent Environment
+# Xserver本番同等検証
 
-This profile reproduces the documented Xserver rental server production shape for local verification.
+この文書はXserver相当のローカル検証手順のみを扱う。仕様の正本は`adlaire-ecosystem.md`。
 
-## Profile
-
-- Runtime: PHP 8.3 Apache (`php:8.3-apache`)
-- Document root: `public_html`
-- Rewrite layer: `.htaccess`
-- Composer: not required
-- App environment: `APP_ENV=production`
-- Local database: SQLite-compatible file URL under `storage`
-- Production database: use SQLite-compatible file URLs or internal libSQL API transport URLs through server environment variables; MySQL support is not planned
-
-## Run
+## 起動
 
 ```sh
 docker compose -f Docker/docker-compose.xserver.yml up -d --build
 ```
 
-Open:
+確認URL:
 
 ```text
 http://localhost:8080/
 http://localhost:8080/health
 ```
 
-## Verify
+## 監査
 
 ```sh
 docker run --rm -v "$PWD:/app" -w /app php:8.3-cli sh scripts/xserver-profile-audit.sh
 ```
 
-The audit checks the Xserver profile files, `public_html` document root, `.htaccess` rewrite support, Composer-free operation, absence of legacy deployment entrypoints and directories, PHP lint, and the official debug test.
-
-## Xserver Deployment Notes
-
-Upload `public_html`, `Core`, `Frameworks`, `Applications`, and the writable `storage` directory according to the deployment allowlist. The Deployment Core entrypoint is `Core/Deployment.php`; the root `DeploymentCore.php` compatibility entrypoint and `Frameworks/Deployment/` directory are intentionally absent. Keep real credentials out of source control and use server environment variables. Framework configuration files such as `.env`, `.ini`, `.conf`, `.yaml`, `.yml`, `config.php`, and `*.config.php` are prohibited; JSON is retained only for metadata, history, audit, release evidence, logs, and internal libSQL API transport payloads.
+このプロファイルは本番同等検証用であり、フレームワーク前提条件ではない。詳細仕様は`adlaire-ecosystem.md`に集約する。

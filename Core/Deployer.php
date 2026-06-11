@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Deployment Deployer
  *
- * @version v0.278
+ * @version v0.284
  * @php     >= 8.3
  */
 
@@ -14,7 +14,7 @@ require_once __DIR__ . '/DeployConfig.php';
 
 final class Deployer
 {
-    private const CONTROL_VERSION = 'v0.278';
+    private const CONTROL_VERSION = 'v0.284';
 
     private Logger $logger;
     private array $fileCache = [];
@@ -92,12 +92,16 @@ final class Deployer
     public function deploymentSystemManifest(): array
     {
         $config = $this->config->deploymentManifest();
+        $releaseArtifactEvidence = $this->releaseArtifactEvidence();
 
         return [
             'component' => 'Core/Deployment.php',
             'axis' => 'deployment system',
             'design_philosophy' => 'distributed autonomous system design philosophy',
             'architecture_changed' => true,
+            'release_source' => $config['release_source'],
+            'release_artifact_manifest' => $releaseArtifactEvidence['manifest'],
+            'release_artifact_manifest_validation' => $releaseArtifactEvidence['validation'],
             'application_boundary' => $config['application_boundary'],
             'application_dependency_allowed' => $config['application_dependency_allowed'],
             'legacy_modules_directory_allowed' => $config['legacy_modules_directory_allowed'],
@@ -139,6 +143,7 @@ final class Deployer
     public function preflight(): array
     {
         $manifest = $this->deploymentSystemManifest();
+        $artifactEvidence = $this->releaseArtifactEvidence($manifest['release_artifact_manifest']);
         $targetDir = $manifest['required_directories']['target_dir'];
         $workDir = $manifest['required_directories']['work_dir'];
         $backupDir = $manifest['required_directories']['backup_dir'];
@@ -162,6 +167,11 @@ final class Deployer
             'lock_available' => !is_file($lockFile) || time() - filemtime($lockFile) >= $lockTimeout,
             'history_retention_valid' => (int)$this->config->get('history_keep', 5) >= 1,
         ];
+        $releaseValidation = $artifactEvidence['validation'];
+        $checks['release_artifact_manifest_valid'] = $releaseValidation['valid'] === true;
+        $checks['artifact_acquisition_plan_valid'] = $artifactEvidence['acquisition']['valid'] === true;
+        $checks['artifact_pre_extract_preview_valid'] = $artifactEvidence['pre_extract']['valid'] === true;
+        $checks['artifact_integrity_valid'] = $artifactEvidence['integrity']['valid'] === true;
 
         return [
             'ready' => !in_array(false, $checks, true),
@@ -173,6 +183,10 @@ final class Deployer
             'required_directories' => $manifest['required_directories'],
             'deploy_allowlist' => $allowlist,
             'lock_file' => $lockFile,
+            'release_artifact_manifest' => $releaseValidation,
+            'artifact_acquisition_plan' => $artifactEvidence['acquisition'],
+            'artifact_pre_extract_preview' => $artifactEvidence['pre_extract'],
+            'artifact_integrity' => $artifactEvidence['integrity'],
         ];
     }
 
@@ -241,6 +255,7 @@ final class Deployer
     {
         $preflight = $this->preflight();
         $manifest = $this->deploymentSystemManifest();
+        $artifactEvidence = $this->releaseArtifactEvidence($manifest['release_artifact_manifest']);
         $plan = $sourceDir === null ? null : $this->planPreview($sourceDir);
         $deploymentCoreChangeDetected = $plan === null
             ? false
@@ -272,6 +287,11 @@ final class Deployer
                 'axis' => $manifest['axis'],
                 'architecture_changed' => $manifest['architecture_changed'],
                 'design_philosophy' => $manifest['design_philosophy'],
+                'release_source' => $manifest['release_source'],
+                'release_artifact_manifest_validation' => $manifest['release_artifact_manifest_validation'],
+                'artifact_acquisition_plan' => $artifactEvidence['acquisition'],
+                'artifact_pre_extract_preview' => $artifactEvidence['pre_extract'],
+                'artifact_integrity' => $artifactEvidence['integrity'],
                 'required_directories' => $manifest['required_directories'],
             ],
             'preflight' => [
@@ -375,6 +395,26 @@ final class Deployer
             $score -= 10;
             $deductions['skipped_files'] = 10;
         }
+        if (($snapshot['manifest']['release_artifact_manifest_validation']['valid'] ?? false) !== true) {
+            $score -= 15;
+            $deductions['release_artifact_manifest'] = 15;
+        }
+        if (($snapshot['manifest']['artifact_acquisition_plan']['valid'] ?? false) !== true) {
+            $score -= 15;
+            $deductions['artifact_acquisition_plan'] = 15;
+        }
+        if (($snapshot['manifest']['artifact_pre_extract_preview']['valid'] ?? false) !== true) {
+            $score -= 15;
+            $deductions['artifact_pre_extract_preview'] = 15;
+        }
+        if (($snapshot['manifest']['artifact_integrity']['valid'] ?? false) !== true) {
+            $score -= 20;
+            $deductions['artifact_integrity'] = 20;
+        }
+        if ($sourceDir !== null && ($this->finalDeploymentPlan($sourceDir)['valid'] ?? false) !== true) {
+            $score -= 20;
+            $deductions['final_deployment_plan'] = 20;
+        }
 
         $score = max(0, $score);
 
@@ -462,6 +502,8 @@ final class Deployer
 
     public function deploymentControlReport(?string $sourceDir = null): array
     {
+        $artifactEvidence = $this->releaseArtifactEvidence();
+
         return [
             'version' => self::CONTROL_VERSION,
             'read_only' => true,
@@ -475,6 +517,11 @@ final class Deployer
             'safety_score' => $this->deploymentSafetyScore($sourceDir),
             'safety_score_details' => $this->deploymentSafetyScoreDetails($sourceDir),
             'history' => $this->deploymentHistorySummary(),
+            'release_artifact_manifest' => $artifactEvidence['validation'],
+            'artifact_acquisition_plan' => $artifactEvidence['acquisition'],
+            'artifact_pre_extract_preview' => $artifactEvidence['pre_extract'],
+            'artifact_integrity' => $artifactEvidence['integrity'],
+            'final_deployment_plan' => $sourceDir === null ? null : $this->finalDeploymentPlan($sourceDir),
         ];
     }
 
@@ -529,7 +576,17 @@ final class Deployer
     {
         $current = $this->deploymentControlReport($sourceDir);
         $changes = [];
-        foreach (['preflight', 'control_snapshot', 'rollback_preview', 'safety_score'] as $section) {
+        foreach ([
+            'preflight',
+            'control_snapshot',
+            'rollback_preview',
+            'safety_score',
+            'release_artifact_manifest',
+            'artifact_acquisition_plan',
+            'artifact_pre_extract_preview',
+            'artifact_integrity',
+            'final_deployment_plan',
+        ] as $section) {
             if (($previous[$section] ?? null) !== ($current[$section] ?? null)) {
                 $changes[] = $section;
             }
@@ -562,6 +619,12 @@ final class Deployer
                     'control_snapshot_ready' => $report['control_snapshot']['ready'] ?? false,
                     'rollback_preview_ready' => $report['rollback_preview']['ready'] ?? false,
                     'deployment_safety_score' => $report['safety_score']['score'] ?? 0,
+                    'release_artifact_manifest_valid' => $report['release_artifact_manifest']['valid'] ?? false,
+                    'artifact_acquisition_plan_valid' => $report['artifact_acquisition_plan']['valid'] ?? false,
+                    'artifact_pre_extract_preview_valid' => $report['artifact_pre_extract_preview']['valid'] ?? false,
+                    'artifact_integrity_valid' => $report['artifact_integrity']['valid'] ?? false,
+                    'final_deployment_plan_valid' => $report['final_deployment_plan']['valid'] ?? ($sourceDir === null),
+                    'final_deployment_plan_fingerprint' => $report['final_deployment_plan']['fingerprint'] ?? null,
                 ],
             ],
         ];
@@ -573,7 +636,12 @@ final class Deployer
         $inputs = $bundle['evidence']['release_gate_inputs'];
         $ready = ($inputs['control_snapshot_ready'] ?? false) === true
             && ($inputs['rollback_preview_ready'] ?? false) === true
-            && ($inputs['deployment_safety_score'] ?? 0) >= 70;
+            && ($inputs['deployment_safety_score'] ?? 0) >= 70
+            && ($inputs['release_artifact_manifest_valid'] ?? false) === true
+            && ($inputs['artifact_acquisition_plan_valid'] ?? false) === true
+            && ($inputs['artifact_pre_extract_preview_valid'] ?? false) === true
+            && ($inputs['artifact_integrity_valid'] ?? false) === true
+            && ($inputs['final_deployment_plan_valid'] ?? false) === true;
 
         return [
             'rc_ready' => $ready,
@@ -582,6 +650,266 @@ final class Deployer
             'command_execution_allowed' => false,
             'writes_allowed' => false,
             'inputs' => $inputs,
+        ];
+    }
+
+    public function releaseArtifactManifest(): array
+    {
+        return $this->config->releaseArtifactManifest();
+    }
+
+    public function validateReleaseArtifactManifest(array $manifest): array
+    {
+        $acquisition = $this->artifactAcquisitionPlan($manifest);
+        $preExtract = $this->artifactPreExtractPreview($manifest);
+        $integrity = $this->artifactIntegrityCheck($manifest);
+        return $this->releaseArtifactManifestValidation($manifest, $acquisition, $preExtract, $integrity);
+    }
+
+    private function releaseArtifactEvidence(?array $manifest = null): array
+    {
+        $manifest ??= $this->releaseArtifactManifest();
+        $acquisition = $this->artifactAcquisitionPlan($manifest);
+        $preExtract = $this->artifactPreExtractPreview($manifest);
+        $integrity = $this->artifactIntegrityCheck($manifest);
+
+        return [
+            'manifest' => $manifest,
+            'validation' => $this->releaseArtifactManifestValidation($manifest, $acquisition, $preExtract, $integrity),
+            'acquisition' => $acquisition,
+            'pre_extract' => $preExtract,
+            'integrity' => $integrity,
+        ];
+    }
+
+    private function releaseArtifactManifestValidation(array $manifest, array $acquisition, array $preExtract, array $integrity): array
+    {
+        $enabled = ($manifest['enabled'] ?? false) === true;
+        $checks = [
+            'github_releases_channel' => ($manifest['distribution_channel'] ?? null) === 'GitHub Releases',
+            'tag_format' => !$enabled || (is_string($manifest['tag'] ?? null) && preg_match('/^v0\.\d+$/', (string)$manifest['tag']) === 1),
+            'artifact_named' => !$enabled || (is_string($manifest['artifact'] ?? null) && (string)$manifest['artifact'] !== ''),
+            'artifact_sha256' => !$enabled || (is_string($manifest['artifact_sha256'] ?? null) && preg_match('/^[a-f0-9]{64}$/', (string)$manifest['artifact_sha256']) === 1),
+            'release_check_passed' => !$enabled || ($manifest['release_check_passed'] ?? false) === true,
+            'allowed_files_declared' => is_array($manifest['allowed_files'] ?? null) && ($manifest['allowed_files'] ?? []) !== [],
+            'excluded_files_declared' => is_array($manifest['excluded_files'] ?? null)
+                && in_array('.DS_Store', $manifest['excluded_files'], true)
+                && in_array('framework configuration files', $manifest['excluded_files'], true),
+            'breaking_changes_documented' => ($manifest['breaking_changes_documented'] ?? false) === true,
+            'rollback_target_declared' => is_string($manifest['rollback_target'] ?? null) && (string)$manifest['rollback_target'] !== '',
+            'artifact_acquisition_plan_valid' => $acquisition['valid'] === true,
+            'artifact_pre_extract_preview_valid' => $preExtract['valid'] === true,
+            'artifact_integrity_valid' => $integrity['valid'] === true,
+        ];
+
+        return [
+            'enabled' => $enabled,
+            'valid' => !in_array(false, $checks, true),
+            'read_only' => true,
+            'configuration_file' => false,
+            'audit_artifact' => true,
+            'checks' => $checks,
+            'manifest' => [
+                'distribution_channel' => $manifest['distribution_channel'] ?? null,
+                'tag' => $manifest['tag'] ?? null,
+                'artifact' => $manifest['artifact'] ?? null,
+                'artifact_path' => $manifest['artifact_path'] ?? null,
+                'artifact_sha256' => $manifest['artifact_sha256'] ?? null,
+                'artifact_integrity' => $integrity['summary'],
+                'artifact_files' => $preExtract['summary'],
+                'artifact_acquisition' => $acquisition['plan'],
+                'rollback_target' => $manifest['rollback_target'] ?? null,
+            ],
+        ];
+    }
+
+    public function artifactAcquisitionPlan(array $manifest): array
+    {
+        $enabled = ($manifest['enabled'] ?? false) === true;
+        $plan = is_array($manifest['artifact_acquisition'] ?? null) ? $manifest['artifact_acquisition'] : [];
+        $method = is_string($plan['method'] ?? null) && $plan['method'] !== '' ? $plan['method'] : 'push_artifact';
+        $serverNetworkRequired = ($plan['server_network_required'] ?? false) === true;
+        $transport = is_string($plan['transport'] ?? null) && $plan['transport'] !== '' ? $plan['transport'] : 'release_archive';
+        $sourceVerified = ($plan['source_verified_before_extract'] ?? false) === true;
+        $allowedMethods = ['push_artifact', 'pull_artifact', 'manual_upload'];
+
+        $checks = [
+            'method_allowed' => in_array($method, $allowedMethods, true),
+            'transport_declared' => $transport !== '',
+            'source_verified_before_extract' => $sourceVerified,
+            'checksum_required' => !$enabled || (is_string($manifest['artifact_sha256'] ?? null) && preg_match('/^[a-f0-9]{64}$/', (string)$manifest['artifact_sha256']) === 1),
+            'pull_network_explicit' => $method !== 'pull_artifact' || $serverNetworkRequired === true,
+            'xserver_safe_default' => $method !== 'push_artifact' || $serverNetworkRequired === false,
+        ];
+
+        return [
+            'enabled' => $enabled,
+            'valid' => !in_array(false, $checks, true),
+            'read_only' => true,
+            'configuration_file' => false,
+            'audit_artifact' => true,
+            'checks' => $checks,
+            'plan' => [
+                'method' => $method,
+                'server_network_required' => $serverNetworkRequired,
+                'transport' => $transport,
+                'source_verified_before_extract' => $sourceVerified,
+                'allowed_methods' => $allowedMethods,
+            ],
+        ];
+    }
+
+    public function artifactPreExtractPreview(array $manifest): array
+    {
+        $enabled = ($manifest['enabled'] ?? false) === true;
+        $files = is_array($manifest['artifact_files'] ?? null) ? array_values($manifest['artifact_files']) : [];
+        $allowedFiles = is_array($manifest['allowed_files'] ?? null) ? array_values($manifest['allowed_files']) : [];
+        $excludedFiles = is_array($manifest['excluded_files'] ?? null) ? array_values($manifest['excluded_files']) : [];
+        $accepted = [];
+        $rejected = [];
+
+        foreach ($files as $file) {
+            if (!is_string($file) || $file === '') {
+                $rejected[] = ['file' => $file, 'reason' => 'invalid_file_name'];
+                continue;
+            }
+            try {
+                $this->assertRelativePath($file);
+            } catch (Throwable) {
+                $rejected[] = ['file' => $file, 'reason' => 'unsafe_relative_path'];
+                continue;
+            }
+            if (!$this->allowed($file, $allowedFiles)) {
+                $rejected[] = ['file' => $file, 'reason' => 'not_allowed'];
+                continue;
+            }
+            if (in_array($file, $excludedFiles, true) || in_array(basename($file), $excludedFiles, true)) {
+                $rejected[] = ['file' => $file, 'reason' => 'excluded'];
+                continue;
+            }
+            $accepted[] = $file;
+        }
+
+        $checks = [
+            'file_list_declared' => !$enabled || $files !== [],
+            'all_paths_safe' => $rejected === [],
+            'allowed_files_declared' => $allowedFiles !== [],
+            'excluded_files_declared' => $excludedFiles !== [],
+            'accepted_files_present' => !$enabled || $accepted !== [],
+        ];
+
+        return [
+            'enabled' => $enabled,
+            'valid' => !in_array(false, $checks, true),
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'configuration_file' => false,
+            'audit_artifact' => true,
+            'checks' => $checks,
+            'summary' => [
+                'total' => count($files),
+                'accepted' => count($accepted),
+                'rejected' => count($rejected),
+            ],
+            'files' => [
+                'accepted' => $accepted,
+                'rejected' => $rejected,
+            ],
+        ];
+    }
+
+    public function artifactIntegrityCheck(array $manifest): array
+    {
+        $enabled = ($manifest['enabled'] ?? false) === true;
+        $path = is_string($manifest['artifact_path'] ?? null) ? (string)$manifest['artifact_path'] : '';
+        $expected = is_string($manifest['artifact_sha256'] ?? null) ? strtolower((string)$manifest['artifact_sha256']) : '';
+        $pathProvided = $path !== '';
+        $exists = $pathProvided && is_file($path);
+        $actual = $exists ? hash_file('sha256', $path) : null;
+
+        $checks = [
+            'sha256_declared' => !$enabled || preg_match('/^[a-f0-9]{64}$/', $expected) === 1,
+            'artifact_path_optional_or_exists' => !$pathProvided || $exists,
+            'sha256_matches' => !$pathProvided || ($exists && $actual === $expected),
+        ];
+
+        return [
+            'enabled' => $enabled,
+            'valid' => !in_array(false, $checks, true),
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'configuration_file' => false,
+            'audit_artifact' => true,
+            'checks' => $checks,
+            'summary' => [
+                'artifact_path_provided' => $pathProvided,
+                'artifact_exists' => $exists,
+                'sha256_declared' => $expected,
+                'sha256_actual' => $actual,
+                'sha256_matches' => $actual !== null && $actual === $expected,
+            ],
+        ];
+    }
+
+    public function finalDeploymentPlan(string $sourceDir): array
+    {
+        $plan = $this->planPreview($sourceDir);
+        $artifactEvidence = $this->releaseArtifactEvidence();
+        $manifest = $artifactEvidence['validation'];
+        $acquisition = $artifactEvidence['acquisition'];
+        $preExtract = $artifactEvidence['pre_extract'];
+        $integrity = $artifactEvidence['integrity'];
+        $changes = array_merge($plan['files']['added'] ?? [], $plan['files']['modified'] ?? []);
+        sort($changes, SORT_STRING);
+        $sourceRoot = $this->path($sourceDir);
+        $fileFingerprints = [];
+        foreach ($changes as $file) {
+            $absolute = $sourceRoot . '/' . $file;
+            $fileFingerprints[] = [
+                'file' => $file,
+                'size' => is_file($absolute) ? filesize($absolute) : null,
+                'sha256' => is_file($absolute) ? hash_file('sha256', $absolute) : null,
+            ];
+        }
+
+        $checks = [
+            'plan_preview_ready' => ($plan['ready'] ?? false) === true,
+            'manifest_valid' => ($manifest['valid'] ?? false) === true,
+            'acquisition_valid' => ($acquisition['valid'] ?? false) === true,
+            'pre_extract_preview_valid' => ($preExtract['valid'] ?? false) === true,
+            'integrity_valid' => ($integrity['valid'] ?? false) === true,
+            'skipped_files_absent' => ($plan['summary']['skipped'] ?? 0) === 0,
+        ];
+        $fingerprintSource = [
+            'version' => self::CONTROL_VERSION,
+            'source_dir' => $sourceRoot,
+            'target_dir' => $plan['target_dir'] ?? null,
+            'files' => $fileFingerprints,
+            'manifest' => $manifest['manifest'] ?? [],
+            'artifact_pre_extract' => $preExtract['summary'] ?? [],
+        ];
+        $fingerprint = hash('sha256', json_encode($fingerprintSource, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+
+        return [
+            'valid' => !in_array(false, $checks, true),
+            'frozen' => true,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'configuration_file' => false,
+            'audit_artifact' => true,
+            'checks' => $checks,
+            'fingerprint' => $fingerprint,
+            'summary' => [
+                'changes' => count($changes),
+                'added' => $plan['summary']['added'] ?? 0,
+                'modified' => $plan['summary']['modified'] ?? 0,
+                'skipped' => $plan['summary']['skipped'] ?? 0,
+            ],
+            'file_fingerprints' => $fileFingerprints,
+            'files' => $changes,
         ];
     }
 
@@ -893,7 +1221,11 @@ final class Deployer
         }
 
         foreach ($allowlist as $pattern) {
-            if (fnmatch((string)$pattern, $file)) {
+            $pattern = trim((string)$pattern, '/');
+            if ($pattern === '') {
+                continue;
+            }
+            if (fnmatch($pattern, $file) || str_starts_with($file, $pattern . '/')) {
                 return true;
             }
         }

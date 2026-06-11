@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Deployment DeployConfig
  *
- * @version v0.278
+ * @version v0.284
  * @php     >= 8.3
  */
 
@@ -80,17 +80,61 @@ final class DeployConfig
             'axis' => 'deployment system',
             'repository' => $this->requiredString('repository'),
             'branch' => $this->requiredString('branch'),
+            'release_source' => $this->releaseSource(),
             'target_dir' => $this->requiredString('target_dir'),
             'work_dir' => $this->requiredString('work_dir'),
             'backup_dir' => $this->requiredString('backup_dir'),
             'log_file' => $this->requiredString('log_file'),
             'deploy_allowlist' => $this->array('deploy_allowlist'),
+            'release_artifact_manifest' => $this->releaseArtifactManifest(),
             'application_boundary' => 'Applications',
             'application_dependency_allowed' => false,
             'legacy_modules_directory_allowed' => false,
             'autonomous_operation' => true,
             'architecture_changed' => true,
         ];
+    }
+
+    public function releaseArtifactManifest(): array
+    {
+        $manifest = $this->get('release_manifest', []);
+        if (is_string($manifest) && $manifest !== '') {
+            $decoded = json_decode($manifest, true);
+            if (!is_array($decoded)) {
+                throw new InvalidArgumentException('Release artifact manifest must be valid JSON evidence.');
+            }
+            $manifest = $decoded;
+        }
+        if (!is_array($manifest)) {
+            throw new InvalidArgumentException('Release artifact manifest must be an array.');
+        }
+
+        return array_replace([
+            'enabled' => false,
+            'distribution_channel' => 'GitHub Releases',
+            'tag' => $this->get('release_tag', ''),
+            'artifact' => $this->get('release_artifact', ''),
+            'artifact_path' => $this->get('release_artifact_path', ''),
+            'artifact_sha256' => $this->get('release_artifact_sha256', ''),
+            'artifact_files' => $this->array('release_artifact_files'),
+            'artifact_acquisition' => [
+                'method' => $this->get('artifact_acquisition_method', 'push_artifact'),
+                'server_network_required' => $this->bool('artifact_server_network_required', false),
+                'transport' => $this->get('artifact_transport', 'release_archive'),
+                'source_verified_before_extract' => true,
+            ],
+            'release_check_passed' => false,
+            'allowed_files' => $this->array('deploy_allowlist'),
+            'excluded_files' => ['.DS_Store', 'legacy shims', 'framework configuration files', 'public API helpers'],
+            'breaking_changes_documented' => true,
+            'rollback_target' => 'latest_snapshot',
+        ], $manifest);
+    }
+
+    public function releaseSource(): string
+    {
+        $manifest = $this->releaseArtifactManifest();
+        return ($manifest['enabled'] ?? false) === true ? 'github_releases' : 'git_archive';
     }
 
     private function withEnvironment(array $values): array

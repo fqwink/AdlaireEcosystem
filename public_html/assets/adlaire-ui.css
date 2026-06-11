@@ -19,3 +19,7 @@ summary{cursor:pointer;font-weight:600}
 .adlaire-table-compact th,.adlaire-table-compact td{padding:6px}
 .adlaire-section-muted{background:#fafbfc}
 .adlaire-metric{font-size:20px;font-weight:700}
+.control-matrix{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.control-matrix-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #d9dee7;border-radius:8px;padding:12px;background:#fafbfc}
+.control-matrix-row strong{display:block;font-size:13px}
+.control-matrix-row small{display:block;color:#526070;font-size:12px;margin-top:4px}

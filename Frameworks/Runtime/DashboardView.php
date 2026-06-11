@@ -35,6 +35,7 @@ final class AdlaireDashboardView
 <section><h2>Config Audit</h2>' . self::table(['valid' => self::section($sections, 'config_audit')['valid'] ?? false, 'checks' => self::section($sections, 'config_audit')['checks'] ?? [], 'details' => self::section($sections, 'config_audit')['details'] ?? []]) . '</section>
 <section><h2>Release Readiness</h2>' . self::table(['ready' => self::section($sections, 'release_readiness')['ready'] ?? false, 'checks' => self::section($sections, 'release_readiness')['checks'] ?? []]) . '</section>
 <section><h2>Deployment Control</h2>' . self::table(self::section($sections, 'deployment_control')) . '</section>
+<section><h2>Deployment Control Matrix</h2>' . self::controlMatrix(self::section($sections, 'deployment_control_matrix')) . '</section>
 <section><h2>Safety Score</h2>' . self::table(self::section($sections, 'safety_score')) . '</section>
 <section><h2>Deploy History</h2>' . self::table(self::section($sections, 'deploy_history')) . '</section>
 <section><h2>Database</h2>' . self::table(self::section($sections, 'database')) . '</section>
@@ -65,6 +66,30 @@ final class AdlaireDashboardView
         }
 
         return $html . '</tbody></table>';
+    }
+
+    private static function controlMatrix(array $matrix): string
+    {
+        $rows = is_array($matrix['rows'] ?? null) ? $matrix['rows'] : [];
+        $summary = is_array($matrix['summary'] ?? null) ? $matrix['summary'] : [];
+        $decision = is_array($matrix['decision'] ?? null) ? $matrix['decision'] : [];
+        $html = '<div class="status-layout">'
+            . self::badge((string)($matrix['status'] ?? 'blocked'))
+            . '<span class="adlaire-metric">' . self::escape((string)($summary['ready'] ?? 0)) . '/' . self::escape((string)($summary['total'] ?? count($rows))) . '</span>'
+            . '<span>ready controls</span>'
+            . '<code>' . self::escape((string)($matrix['fingerprint'] ?? '')) . '</code>'
+            . '</div><details open><summary>Release Decision</summary>' . self::table($decision) . '</details><div class="control-matrix">';
+        foreach ($rows as $name => $row) {
+            $row = is_array($row) ? $row : [];
+            $ready = ($row['ready'] ?? false) === true;
+            $html .= '<article class="control-matrix-row">';
+            $html .= '<div><strong>' . self::escape((string)$name) . '</strong>';
+            $html .= '<small>' . self::escape((string)($row['next_action'] ?? ($row['source'] ?? ($row['default_method'] ?? 'release evidence')))) . '</small></div>';
+            $html .= self::badge($ready ? 'ready' : 'blocked');
+            $html .= '</article>';
+        }
+
+        return $html . '</div><details><summary>Release Gate Inputs</summary>' . self::table($matrix) . '</details>';
     }
 
     private static function section(array $sections, string $key): array

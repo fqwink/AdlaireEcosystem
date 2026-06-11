@@ -3,7 +3,7 @@
 /**
  * Adlaire Ecosystem - Deployment Core bootstrap and support
  *
- * @version v0.278
+ * @version v0.284
  * @php     >= 8.3
  */
 
@@ -35,6 +35,7 @@ final class DeploymentEvidence
             'control_snapshot',
             'rollback_preview',
             'safety_score',
+            'release_artifact_manifest',
         ];
     }
 }

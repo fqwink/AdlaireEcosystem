@@ -45,6 +45,7 @@ check_file Core/Kernel.php
 check_file Core/Core.php
 check_dir_absent DeploymentCore
 check_dir_absent Frameworks/Deployment
+check_dir_absent Frameworks/Frontend
 check_dir_absent modules
 check_file_absent DeploymentCore.php
 check_file_absent Dockerfile.xserver
