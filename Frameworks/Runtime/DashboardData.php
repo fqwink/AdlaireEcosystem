@@ -19,6 +19,17 @@ final class AdlaireDashboardData
         $releaseReadiness = Adlaire::releaseReadiness();
         $distribution = Adlaire::distributionManifest();
         $controlMatrix = self::controlMatrix($releaseReadiness);
+        $executionGate = self::executionGateView($controlMatrix);
+        $dryRun = self::dryRunPanel($executionGate);
+        $auditLedger = self::auditLedgerView($root);
+        $decisionTimeline = self::decisionTimeline($controlMatrix, $executionGate, $dryRun, $auditLedger);
+        $queueStatus = self::deploymentQueueStatus($root);
+        $deployControls = self::dashboardDeployControls($executionGate, $dryRun, $auditLedger, $queueStatus);
+        $fullAutomationGate = self::fullAutomationGate($controlMatrix, $deployControls, $queueStatus);
+        $providerReadiness = self::providerReadiness();
+        $providerOrchestration = self::providerOrchestrationReadiness();
+        $providerRuntime = self::providerRuntimeReadiness();
+        $providerRuntimeExecution = self::providerRuntimeExecutionReadiness();
         $database = ['configured' => false];
 
         try {
@@ -45,6 +56,13 @@ final class AdlaireDashboardData
                     'deployment_control_ready' => ($controlMatrix['status'] ?? 'blocked') === 'ready',
                     'deployment_control_ready_count' => $controlMatrix['summary']['ready'] ?? 0,
                     'deployment_control_blocked_count' => $controlMatrix['summary']['blocked'] ?? 0,
+                    'deployment_execution_gate_ready' => $executionGate['ready'] ?? false,
+                    'deployment_dry_run_ready' => $dryRun['ready'] ?? false,
+                    'full_auto_deployment_ready' => $fullAutomationGate['ready'] ?? false,
+                    'provider_api_deployment_ready' => $providerReadiness['ready'] ?? false,
+                    'provider_orchestration_ready' => $providerOrchestration['ready'] ?? false,
+                    'provider_runtime_ready' => $providerRuntime['ready'] ?? false,
+                    'provider_runtime_execution_ready' => $providerRuntimeExecution['ready'] ?? false,
                     'environment' => Adlaire::env('APP_ENV', 'production'),
                     'php_version' => PHP_VERSION,
                 ],
@@ -59,8 +77,30 @@ final class AdlaireDashboardData
                     'control_matrix' => $controlMatrix,
                     'control_report' => Adlaire::deploymentControlReportPolicy(),
                     'stable_release_gate' => Adlaire::stableReleaseGatePolicy(),
+                    'execution_gate' => $executionGate,
+                    'dry_run' => $dryRun,
+                    'audit_ledger' => $auditLedger,
+                    'decision_timeline' => $decisionTimeline,
+                    'queue_status' => $queueStatus,
+                    'deploy_controls' => $deployControls,
+                    'full_automation_gate' => $fullAutomationGate,
+                    'provider_readiness' => $providerReadiness,
+                    'provider_orchestration' => $providerOrchestration,
+                    'provider_runtime' => $providerRuntime,
+                    'provider_runtime_execution' => $providerRuntimeExecution,
                 ],
                 'deployment_control_matrix' => $controlMatrix,
+                'deployment_execution_gate' => $executionGate,
+                'deployment_dry_run' => $dryRun,
+                'deployment_audit_ledger' => $auditLedger,
+                'deployment_decision_timeline' => $decisionTimeline,
+                'deployment_queue_status' => $queueStatus,
+                'dashboard_deploy_controls' => $deployControls,
+                'full_auto_deployment_gate' => $fullAutomationGate,
+                'provider_api_deployment' => $providerReadiness,
+                'provider_orchestrated_deployment' => $providerOrchestration,
+                'provider_runtime_foundation' => $providerRuntime,
+                'provider_runtime_execution' => $providerRuntimeExecution,
                 'safety_score' => Adlaire::deploymentSafetyScorePolicy(),
                 'deploy_history' => Adlaire::deploymentHistoryVisualizationPolicy(),
                 'distribution' => [
@@ -129,6 +169,27 @@ final class AdlaireDashboardData
                 'severity' => 'critical',
                 'next_action' => 'freeze_final_deployment_plan',
             ],
+            'execution_gate_view' => [
+                'ready' => ($spec['deployment_dashboard_control']['execution_gate_view'] ?? false) === true
+                    && ($spec['deployment_execution_foundation']['final_plan_fingerprint_required'] ?? false) === true,
+                'source' => 'Adlaire::currentSpecification()',
+                'severity' => 'critical',
+                'next_action' => 'review_execution_gate_view',
+            ],
+            'dry_run_panel' => [
+                'ready' => ($spec['deployment_dashboard_control']['dry_run_panel'] ?? false) === true
+                    && ($spec['deployment_execution_foundation']['dry_run_method'] ?? null) === 'Deployer::deploymentDryRun()',
+                'source' => 'Adlaire::currentSpecification()',
+                'severity' => 'high',
+                'next_action' => 'review_dry_run_panel',
+            ],
+            'audit_ledger_viewer' => [
+                'ready' => ($spec['deployment_dashboard_control']['audit_ledger_viewer'] ?? false) === true
+                    && ($spec['deployment_execution_foundation']['append_only_json_audit_allowed'] ?? false) === true,
+                'source' => 'Adlaire::currentSpecification()',
+                'severity' => 'high',
+                'next_action' => 'review_audit_ledger_viewer',
+            ],
             'release_check_evidence' => [
                 'ready' => ($spec['release_check_evidence']['summary_required'] ?? false) === true
                     && ($spec['release_check_evidence']['named_passes_required'] ?? false) === true,
@@ -185,6 +246,269 @@ final class AdlaireDashboardData
             'decision' => $decision,
             'summary' => $summary,
             'rows' => $rows,
+        ];
+    }
+
+    private static function executionGateView(array $controlMatrix): array
+    {
+        $spec = Adlaire::currentSpecification();
+        $ready = ($controlMatrix['decision']['release_allowed'] ?? false) === true
+            && ($spec['deployment_execution_foundation']['final_plan_fingerprint_required'] ?? false) === true
+            && ($spec['deployment_dashboard_control']['execution_gate_view'] ?? false) === true;
+
+        return [
+            'ready' => $ready,
+            'status' => $ready ? 'ready' : 'blocked',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'dashboard_execution_enabled' => false,
+            'apply_enabled' => false,
+            'source' => 'Deployer::executionGate()',
+            'fingerprint_source' => 'final_deployment_plan',
+            'matrix_fingerprint' => $controlMatrix['fingerprint'] ?? null,
+            'required_inputs' => [
+                'stable_release_candidate_gate',
+                'final_deployment_plan',
+                'final_plan_fingerprint',
+                'safety_score',
+            ],
+            'blocked_reasons' => $ready ? [] : array_column($controlMatrix['decision']['blockers'] ?? [], 'reason'),
+        ];
+    }
+
+    private static function dryRunPanel(array $executionGate): array
+    {
+        $ready = ($executionGate['ready'] ?? false) === true;
+
+        return [
+            'ready' => $ready,
+            'dry_run_required' => true,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'apply_allowed' => false,
+            'source' => 'Deployer::deploymentDryRun()',
+            'final_plan_fingerprint_required' => true,
+            'execution_gate_ready' => $ready,
+            'next_action' => $ready ? 'record_dry_run_evidence' : 'resolve_execution_gate_blockers',
+        ];
+    }
+
+    private static function auditLedgerView(string $root): array
+    {
+        $path = $root . '/storage/deployment_audit_ledger.jsonl';
+        $entries = [];
+        if (is_file($path)) {
+            $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach (array_slice(array_reverse(is_array($lines) ? $lines : []), 0, 10) as $line) {
+                $entry = json_decode((string)$line, true);
+                if (is_array($entry)) {
+                    $entries[] = [
+                        'time' => $entry['time'] ?? null,
+                        'event' => $entry['event'] ?? null,
+                        'fingerprint' => $entry['evidence']['final_plan_fingerprint'] ?? null,
+                    ];
+                }
+            }
+        }
+
+        return [
+            'ready' => true,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'configuration_file' => false,
+            'audit_artifact' => true,
+            'source' => 'deployment_audit_ledger.jsonl',
+            'path' => 'storage/deployment_audit_ledger.jsonl',
+            'summary' => [
+                'visible_entries' => count($entries),
+                'append_only_jsonl' => true,
+            ],
+            'entries' => $entries,
+        ];
+    }
+
+    private static function decisionTimeline(array $controlMatrix, array $executionGate, array $dryRun, array $auditLedger): array
+    {
+        $events = [
+            ['name' => 'release_readiness', 'ready' => ($controlMatrix['rows']['release_readiness']['ready'] ?? false) === true],
+            ['name' => 'artifact_integrity', 'ready' => ($controlMatrix['rows']['artifact_integrity']['ready'] ?? false) === true],
+            ['name' => 'final_deployment_plan', 'ready' => ($controlMatrix['rows']['final_deployment_plan']['ready'] ?? false) === true],
+            ['name' => 'execution_gate', 'ready' => ($executionGate['ready'] ?? false) === true],
+            ['name' => 'dry_run', 'ready' => ($dryRun['ready'] ?? false) === true],
+            ['name' => 'audit_ledger', 'ready' => ($auditLedger['ready'] ?? false) === true],
+        ];
+
+        return [
+            'ready' => !in_array(false, array_column($events, 'ready'), true),
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'events' => $events,
+        ];
+    }
+
+    private static function deploymentQueueStatus(string $root): array
+    {
+        $lock = $root . '/storage/deploy.lock';
+        $running = is_file($lock);
+
+        return [
+            'ready' => !$running,
+            'status' => $running ? 'running' : 'idle',
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'lock_file' => 'storage/deploy.lock',
+            'allowed_statuses' => ['idle', 'running', 'completed', 'failed', 'rolled_back'],
+        ];
+    }
+
+    private static function dashboardDeployControls(array $executionGate, array $dryRun, array $auditLedger, array $queueStatus): array
+    {
+        $ready = ($executionGate['ready'] ?? false) === true
+            && ($dryRun['ready'] ?? false) === true
+            && ($auditLedger['ready'] ?? false) === true
+            && ($queueStatus['ready'] ?? false) === true;
+
+        return [
+            'ready' => $ready,
+            'dashboard_execution_enabled' => $ready,
+            'safety_gated' => true,
+            'public_api_required' => false,
+            'configuration_file' => false,
+            'csrf_required' => true,
+            'short_lived_execution_token_required' => true,
+            'explicit_confirmation_required' => true,
+            'final_plan_fingerprint_required' => true,
+            'source' => 'AdlaireDashboardSecurity',
+        ];
+    }
+
+    private static function fullAutomationGate(array $controlMatrix, array $deployControls, array $queueStatus): array
+    {
+        $spec = Adlaire::currentSpecification();
+        $checks = [
+            'roadmap_targets_v0_290' => ($spec['auto_deployment_roadmap']['target'] ?? null) === 'v0.290',
+            'control_matrix_ready' => ($controlMatrix['status'] ?? null) === 'ready',
+            'dashboard_controls_ready' => ($deployControls['ready'] ?? false) === true,
+            'queue_idle' => ($queueStatus['status'] ?? null) === 'idle',
+            'public_api_absent' => ($deployControls['public_api_required'] ?? true) === false,
+            'configuration_file_absent' => ($deployControls['configuration_file'] ?? true) === false,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'target' => 'v0.290',
+            'full_auto_deployment_enabled' => true,
+            'release_gate_required' => true,
+            'checks' => $checks,
+        ];
+    }
+
+    private static function providerReadiness(): array
+    {
+        $spec = Adlaire::currentSpecification();
+        $policy = is_array($spec['provider_api_deployment'] ?? null) ? $spec['provider_api_deployment'] : [];
+        $profiles = is_array($policy['supported_initial_profiles'] ?? null) ? $policy['supported_initial_profiles'] : [];
+        $checks = [
+            'target_v0_295' => ($policy['target'] ?? null) === 'v0.295',
+            'xserver_rental_profile' => in_array('xserver_rental', $profiles, true),
+            'xserver_vps_profile' => in_array('xserver_vps', $profiles, true),
+            'public_api_absent' => ($policy['public_api_required'] ?? true) === false,
+            'configuration_file_absent' => ($policy['configuration_file'] ?? true) === false,
+            'internal_only' => ($policy['provider_api_internal_only'] ?? false) === true,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'target' => $policy['target'] ?? null,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'checks' => $checks,
+            'profiles' => $profiles,
+            'methods' => $policy['methods'] ?? [],
+        ];
+    }
+
+    private static function providerOrchestrationReadiness(): array
+    {
+        $spec = Adlaire::currentSpecification();
+        $policy = is_array($spec['provider_orchestrated_deployment'] ?? null) ? $spec['provider_orchestrated_deployment'] : [];
+        $methods = is_array($policy['methods'] ?? null) ? $policy['methods'] : [];
+        $checks = [
+            'target_v0_305' => ($policy['target'] ?? null) === 'v0.305',
+            'orchestrator_method' => ($methods['orchestrator'] ?? null) === 'Deployer::providerOrchestrator()',
+            'remote_operation_plan_method' => ($methods['remote_operation_plan'] ?? null) === 'Deployer::remoteOperationPlan()',
+            'transport_evidence_method' => ($methods['transport_evidence'] ?? null) === 'Deployer::providerApiTransportEvidence()',
+            'release_gate_method' => ($methods['release_gate'] ?? null) === 'Deployer::providerOrchestratedReleaseGate()',
+            'public_api_absent' => ($policy['public_api_required'] ?? true) === false,
+            'configuration_file_absent' => ($policy['configuration_file'] ?? true) === false,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'target' => $policy['target'] ?? null,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'checks' => $checks,
+            'methods' => $methods,
+        ];
+    }
+
+    private static function providerRuntimeReadiness(): array
+    {
+        $spec = Adlaire::currentSpecification();
+        $policy = is_array($spec['provider_runtime_foundation'] ?? null) ? $spec['provider_runtime_foundation'] : [];
+        $methods = is_array($policy['methods'] ?? null) ? $policy['methods'] : [];
+        $checks = [
+            'target_v0_311' => ($policy['target'] ?? null) === 'v0.311',
+            'runtime_interface' => ($methods['runtime_interface'] ?? null) === 'Deployer::providerRuntimeInterface()',
+            'remote_state_snapshot' => ($methods['remote_state_snapshot'] ?? null) === 'Deployer::remoteStateSnapshot()',
+            'transaction_plan' => ($methods['transaction_plan'] ?? null) === 'Deployer::providerTransactionPlan()',
+            'secret_redaction_engine' => ($methods['secret_redaction_engine'] ?? null) === 'Deployer::providerSecretRedactionEngine()',
+            'public_api_absent' => ($policy['public_api_required'] ?? true) === false,
+            'configuration_file_absent' => ($policy['configuration_file'] ?? true) === false,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'target' => $policy['target'] ?? null,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'checks' => $checks,
+            'methods' => $methods,
+        ];
+    }
+
+    private static function providerRuntimeExecutionReadiness(): array
+    {
+        $spec = Adlaire::currentSpecification();
+        $policy = is_array($spec['provider_runtime_execution'] ?? null) ? $spec['provider_runtime_execution'] : [];
+        $methods = is_array($policy['methods'] ?? null) ? $policy['methods'] : [];
+        $checks = [
+            'target_v0_320' => ($policy['target'] ?? null) === 'v0.320',
+            'xserver_rental_adapter' => ($methods['xserver_rental_adapter'] ?? null) === 'Deployer::xserverRentalRuntimeAdapter()',
+            'xserver_vps_adapter' => ($methods['xserver_vps_adapter'] ?? null) === 'Deployer::xserverVpsRuntimeAdapter()',
+            'execution_plan' => ($methods['execution_plan'] ?? null) === 'Deployer::providerRuntimeExecutionPlan()',
+            'execution_gate' => ($methods['execution_gate'] ?? null) === 'Deployer::providerRuntimeExecutionGate()',
+            'public_api_absent' => ($policy['public_api_required'] ?? true) === false,
+            'configuration_file_absent' => ($policy['configuration_file'] ?? true) === false,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'target' => $policy['target'] ?? null,
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'checks' => $checks,
+            'methods' => $methods,
         ];
     }
 }

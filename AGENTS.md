@@ -35,7 +35,8 @@ Core / Backend / Runtime / CSS / JavaScriptは各5ファイル構成を維持す
 - 互換性よりも現行仕様、単純さ、安定リリース判定を優先する。
 - Public APIは廃止。復活させない。
 - API内部依存も避ける。
-- 設定ファイルはフレームワーク全体で禁止。
+- `.ini`は全面解禁。
+- `.ini`以外の設定ファイルはフレームワーク全体で禁止。
 - JSONは監査、履歴、証跡、ログ、内部libSQL transport payload用途のみ許可。
 - MySQL対応予定なし。
 - SQLiteと内部libSQL transportを軸にする。
@@ -84,7 +85,8 @@ docker run --rm -v "$PWD:/app" -w /app php:8.3-cli sh scripts/release-check.sh
 
 ## 禁止事項
 
-- `.env*`, `*.ini`, `*.conf`, `*.yaml`, `*.yml`, `config.php`, `*.config.php`を追加しない。
+- `.env*`, `*.conf`, `*.yaml`, `*.yml`, `config.php`, `*.config.php`を追加しない。
+- `*.ini`は追加可能。
 - Composer必須化をしない。
 - Public API、JSON response helper、JSON request helper、CORS helperを復活させない。
 - root `DeploymentCore.php`互換shimを復活させない。

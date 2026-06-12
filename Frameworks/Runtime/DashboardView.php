@@ -36,6 +36,17 @@ final class AdlaireDashboardView
 <section><h2>Release Readiness</h2>' . self::table(['ready' => self::section($sections, 'release_readiness')['ready'] ?? false, 'checks' => self::section($sections, 'release_readiness')['checks'] ?? []]) . '</section>
 <section><h2>Deployment Control</h2>' . self::table(self::section($sections, 'deployment_control')) . '</section>
 <section><h2>Deployment Control Matrix</h2>' . self::controlMatrix(self::section($sections, 'deployment_control_matrix')) . '</section>
+<section><h2>Execution Gate</h2>' . self::executionGate(self::section($sections, 'deployment_execution_gate')) . '</section>
+<section><h2>Dry-run</h2>' . self::table(self::section($sections, 'deployment_dry_run')) . '</section>
+<section><h2>Audit Ledger</h2>' . self::auditLedger(self::section($sections, 'deployment_audit_ledger')) . '</section>
+<section><h2>Decision Timeline</h2>' . self::timeline(self::section($sections, 'deployment_decision_timeline')) . '</section>
+<section><h2>Deploy Controls</h2>' . self::table(self::section($sections, 'dashboard_deploy_controls')) . '</section>
+<section><h2>Deployment Queue</h2>' . self::table(self::section($sections, 'deployment_queue_status')) . '</section>
+<section><h2>Full Auto Deployment Gate</h2>' . self::table(self::section($sections, 'full_auto_deployment_gate')) . '</section>
+<section><h2>Provider API Deployment</h2>' . self::table(self::section($sections, 'provider_api_deployment')) . '</section>
+<section><h2>Provider Orchestrated Deployment</h2>' . self::table(self::section($sections, 'provider_orchestrated_deployment')) . '</section>
+<section><h2>Provider Runtime Foundation</h2>' . self::table(self::section($sections, 'provider_runtime_foundation')) . '</section>
+<section><h2>Provider Runtime Execution</h2>' . self::table(self::section($sections, 'provider_runtime_execution')) . '</section>
 <section><h2>Safety Score</h2>' . self::table(self::section($sections, 'safety_score')) . '</section>
 <section><h2>Deploy History</h2>' . self::table(self::section($sections, 'deploy_history')) . '</section>
 <section><h2>Database</h2>' . self::table(self::section($sections, 'database')) . '</section>
@@ -90,6 +101,48 @@ final class AdlaireDashboardView
         }
 
         return $html . '</div><details><summary>Release Gate Inputs</summary>' . self::table($matrix) . '</details>';
+    }
+
+    private static function executionGate(array $gate): string
+    {
+        return '<div class="status-layout">'
+            . self::badge((($gate['ready'] ?? false) === true) ? 'ready' : 'blocked')
+            . '<span>execution disabled</span>'
+            . '<code>' . self::escape((string)($gate['matrix_fingerprint'] ?? '')) . '</code>'
+            . '</div>' . self::table([
+                'ready' => $gate['ready'] ?? false,
+                'dashboard_execution_enabled' => $gate['dashboard_execution_enabled'] ?? false,
+                'apply_enabled' => $gate['apply_enabled'] ?? false,
+                'required_inputs' => $gate['required_inputs'] ?? [],
+                'blocked_reasons' => $gate['blocked_reasons'] ?? [],
+            ]);
+    }
+
+    private static function auditLedger(array $ledger): string
+    {
+        return '<div class="status-layout">'
+            . self::badge((($ledger['ready'] ?? false) === true) ? 'ready' : 'blocked')
+            . '<span class="adlaire-metric">' . self::escape((string)($ledger['summary']['visible_entries'] ?? 0)) . '</span>'
+            . '<span>visible entries</span>'
+            . '</div>' . self::table([
+                'path' => $ledger['path'] ?? '',
+                'append_only_jsonl' => $ledger['summary']['append_only_jsonl'] ?? false,
+                'entries' => $ledger['entries'] ?? [],
+            ]);
+    }
+
+    private static function timeline(array $timeline): string
+    {
+        $events = is_array($timeline['events'] ?? null) ? $timeline['events'] : [];
+        $html = '<div class="control-matrix">';
+        foreach ($events as $event) {
+            $event = is_array($event) ? $event : [];
+            $ready = ($event['ready'] ?? false) === true;
+            $html .= '<article class="control-matrix-row"><div><strong>' . self::escape((string)($event['name'] ?? 'event')) . '</strong></div>'
+                . self::badge($ready ? 'ready' : 'blocked') . '</article>';
+        }
+
+        return $html . '</div>';
     }
 
     private static function section(array $sections, string $key): array

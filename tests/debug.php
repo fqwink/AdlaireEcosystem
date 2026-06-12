@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../Core/Core.php';
 require_once __DIR__ . '/../Frameworks/Backend/Database.php';
 require_once __DIR__ . '/../Core/Deployment.php';
+require_once __DIR__ . '/../Frameworks/Runtime/DashboardSecurity.php';
 require_once __DIR__ . '/../Frameworks/Runtime/DashboardData.php';
 require_once __DIR__ . '/../Frameworks/Runtime/DashboardView.php';
 
@@ -91,6 +92,39 @@ function test_release_identity(): void
     assert_same(true, $spec['deployment_final_plan']['frozen'] ?? null, 'deployment final plan should be frozen');
     assert_same(true, $spec['deployment_final_plan']['fingerprint_required'] ?? null, 'deployment final plan should require fingerprint');
     assert_same(true, $spec['deployment_final_plan']['content_hash_required'] ?? null, 'deployment final plan should require file content hashes');
+    assert_same('v0.285', $spec['deployment_execution_foundation']['target'] ?? null, 'deployment execution foundation should target next version');
+    assert_same('Deployer::executionGate()', $spec['deployment_execution_foundation']['execution_gate_method'] ?? null, 'deployment execution foundation should expose gate method');
+    assert_same(false, $spec['deployment_execution_foundation']['dashboard_execution_enabled'] ?? null, 'deployment execution foundation should keep dashboard execution disabled');
+    assert_same(true, $spec['deployment_execution_foundation']['final_plan_fingerprint_required'] ?? null, 'deployment execution foundation should require final plan fingerprint');
+    assert_same('v0.286', $spec['deployment_dashboard_control']['target'] ?? null, 'deployment dashboard control should target next dashboard version');
+    assert_same(true, $spec['deployment_dashboard_control']['execution_gate_view'] ?? null, 'deployment dashboard control should expose execution gate view');
+    assert_same(true, $spec['deployment_dashboard_control']['dry_run_panel'] ?? null, 'deployment dashboard control should expose dry-run panel');
+    assert_same(true, $spec['deployment_dashboard_control']['audit_ledger_viewer'] ?? null, 'deployment dashboard control should expose audit ledger viewer');
+    assert_same(false, $spec['deployment_dashboard_control']['dashboard_execution_enabled'] ?? null, 'deployment dashboard control should keep execution disabled');
+    assert_same('v0.290', $spec['auto_deployment_roadmap']['target'] ?? null, 'auto deployment roadmap should target v0.290');
+    assert_same('Deployer::autoDeploy()', $spec['auto_deployment_roadmap']['core_engine_method'] ?? null, 'auto deployment roadmap should expose auto deploy engine');
+    assert_same(false, $spec['auto_deployment_roadmap']['public_api_required'] ?? null, 'auto deployment roadmap should not require public API');
+    assert_true(in_array('rollback_on_failure', $spec['auto_deployment_roadmap']['required_flow'] ?? [], true), 'auto deployment roadmap should require rollback on failure');
+    assert_same('v0.295', $spec['provider_api_deployment']['target'] ?? null, 'provider API deployment should target v0.295');
+    assert_same(false, $spec['provider_api_deployment']['public_api_required'] ?? null, 'provider API deployment should not require framework public API');
+    assert_same(true, $spec['provider_api_deployment']['provider_api_internal_only'] ?? null, 'provider API deployment should be internal only');
+    assert_true(in_array('xserver_rental', $spec['provider_api_deployment']['supported_initial_profiles'] ?? [], true), 'provider API deployment should support xserver rental profile');
+    assert_true(in_array('xserver_vps', $spec['provider_api_deployment']['supported_initial_profiles'] ?? [], true), 'provider API deployment should support xserver vps profile');
+    assert_same('v0.305', $spec['provider_orchestrated_deployment']['target'] ?? null, 'provider orchestrated deployment should target v0.305');
+    assert_same('Deployer::providerOrchestrator()', $spec['provider_orchestrated_deployment']['methods']['orchestrator'] ?? null, 'provider orchestrated deployment should expose orchestrator method');
+    assert_same('Deployer::providerOrchestratedReleaseGate()', $spec['provider_orchestrated_deployment']['methods']['release_gate'] ?? null, 'provider orchestrated deployment should expose release gate method');
+    assert_same(false, $spec['provider_orchestrated_deployment']['credentials_persisted'] ?? null, 'provider orchestrated deployment should not persist credentials');
+    assert_same('v0.311', $spec['provider_runtime_foundation']['target'] ?? null, 'provider runtime foundation should target v0.311');
+    assert_same('Deployer::providerRuntimeInterface()', $spec['provider_runtime_foundation']['methods']['runtime_interface'] ?? null, 'provider runtime foundation should expose runtime interface');
+    assert_same('Deployer::providerSecretRedactionEngine()', $spec['provider_runtime_foundation']['methods']['secret_redaction_engine'] ?? null, 'provider runtime foundation should expose secret redaction');
+    assert_same(false, $spec['provider_runtime_foundation']['credentials_persisted'] ?? null, 'provider runtime foundation should not persist credentials');
+    assert_same('v0.320', $spec['provider_runtime_execution']['target'] ?? null, 'provider runtime execution should target v0.320');
+    assert_same('Deployer::xserverRentalRuntimeAdapter()', $spec['provider_runtime_execution']['methods']['xserver_rental_adapter'] ?? null, 'provider runtime execution should expose rental adapter');
+    assert_same('Deployer::xserverVpsRuntimeAdapter()', $spec['provider_runtime_execution']['methods']['xserver_vps_adapter'] ?? null, 'provider runtime execution should expose vps adapter');
+    assert_same('Deployer::providerRuntimeExecutionGate()', $spec['provider_runtime_execution']['methods']['execution_gate'] ?? null, 'provider runtime execution should expose execution gate');
+    $configurationPolicy = Adlaire::configurationFilePolicy();
+    assert_same(true, $configurationPolicy['ini_files_allowed'] ?? null, 'ini files should be fully allowed');
+    assert_true(!in_array('*.ini', $configurationPolicy['prohibited_patterns'] ?? [], true), 'ini files should not be prohibited');
     assert_same(true, $spec['release_check_evidence']['summary_required'] ?? null, 'release check should require summary output');
     assert_same(true, $spec['release_check_evidence']['named_passes_required'] ?? null, 'release check should require named pass output');
     assert_same(false, $spec['release_check_evidence']['configuration_file'] ?? null, 'release check evidence should not be a configuration file');
@@ -164,8 +198,15 @@ function test_stable_release_policy(): void
     $manifest = Adlaire::distributionManifest();
     assert_same(true, $manifest['files_unique'] ?? null, 'distribution manifest files should be unique');
     assert_same(true, $manifest['files_exist'] ?? null, 'distribution manifest files should exist');
+    assert_true(is_string($manifest['fingerprint'] ?? null) && preg_match('/^[a-f0-9]{64}$/', $manifest['fingerprint']) === 1, 'distribution manifest should expose fingerprint');
+    assert_same($manifest['file_count'] ?? null, count($manifest['file_fingerprints'] ?? []), 'distribution manifest should fingerprint every file');
+    assert_true(is_string($manifest['file_fingerprints'][0]['sha256'] ?? null), 'distribution manifest should expose file sha256');
     assert_same(true, $manifest['docker_profile_collected'] ?? null, 'distribution manifest should include Docker profile files');
     assert_same(true, $manifest['root_docker_files_absent'] ?? null, 'distribution manifest should reject root Docker files');
+    assert_same(true, $manifest['safe_release']['enabled'] ?? null, 'distribution manifest should expose safe release');
+    assert_same('v0.284 Safe Release', $manifest['safe_release']['label'] ?? null, 'distribution manifest should expose safe release label');
+    assert_same(0, $manifest['safe_release']['known_bug_count'] ?? null, 'distribution manifest should expose zero known bugs');
+    assert_same(true, $manifest['safe_release']['dashboard_control_matrix_required'] ?? null, 'distribution manifest should require dashboard control matrix');
     assert_true(in_array('Docker/Dockerfile.xserver', $manifest['files'] ?? [], true), 'distribution manifest should include Dockerfile');
     assert_true(in_array('Docker/docker-compose.xserver.yml', $manifest['files'] ?? [], true), 'distribution manifest should include compose profile');
 
@@ -258,6 +299,12 @@ function test_deployment_control_smoke(): void
             mkdir($directory, 0777, true);
         }
     }
+    $snapshot = $backup . '/20260101000000/public_html';
+    if (!is_dir($snapshot)) {
+        mkdir($snapshot, 0777, true);
+    }
+    file_put_contents($backup . '/20260101000000/manifest.json', json_encode(['files' => ['public_html/index.php']], JSON_THROW_ON_ERROR));
+    file_put_contents($snapshot . '/index.php', '<?php echo "Previous";');
     file_put_contents($source . '/public_html/index.php', '<?php echo "Adlaire";');
     file_put_contents($source . '/public_html/dashboard.php', '<?php echo "Dashboard";');
     $artifact = $work . '/adlaire-ecosystem-v0.284.tar.gz';
@@ -337,6 +384,95 @@ function test_deployment_control_smoke(): void
     assert_true(is_string($finalPlan['fingerprint'] ?? null) && preg_match('/^[a-f0-9]{64}$/', $finalPlan['fingerprint']) === 1, 'final deployment plan fingerprint should be sha256');
     assert_same(2, count($finalPlan['file_fingerprints'] ?? []), 'final deployment plan should hash changed files');
     assert_true(is_string($finalPlan['file_fingerprints'][0]['sha256'] ?? null), 'final deployment plan should expose file sha256');
+    $executionGate = $deployer->executionGate($source, $finalPlan['fingerprint']);
+    $dryRun = $deployer->deploymentDryRun($source, $finalPlan['fingerprint']);
+    $ledger = $deployer->recordDeploymentAuditLedger('dry_run_ready', $source, ['operator' => 'debug']);
+    assert_same(true, $executionGate['ready'] ?? null, 'deployment execution gate should pass with matching final plan fingerprint');
+    assert_same(false, $executionGate['dashboard_execution_enabled'] ?? null, 'deployment execution gate should keep dashboard execution disabled');
+    assert_same(true, $executionGate['checks']['expected_fingerprint_matched'] ?? null, 'deployment execution gate should verify expected fingerprint');
+    assert_same($finalPlan['fingerprint'], $executionGate['final_plan_fingerprint'] ?? null, 'deployment execution gate should expose final plan fingerprint');
+    assert_same(true, $dryRun['dry_run'] ?? null, 'deployment dry-run should identify dry-run mode');
+    assert_same(false, $dryRun['apply_allowed'] ?? null, 'deployment dry-run should never apply changes');
+    assert_same($finalPlan['fingerprint'], $dryRun['final_plan_fingerprint'] ?? null, 'deployment dry-run should carry final plan fingerprint');
+    assert_same(true, $ledger['recorded'] ?? null, 'deployment audit ledger should record evidence');
+    assert_same(false, $ledger['configuration_file'] ?? null, 'deployment audit ledger should not be configuration file');
+    assert_same(true, is_file($ledger['path'] ?? ''), 'deployment audit ledger should write JSONL evidence');
+    assert_true(str_contains((string)file_get_contents($ledger['path']), 'dry_run_ready'), 'deployment audit ledger should include event name');
+    $autoDeploy = $deployer->autoDeploy($source, $finalPlan['fingerprint']);
+    assert_same('completed', $autoDeploy['status'] ?? null, 'auto deployment should complete when gate and fingerprint match');
+    assert_same(true, $autoDeploy['applied'] ?? null, 'auto deployment should apply changes');
+    assert_same(false, $autoDeploy['rolled_back'] ?? null, 'auto deployment should not rollback on success');
+    assert_same(true, is_file($target . '/public_html/index.php'), 'auto deployment should write target file');
+    assert_true(str_contains((string)file_get_contents($backup . '/deployment_audit_ledger.jsonl'), 'auto_deploy_completed'), 'auto deployment should record completion ledger');
+    $providerMatrix = $deployer->providerCapabilityMatrix('xserver_rental');
+    $vpsProviderPlan = $deployer->providerExecutionPlan('xserver_vps');
+    $genericProviderEvidence = $deployer->providerAuditEvidence('future_provider');
+    assert_same('xserver_rental', $providerMatrix['selected_provider'] ?? null, 'provider matrix should select xserver rental');
+    assert_same('Xserver Rental Server', $providerMatrix['selected_profile']['label'] ?? null, 'provider matrix should expose xserver rental label');
+    assert_same(false, $providerMatrix['public_api_required'] ?? null, 'provider matrix should not require public API');
+    assert_same(false, $providerMatrix['credentials_persisted'] ?? null, 'provider matrix should not persist credentials');
+    assert_same('xserver_vps', $vpsProviderPlan['provider'] ?? null, 'provider execution plan should select xserver vps');
+    assert_true(in_array('service_restart', $vpsProviderPlan['steps'] ?? [], true), 'xserver vps plan should allow service restart step');
+    assert_same(false, $vpsProviderPlan['manual_required'] ?? null, 'xserver vps plan should not require manual operation by default');
+    assert_same('generic_provider', $genericProviderEvidence['provider'] ?? null, 'unknown provider should fall back to generic provider');
+    assert_true(is_string($genericProviderEvidence['fingerprint'] ?? null) && preg_match('/^[a-f0-9]{64}$/', $genericProviderEvidence['fingerprint']) === 1, 'provider evidence should expose fingerprint');
+    $orchestrator = $deployer->providerOrchestrator('xserver_vps');
+    $remotePlan = $deployer->remoteOperationPlan('xserver_vps');
+    $credentialPolicy = $deployer->providerCredentialPolicy();
+    $transportEvidence = $deployer->providerApiTransportEvidence('xserver_vps', 'restart_service');
+    $multiProviderPlan = $deployer->multiProviderDeploymentPlan(['xserver_rental', 'xserver_vps']);
+    $healthProbe = $deployer->providerHealthProbe('xserver_vps');
+    $rollbackOrchestrator = $deployer->providerRollbackOrchestrator('xserver_vps');
+    $providerGate = $deployer->providerOrchestratedReleaseGate('xserver_vps');
+    assert_same(true, $orchestrator['valid'] ?? null, 'provider orchestrator should validate');
+    assert_true(in_array('provider_orchestration', $orchestrator['orchestration_layers'] ?? [], true), 'provider orchestrator should expose orchestration layer');
+    assert_true(in_array('restart_service', $remotePlan['operations'] ?? [], true), 'remote operation plan should include restart service for vps');
+    assert_same(true, $credentialPolicy['runtime_injection_only'] ?? null, 'provider credential policy should require runtime injection');
+    assert_same(false, $credentialPolicy['credentials_persisted'] ?? null, 'provider credential policy should not persist credentials');
+    assert_same(true, $transportEvidence['redaction_applied'] ?? null, 'provider transport evidence should redact values');
+    assert_same(false, $transportEvidence['secret_values_exposed'] ?? null, 'provider transport evidence should not expose secrets');
+    assert_same(2, $multiProviderPlan['provider_count'] ?? null, 'multi provider plan should include two providers');
+    assert_same(true, $healthProbe['valid'] ?? null, 'provider health probe should validate');
+    assert_same(true, $rollbackOrchestrator['valid'] ?? null, 'provider rollback orchestrator should validate');
+    assert_same(true, $providerGate['ready'] ?? null, 'provider orchestrated release gate should pass');
+    assert_same('v0.305', $providerGate['target'] ?? null, 'provider orchestrated release gate should target v0.305');
+    $runtime = $deployer->providerRuntimeInterface('xserver_vps');
+    $remoteState = $deployer->remoteStateSnapshot('xserver_vps');
+    $transaction = $deployer->providerTransactionPlan('xserver_vps');
+    $retry = $deployer->providerRetryBackoffPolicy();
+    $rateLimit = $deployer->providerRateLimitGuard();
+    $redaction = $deployer->providerSecretRedactionEngine(['api_token' => 'secret-token', 'region' => 'jp']);
+    assert_same(true, $runtime['valid'] ?? null, 'provider runtime interface should validate');
+    assert_true(in_array('rollback', $runtime['operations'] ?? [], true), 'provider runtime should expose rollback operation');
+    assert_true(is_string($remoteState['fingerprint'] ?? null) && preg_match('/^[a-f0-9]{64}$/', $remoteState['fingerprint']) === 1, 'remote state snapshot should expose fingerprint');
+    assert_same(true, $transaction['rollback_on_failure'] ?? null, 'provider transaction should require rollback on failure');
+    assert_same(3, $retry['retry_max'] ?? null, 'provider retry policy should define retry max');
+    assert_same(true, $rateLimit['emergency_stop_enabled'] ?? null, 'provider rate limit should expose emergency stop');
+    assert_same('[redacted]', $redaction['payload']['api_token'] ?? null, 'provider redaction should redact token');
+    assert_same('jp', $redaction['payload']['region'] ?? null, 'provider redaction should preserve non-secret values');
+    assert_same(false, $redaction['secret_values_exposed'] ?? null, 'provider redaction should not expose secrets');
+    $rentalAdapter = $deployer->xserverRentalRuntimeAdapter();
+    $vpsAdapter = $deployer->xserverVpsRuntimeAdapter();
+    $runtimeExecution = $deployer->providerRuntimeExecutionPlan('xserver_vps');
+    $artifactLifecycle = $deployer->remoteArtifactLifecycle('xserver_vps');
+    $switchStrategy = $deployer->remoteReleaseSwitchStrategy('xserver_rental');
+    $failure = $deployer->providerRuntimeFailureClassifier('fingerprint_mismatch');
+    $recovery = $deployer->providerRuntimeRecoveryPlan('fingerprint_mismatch');
+    $runtimeDashboard = $deployer->providerRuntimeDashboardControl('xserver_vps');
+    $runtimeGate = $deployer->providerRuntimeExecutionGate('xserver_vps');
+    assert_same('xserver_rental', $rentalAdapter['provider'] ?? null, 'xserver rental runtime adapter should target rental');
+    assert_same(false, $rentalAdapter['service_restart_supported'] ?? null, 'xserver rental adapter should not support service restart');
+    assert_same('xserver_vps', $vpsAdapter['provider'] ?? null, 'xserver vps runtime adapter should target vps');
+    assert_same(true, $vpsAdapter['service_restart_supported'] ?? null, 'xserver vps adapter should support service restart');
+    assert_same(true, $runtimeExecution['valid'] ?? null, 'provider runtime execution plan should validate');
+    assert_true(in_array('transfer', $runtimeExecution['phases'] ?? [], true), 'provider runtime execution plan should include transfer');
+    assert_true(in_array('promoted', $artifactLifecycle['states'] ?? [], true), 'remote artifact lifecycle should include promoted state');
+    assert_same('public_html_overwrite', $switchStrategy['strategy'] ?? null, 'xserver rental switch strategy should use public_html overwrite');
+    assert_same('critical', $failure['severity'] ?? null, 'fingerprint mismatch should be critical');
+    assert_true(in_array('block_apply', $recovery['actions'] ?? [], true), 'fingerprint mismatch recovery should block apply');
+    assert_same(true, $runtimeDashboard['ready'] ?? null, 'provider runtime dashboard control should be ready');
+    assert_same(true, $runtimeGate['ready'] ?? null, 'provider runtime execution gate should pass');
+    assert_same('v0.320', $runtimeGate['target'] ?? null, 'provider runtime execution gate should target v0.320');
     assert_same(true, $evidence['evidence']['release_gate_inputs']['release_artifact_manifest_valid'] ?? null, 'release evidence should include artifact manifest result');
     assert_same(true, $evidence['evidence']['release_gate_inputs']['artifact_acquisition_plan_valid'] ?? null, 'release evidence should include artifact acquisition result');
     assert_same(true, $evidence['evidence']['release_gate_inputs']['artifact_pre_extract_preview_valid'] ?? null, 'release evidence should include artifact pre-extract preview result');
@@ -384,7 +520,6 @@ function test_no_framework_configuration_files(): void
         }
         $name = $file->getFilename();
         $prohibited = str_starts_with($name, '.env')
-            || str_ends_with($name, '.ini')
             || str_ends_with($name, '.conf')
             || str_ends_with($name, '.yaml')
             || str_ends_with($name, '.yml')
@@ -418,8 +553,8 @@ function test_dashboard_control_matrix(): void
     assert_same('ready', $matrix['status'] ?? null, 'dashboard control matrix should expose ready status');
     assert_same(false, $matrix['execution_enabled'] ?? null, 'dashboard control matrix should not enable execution');
     assert_same(true, $matrix['read_only'] ?? null, 'dashboard control matrix should be read-only');
-    assert_same(8, $matrix['summary']['total'] ?? null, 'dashboard control matrix should count total rows');
-    assert_same(8, $matrix['summary']['ready'] ?? null, 'dashboard control matrix should count ready rows');
+    assert_same(11, $matrix['summary']['total'] ?? null, 'dashboard control matrix should count total rows');
+    assert_same(11, $matrix['summary']['ready'] ?? null, 'dashboard control matrix should count ready rows');
     assert_same(0, $matrix['summary']['blocked'] ?? null, 'dashboard control matrix should count blocked rows');
     assert_true(is_string($matrix['fingerprint'] ?? null) && preg_match('/^[a-f0-9]{64}$/', $matrix['fingerprint']) === 1, 'dashboard control matrix should expose fingerprint');
     assert_same(true, $matrix['decision']['release_allowed'] ?? null, 'dashboard control matrix should expose release decision');
@@ -434,12 +569,67 @@ function test_dashboard_control_matrix(): void
         'artifact_pre_extract_preview',
         'artifact_integrity',
         'final_deployment_plan',
+        'execution_gate_view',
+        'dry_run_panel',
+        'audit_ledger_viewer',
         'release_check_evidence',
     ] as $row) {
         assert_true(isset($matrix['rows'][$row]), 'dashboard control matrix should expose row: ' . $row);
         assert_true(is_string($matrix['rows'][$row]['severity'] ?? null), 'dashboard control matrix row should expose severity: ' . $row);
         assert_true(is_string($matrix['rows'][$row]['next_action'] ?? null), 'dashboard control matrix row should expose next action: ' . $row);
     }
+    $executionGate = $data['sections']['deployment_execution_gate'] ?? null;
+    $dryRun = $data['sections']['deployment_dry_run'] ?? null;
+    $ledger = $data['sections']['deployment_audit_ledger'] ?? null;
+    $timeline = $data['sections']['deployment_decision_timeline'] ?? null;
+    $controls = $data['sections']['dashboard_deploy_controls'] ?? null;
+    $queue = $data['sections']['deployment_queue_status'] ?? null;
+    $fullGate = $data['sections']['full_auto_deployment_gate'] ?? null;
+    $provider = $data['sections']['provider_api_deployment'] ?? null;
+    $providerOrchestration = $data['sections']['provider_orchestrated_deployment'] ?? null;
+    $providerRuntime = $data['sections']['provider_runtime_foundation'] ?? null;
+    $providerRuntimeExecution = $data['sections']['provider_runtime_execution'] ?? null;
+    assert_true(is_array($executionGate), 'dashboard should expose execution gate view');
+    assert_same(true, $executionGate['ready'] ?? null, 'dashboard execution gate view should be ready');
+    assert_same(false, $executionGate['dashboard_execution_enabled'] ?? null, 'dashboard execution gate view should keep execution disabled');
+    assert_same(false, $executionGate['apply_enabled'] ?? null, 'dashboard execution gate view should not enable apply');
+    assert_true(is_array($dryRun), 'dashboard should expose dry-run panel');
+    assert_same(true, $dryRun['dry_run_required'] ?? null, 'dashboard dry-run panel should require dry-run');
+    assert_same(false, $dryRun['apply_allowed'] ?? null, 'dashboard dry-run panel should not allow apply');
+    assert_true(is_array($ledger), 'dashboard should expose audit ledger viewer');
+    assert_same(true, $ledger['read_only'] ?? null, 'dashboard audit ledger should be read-only');
+    assert_same(false, $ledger['configuration_file'] ?? null, 'dashboard audit ledger should not be configuration file');
+    assert_true(is_array($timeline), 'dashboard should expose decision timeline');
+    assert_same(true, $timeline['ready'] ?? null, 'dashboard decision timeline should be ready');
+    assert_same(6, count($timeline['events'] ?? []), 'dashboard decision timeline should expose control events');
+    assert_true(is_array($controls), 'dashboard should expose deploy controls');
+    assert_same(true, $controls['dashboard_execution_enabled'] ?? null, 'dashboard deploy controls should enable safety-gated execution');
+    assert_same(true, $controls['csrf_required'] ?? null, 'dashboard deploy controls should require csrf');
+    assert_same(true, $controls['short_lived_execution_token_required'] ?? null, 'dashboard deploy controls should require short-lived execution token');
+    assert_same(false, $controls['public_api_required'] ?? null, 'dashboard deploy controls should not require public API');
+    assert_true(is_array($queue), 'dashboard should expose deployment queue status');
+    assert_same('idle', $queue['status'] ?? null, 'dashboard queue should be idle by default');
+    assert_true(is_array($fullGate), 'dashboard should expose full auto deployment gate');
+    assert_same('v0.290', $fullGate['target'] ?? null, 'full auto deployment gate should target v0.290');
+    assert_same(true, $fullGate['ready'] ?? null, 'full auto deployment gate should be ready');
+    assert_same(true, $fullGate['full_auto_deployment_enabled'] ?? null, 'full auto deployment gate should enable full automation');
+    assert_true(is_array($provider), 'dashboard should expose provider API deployment');
+    assert_same('v0.295', $provider['target'] ?? null, 'dashboard provider API deployment should target v0.295');
+    assert_same(true, $provider['ready'] ?? null, 'dashboard provider API deployment should be ready');
+    assert_true(in_array('xserver_rental', $provider['profiles'] ?? [], true), 'dashboard provider API deployment should expose xserver rental');
+    assert_true(in_array('xserver_vps', $provider['profiles'] ?? [], true), 'dashboard provider API deployment should expose xserver vps');
+    assert_true(is_array($providerOrchestration), 'dashboard should expose provider orchestrated deployment');
+    assert_same('v0.305', $providerOrchestration['target'] ?? null, 'dashboard provider orchestration should target v0.305');
+    assert_same(true, $providerOrchestration['ready'] ?? null, 'dashboard provider orchestration should be ready');
+    assert_same(false, $providerOrchestration['command_execution_allowed'] ?? null, 'dashboard provider orchestration should be read-only');
+    assert_true(is_array($providerRuntime), 'dashboard should expose provider runtime foundation');
+    assert_same('v0.311', $providerRuntime['target'] ?? null, 'dashboard provider runtime should target v0.311');
+    assert_same(true, $providerRuntime['ready'] ?? null, 'dashboard provider runtime should be ready');
+    assert_same(false, $providerRuntime['command_execution_allowed'] ?? null, 'dashboard provider runtime should be read-only');
+    assert_true(is_array($providerRuntimeExecution), 'dashboard should expose provider runtime execution');
+    assert_same('v0.320', $providerRuntimeExecution['target'] ?? null, 'dashboard provider runtime execution should target v0.320');
+    assert_same(true, $providerRuntimeExecution['ready'] ?? null, 'dashboard provider runtime execution should be ready');
+    assert_same(false, $providerRuntimeExecution['command_execution_allowed'] ?? null, 'dashboard provider runtime execution should be read-only');
 
     $html = AdlaireDashboardView::render($data);
     assert_true(str_contains($html, 'Deployment Control Matrix'), 'dashboard HTML should render control matrix section');
@@ -449,6 +639,30 @@ function test_dashboard_control_matrix(): void
     assert_true(str_contains($html, 'Release Gate Inputs'), 'dashboard HTML should render release gate inputs');
     assert_true(str_contains($html, 'control-matrix-row'), 'dashboard HTML should render matrix rows');
     assert_true(str_contains($html, 'ready controls'), 'dashboard HTML should render matrix summary');
+    assert_true(str_contains($html, 'Execution Gate'), 'dashboard HTML should render execution gate');
+    assert_true(str_contains($html, 'Dry-run'), 'dashboard HTML should render dry-run panel');
+    assert_true(str_contains($html, 'Audit Ledger'), 'dashboard HTML should render audit ledger');
+    assert_true(str_contains($html, 'Decision Timeline'), 'dashboard HTML should render decision timeline');
+    assert_true(str_contains($html, 'Deploy Controls'), 'dashboard HTML should render deploy controls');
+    assert_true(str_contains($html, 'Deployment Queue'), 'dashboard HTML should render deployment queue');
+    assert_true(str_contains($html, 'Full Auto Deployment Gate'), 'dashboard HTML should render full auto deployment gate');
+    assert_true(str_contains($html, 'Provider API Deployment'), 'dashboard HTML should render provider API deployment');
+    assert_true(str_contains($html, 'Provider Orchestrated Deployment'), 'dashboard HTML should render provider orchestrated deployment');
+    assert_true(str_contains($html, 'Provider Runtime Foundation'), 'dashboard HTML should render provider runtime foundation');
+    assert_true(str_contains($html, 'Provider Runtime Execution'), 'dashboard HTML should render provider runtime execution');
+}
+
+function test_dashboard_execution_tokens(): void
+{
+    $csrf = AdlaireDashboardSecurity::csrfToken();
+    assert_true(is_string($csrf) && strlen($csrf) === 64, 'dashboard csrf token should be generated');
+    assert_same(true, AdlaireDashboardSecurity::verifyCsrf($csrf), 'dashboard csrf token should verify');
+    assert_same(false, AdlaireDashboardSecurity::verifyCsrf('invalid'), 'dashboard csrf token should reject invalid token');
+
+    $execution = AdlaireDashboardSecurity::executionToken();
+    assert_true(is_string($execution) && strlen($execution) === 64, 'dashboard execution token should be generated');
+    assert_same(true, AdlaireDashboardSecurity::verifyExecutionToken($execution), 'dashboard execution token should verify once');
+    assert_same(false, AdlaireDashboardSecurity::verifyExecutionToken($execution), 'dashboard execution token should be one-time');
 }
 
 function test_release_check_script_evidence(): void
@@ -471,6 +685,7 @@ function test_release_check_script_evidence(): void
 }
 
 $tests = [
+    'dashboard_execution_tokens' => test_dashboard_execution_tokens(...),
     'release_identity' => test_release_identity(...),
     'release_readiness' => test_release_readiness(...),
     'stable_release_policy' => test_stable_release_policy(...),

@@ -69,7 +69,7 @@ prohibited_config=$(
     find . \
         \( -path './.git' -o -path './.git/*' \) -prune -o \
         -type f \
-        \( -name '.env*' -o -name '*.ini' -o -name '*.conf' -o -name '*.yaml' -o -name '*.yml' -o -name 'config.php' -o -name '*.config.php' \) \
+        \( -name '.env*' -o -name '*.conf' -o -name '*.yaml' -o -name '*.yml' -o -name 'config.php' -o -name '*.config.php' \) \
         ! -path './Docker/docker-compose.xserver.yml' \
         -print
 )
