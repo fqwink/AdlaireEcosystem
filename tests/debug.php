@@ -704,6 +704,9 @@ function test_documentation_deduplication(): void
     $xserver = file_get_contents(__DIR__ . '/../docs/xserver-production-equivalent.md');
     assert_true(is_string($readme), 'README should be readable');
     assert_true(is_string($xserver), 'Xserver verification doc should be readable');
+    assert_true(str_contains($readme, '詳細仕様と設計判断は正本へ集約します'), 'README should point details to the source of truth');
+    assert_true(str_contains($xserver, '## 範囲'), 'Xserver verification doc should define its limited scope');
+    assert_true(str_contains($xserver, '設計判断やリリース条件は`adlaire-ecosystem.md`に集約する'), 'Xserver verification doc should delegate design decisions to the source of truth');
 
     foreach (['Public API', 'MySQL', 'Xserver', 'GitHub Releases', '設定ファイル', '互換性', '破壊的変更', 'SQLite', 'libSQL', '5ファイル'] as $term) {
         assert_true(!str_contains($readme, $term), 'README should not duplicate detailed specification term: ' . $term);
@@ -715,6 +718,9 @@ function test_documentation_deduplication(): void
 
     $spec = file_get_contents(__DIR__ . '/../adlaire-ecosystem.md');
     assert_true(is_string($spec), 'adlaire ecosystem spec should be readable');
+    assert_true(str_contains($spec, '## 文書構成'), 'spec should document repository document roles');
+    assert_true(str_contains($spec, '`README.md` | 簡易説明'), 'spec should define README as short overview');
+    assert_true(str_contains($spec, '`docs/xserver-production-equivalent.md` | 検証手順'), 'spec should define Xserver doc as procedure only');
     assert_true(!str_contains($spec, 'ダッシュボードからのdeploy実行は引き続き無効'), 'spec should not keep stale dashboard execution wording');
     assert_true(str_contains($spec, 'v0.351ではBug Zero Stabilizationを追加する'), 'spec should document v0.351 stabilization');
     assert_true(str_contains($spec, 'v0.352ではRepository-wide Source Code Improvementを追加する'), 'spec should document v0.352 source improvement');
@@ -722,6 +728,12 @@ function test_documentation_deduplication(): void
     assert_true(str_contains($spec, 'v0.450からv0.475ではFramework-wide Source Code Commonizationを追加する'), 'spec should document v0.450-v0.475 source commonization');
     assert_true(str_contains($spec, 'v0.475からv0.600ではRepository-wide Framework Commonizationを追加する'), 'spec should document v0.475-v0.600 repository commonization');
     assert_true(str_contains($spec, '任意deploy実行は無効'), 'spec should distinguish arbitrary deploy from safety-gated automation');
+
+    $documentPolicy = Adlaire::documentationConsistencyPolicy();
+    assert_same('specification_source_of_truth', $documentPolicy['document_roles']['adlaire-ecosystem.md'] ?? null, 'spec should be the source of truth');
+    assert_same('short_repository_overview', $documentPolicy['document_roles']['README.md'] ?? null, 'README should be a short overview');
+    assert_same('xserver_local_verification_procedure', $documentPolicy['document_roles']['docs/xserver-production-equivalent.md'] ?? null, 'Xserver doc should be a procedure');
+    assert_same('agent_work_rules', $documentPolicy['document_roles']['AGENTS.md'] ?? null, 'AGENTS should be work rules');
 
     $dashboardData = file_get_contents(__DIR__ . '/../Frameworks/Runtime/DashboardData.php');
     assert_true(is_string($dashboardData), 'dashboard data source should be readable');

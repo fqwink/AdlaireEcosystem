@@ -2830,6 +2830,13 @@ final class Adlaire
                 'README.md',
                 'docs/xserver-production-equivalent.md',
                 'adlaire-ecosystem.md',
+                'AGENTS.md',
+            ],
+            'document_roles' => [
+                'adlaire-ecosystem.md' => 'specification_source_of_truth',
+                'README.md' => 'short_repository_overview',
+                'docs/xserver-production-equivalent.md' => 'xserver_local_verification_procedure',
+                'AGENTS.md' => 'agent_work_rules',
             ],
             'release_check_script' => 'scripts/release-check.sh',
             'required_verifications' => [
@@ -2850,7 +2857,11 @@ final class Adlaire
             && ($policy['framework_configuration_files_allowed'] ?? true) === false
             && ($policy['json_configuration_files_allowed'] ?? true) === false
             && ($policy['public_api_available'] ?? true) === false
-            && in_array('docs/xserver-production-equivalent.md', $policy['checked_documents'] ?? [], true);
+            && in_array('docs/xserver-production-equivalent.md', $policy['checked_documents'] ?? [], true)
+            && ($policy['document_roles']['adlaire-ecosystem.md'] ?? null) === 'specification_source_of_truth'
+            && ($policy['document_roles']['README.md'] ?? null) === 'short_repository_overview'
+            && ($policy['document_roles']['docs/xserver-production-equivalent.md'] ?? null) === 'xserver_local_verification_procedure'
+            && ($policy['document_roles']['AGENTS.md'] ?? null) === 'agent_work_rules';
     }
 
     public static function deploymentAxisMapPolicy(): array
