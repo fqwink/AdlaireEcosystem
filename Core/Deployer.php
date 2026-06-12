@@ -133,7 +133,7 @@ final class Deployer
         ];
 
         return [
-            'ready' => !in_array(false, $checks, true),
+            'ready' => self::gateReady($checks),
             'checks' => $checks,
             'validation' => $validation,
             'manifest' => $manifest,
@@ -174,7 +174,7 @@ final class Deployer
         $checks['artifact_integrity_valid'] = $artifactEvidence['integrity']['valid'] === true;
 
         return [
-            'ready' => !in_array(false, $checks, true),
+            'ready' => self::gateReady($checks),
             'checks' => $checks,
             'component' => 'Core/Deployment.php',
             'compatibility_guaranteed' => false,
@@ -273,7 +273,7 @@ final class Deployer
         ];
 
         return [
-            'ready' => !in_array(false, $checks, true),
+            'ready' => self::gateReady($checks),
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
@@ -669,7 +669,7 @@ final class Deployer
         ];
 
         return [
-            'ready' => !in_array(false, $checks, true),
+            'ready' => self::gateReady($checks),
             'version' => self::CONTROL_VERSION,
             'theme' => 'Deployment Execution Gate',
             'read_only' => true,
@@ -678,7 +678,7 @@ final class Deployer
             'configuration_file' => false,
             'audit_artifact' => true,
             'dashboard_execution_enabled' => false,
-            'apply_allowed' => !in_array(false, $checks, true),
+            'apply_allowed' => self::gateReady($checks),
             'checks' => $checks,
             'expected_fingerprint' => $expectedFingerprint,
             'final_plan_fingerprint' => $fingerprint,
@@ -826,63 +826,8 @@ final class Deployer
 
     public function providerCapabilityMatrix(?string $provider = null): array
     {
-        $profiles = [
-            'xserver_rental' => [
-                'label' => 'Xserver Rental Server',
-                'server_type' => 'rental_server',
-                'adapter' => 'manual_or_ssh_push_adapter',
-                'capabilities' => [
-                    'push_artifact' => true,
-                    'pull_artifact' => false,
-                    'ssh' => 'optional',
-                    'sftp' => true,
-                    'service_restart' => false,
-                    'snapshot' => false,
-                    'rollback' => 'file_snapshot',
-                    'health_check' => true,
-                    'server_api' => 'unconfirmed',
-                    'manual_required' => true,
-                ],
-            ],
-            'xserver_vps' => [
-                'label' => 'Xserver VPS',
-                'server_type' => 'vps',
-                'adapter' => 'server_api_or_ssh_command_adapter',
-                'capabilities' => [
-                    'push_artifact' => true,
-                    'pull_artifact' => true,
-                    'ssh' => true,
-                    'sftp' => true,
-                    'service_restart' => true,
-                    'snapshot' => 'provider_api_or_manual',
-                    'rollback' => true,
-                    'health_check' => true,
-                    'server_api' => 'planned',
-                    'manual_required' => false,
-                ],
-            ],
-            'generic_provider' => [
-                'label' => 'Generic Provider',
-                'server_type' => 'provider_api',
-                'adapter' => 'provider_registry_adapter',
-                'capabilities' => [
-                    'push_artifact' => true,
-                    'pull_artifact' => 'provider_declared',
-                    'ssh' => 'provider_declared',
-                    'sftp' => 'provider_declared',
-                    'service_restart' => 'provider_declared',
-                    'snapshot' => 'provider_declared',
-                    'rollback' => 'provider_declared',
-                    'health_check' => true,
-                    'server_api' => 'provider_declared',
-                    'manual_required' => 'provider_declared',
-                ],
-            ],
-        ];
-        $selected = $provider ?? (string)$this->config->get('provider', 'xserver_rental');
-        if (!isset($profiles[$selected])) {
-            $selected = 'generic_provider';
-        }
+        $profiles = self::providerProfiles();
+        $selected = $this->selectedProvider($provider);
 
         return [
             'version' => self::CONTROL_VERSION,
@@ -901,9 +846,8 @@ final class Deployer
 
     public function providerExecutionPlan(?string $provider = null): array
     {
-        $matrix = $this->providerCapabilityMatrix($provider);
-        $profile = $matrix['selected_profile'];
-        $capabilities = is_array($profile['capabilities'] ?? null) ? $profile['capabilities'] : [];
+        $selected = $this->selectedProvider($provider);
+        $capabilities = $this->providerCapabilities($provider);
         $steps = [
             'provider_preflight',
             'artifact_transfer',
@@ -925,7 +869,7 @@ final class Deployer
 
         return [
             'valid' => true,
-            'provider' => $matrix['selected_provider'],
+            'provider' => $selected,
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
@@ -943,12 +887,12 @@ final class Deployer
     public function providerAuditEvidence(?string $provider = null): array
     {
         $plan = $this->providerExecutionPlan($provider);
-        $fingerprint = hash('sha256', json_encode([
+        $fingerprint = self::fingerprint([
             'version' => self::CONTROL_VERSION,
             'provider' => $plan['provider'],
             'steps' => $plan['steps'],
             'capabilities' => $plan['capabilities'],
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        ]);
 
         return [
             'valid' => ($plan['valid'] ?? false) === true,
@@ -1026,15 +970,15 @@ final class Deployer
     public function providerApiTransportEvidence(?string $provider = null, string $operation = 'provider_preflight'): array
     {
         $plan = $this->providerExecutionPlan($provider);
-        $requestFingerprint = hash('sha256', json_encode([
+        $requestFingerprint = self::fingerprint([
             'provider' => $plan['provider'],
             'operation' => $operation,
             'credentials' => 'redacted',
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
-        $responseFingerprint = hash('sha256', json_encode([
+        ]);
+        $responseFingerprint = self::fingerprint([
             'status' => 'planned',
             'redaction_applied' => true,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        ]);
 
         return [
             'valid' => true,
@@ -1111,7 +1055,7 @@ final class Deployer
         ];
 
         return [
-            'ready' => !in_array(false, $checks, true),
+            'ready' => self::gateReady($checks),
             'target' => 'v0.305',
             'read_only' => true,
             'command_execution_allowed' => false,
@@ -1156,7 +1100,7 @@ final class Deployer
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
-            'fingerprint' => hash('sha256', json_encode($state, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+            'fingerprint' => self::fingerprint($state),
             'state' => $state,
         ];
     }
@@ -1357,7 +1301,7 @@ final class Deployer
         ];
 
         return [
-            'ready' => !in_array(false, $checks, true),
+            'ready' => self::gateReady($checks),
             'target' => 'v0.320',
             'provider' => $this->providerExecutionPlan($provider)['provider'],
             'read_only' => true,
@@ -1380,7 +1324,7 @@ final class Deployer
             'format' => 'jsonl_evidence',
             'configuration_file' => false,
             'events' => $events,
-            'fingerprint' => hash('sha256', json_encode([$plan['provider'], $events], JSON_THROW_ON_ERROR)),
+            'fingerprint' => self::fingerprint([$plan['provider'], $events]),
         ];
     }
 
@@ -1396,7 +1340,7 @@ final class Deployer
             'credentials_persisted' => false,
             'configuration_file' => false,
             'secret_values_exposed' => false,
-            'reference_fingerprint' => hash('sha256', json_encode($redacted['payload'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+            'reference_fingerprint' => self::fingerprint($redacted['payload']),
             'redacted_payload' => $redacted['payload'],
         ];
     }
@@ -1412,7 +1356,7 @@ final class Deployer
         ];
 
         return [
-            'ready' => !in_array(false, $checks, true),
+            'ready' => self::gateReady($checks),
             'target' => 'v0.323',
             'provider' => $this->providerExecutionPlan($provider)['provider'],
             'read_only' => true,
@@ -1494,12 +1438,12 @@ final class Deployer
         ];
 
         return [
-            'valid' => !in_array(false, array_map(static fn(array $entry): bool => ($entry['valid'] ?? $entry['ready'] ?? false) === true, $bundle), true),
+            'valid' => self::gateReady(array_map(static fn(array $entry): bool => ($entry['valid'] ?? $entry['ready'] ?? false) === true, $bundle)),
             'target' => 'v0.328',
             'provider' => $this->providerExecutionPlan($provider)['provider'],
             'bundle' => $bundle,
             'secret_values_exposed' => false,
-            'fingerprint' => hash('sha256', json_encode($bundle, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+            'fingerprint' => self::fingerprint($bundle),
         ];
     }
 
@@ -1529,7 +1473,7 @@ final class Deployer
         ];
 
         return [
-            'ready' => !in_array(false, $checks, true),
+            'ready' => self::gateReady($checks),
             'target' => 'v0.330',
             'provider' => $this->providerExecutionPlan($provider)['provider'],
             'read_only' => true,
@@ -1541,19 +1485,17 @@ final class Deployer
 
     public function serverApiDriverContract(?string $provider = null): array
     {
-        $profile = $this->providerExecutionPlan($provider);
+        $providerName = $this->providerName($provider);
 
-        return [
+        return $this->validEvidence('v0.331', $providerName, [
             'valid' => true,
-            'target' => 'v0.331',
-            'provider' => $profile['provider'],
             'internal_only' => true,
             'public_api_required' => false,
             'configuration_file' => false,
             'required_methods' => ['capabilities', 'authenticate', 'preflight', 'apply', 'rollback', 'health', 'audit'],
             'required_evidence' => ['driver_fingerprint', 'capability_probe', 'auth_session', 'transaction', 'drift_detection'],
-            'fingerprint' => hash('sha256', json_encode([$profile['provider'], 'server_api_driver_contract'], JSON_THROW_ON_ERROR)),
-        ];
+            'fingerprint' => self::fingerprint([$providerName, 'server_api_driver_contract']),
+        ]);
     }
 
     public function serverApiCapabilityProbe(?string $provider = null): array
@@ -1571,15 +1513,13 @@ final class Deployer
             'health_check' => true,
         ];
 
-        return [
+        return $this->validEvidence('v0.332', $matrix['selected_provider'], [
             'valid' => true,
-            'target' => 'v0.332',
-            'provider' => $matrix['selected_provider'],
             'capabilities' => $probe,
             'mysql_supported' => false,
             'public_api_required' => false,
-            'fingerprint' => hash('sha256', json_encode($probe, JSON_THROW_ON_ERROR)),
-        ];
+            'fingerprint' => self::fingerprint($probe),
+        ]);
     }
 
     public function serverApiAuthSession(array $credentialReference = []): array
@@ -1593,26 +1533,24 @@ final class Deployer
             'credentials_persisted' => false,
             'secret_values_exposed' => false,
             'session_evidence_only' => true,
-            'session_fingerprint' => hash('sha256', (string)($envelope['reference_fingerprint'] ?? 'runtime_injected')),
+            'session_fingerprint' => self::fingerprint((string)($envelope['reference_fingerprint'] ?? 'runtime_injected')),
         ];
     }
 
     public function remoteCommandSandbox(?string $provider = null): array
     {
-        $plan = $this->providerExecutionPlan($provider);
-        $commands = $plan['provider'] === 'xserver_vps'
+        $providerName = $this->providerName($provider);
+        $commands = $providerName === 'xserver_vps'
             ? ['artifact_pull', 'php_lint', 'service_restart', 'health_probe', 'rollback']
             : ['sftp_upload', 'php_lint', 'health_probe'];
 
-        return [
+        return $this->validEvidence('v0.334', $providerName, [
             'valid' => true,
-            'target' => 'v0.334',
-            'provider' => $plan['provider'],
             'allowed_commands' => $commands,
             'shell_passthrough_allowed' => false,
             'arbitrary_command_allowed' => false,
             'deny_by_default' => true,
-        ];
+        ]);
     }
 
     public function serverApiTransactionEngine(?string $provider = null): array
@@ -1627,7 +1565,7 @@ final class Deployer
             'transaction_steps' => ['begin', 'preflight', 'apply', 'verify', 'commit_or_rollback', 'audit'],
             'rollback_route_required' => true,
             'rollback_on_failure' => true,
-            'apply_plan_fingerprint' => hash('sha256', json_encode($apply, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+            'apply_plan_fingerprint' => self::fingerprint($apply),
         ];
     }
 
@@ -1640,7 +1578,7 @@ final class Deployer
         return [
             'valid' => true,
             'target' => 'v0.336',
-            'provider' => $before['provider'] ?? $this->providerExecutionPlan($provider)['provider'],
+            'provider' => $before['provider'] ?? $this->providerName($provider),
             'drift_detected' => $drift,
             'apply_blocked' => $drift,
             'before_fingerprint' => $before['fingerprint'] ?? null,
@@ -1652,15 +1590,13 @@ final class Deployer
     {
         $rateLimit = $this->providerRateLimitGuard();
 
-        return [
+        return $this->validEvidence('v0.337', $this->providerName($provider), [
             'valid' => ($rateLimit['valid'] ?? false) === true,
-            'target' => 'v0.337',
-            'provider' => $this->providerExecutionPlan($provider)['provider'],
             'retry_max' => $rateLimit['retry_max'] ?? 3,
             'cooldown_seconds' => $rateLimit['cooldown_seconds'] ?? 30,
             'emergency_stop_enabled' => true,
             'quota_window_required' => true,
-        ];
+        ]);
     }
 
     public function multiProviderFailoverPlan(array $providers = ['xserver_rental', 'xserver_vps']): array
@@ -1681,21 +1617,19 @@ final class Deployer
             'automatic_failover_enabled' => false,
             'manual_promotion_required' => true,
             'plans' => $plans,
-            'fingerprint' => hash('sha256', json_encode($plans, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+            'fingerprint' => self::fingerprint($plans),
         ];
     }
 
     public function dashboardServerApiConsole(?string $provider = null): array
     {
-        return [
+        return $this->readyEvidence('v0.339', $this->providerName($provider), [
             'ready' => true,
-            'target' => 'v0.339',
-            'provider' => $this->providerExecutionPlan($provider)['provider'],
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
             'sections' => ['driver_contract', 'capability_probe', 'auth_session', 'command_sandbox', 'transaction_engine', 'drift_detection', 'governance', 'failover_plan'],
-        ];
+        ]);
     }
 
     public function serverApiExecutionGate(?string $provider = null): array
@@ -1712,15 +1646,13 @@ final class Deployer
             'dashboard_console' => ($this->dashboardServerApiConsole($provider)['ready'] ?? false) === true,
         ];
 
-        return [
-            'ready' => !in_array(false, $checks, true),
-            'target' => 'v0.340',
-            'provider' => $this->providerExecutionPlan($provider)['provider'],
+        return $this->readyEvidence('v0.340', $this->providerName($provider), [
+            'ready' => self::gateReady($checks),
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
             'checks' => $checks,
-        ];
+        ]);
     }
 
     public function serverApiOperationCatalog(?string $provider = null): array
@@ -1737,21 +1669,19 @@ final class Deployer
         ];
         $available = [];
         foreach ($operations as $operation => $definition) {
-            $available[$operation] = !in_array(false, array_map(
+            $available[$operation] = self::gateReady(array_map(
                 static fn(string $capability): bool => ($capabilities[$capability] ?? false) === true,
                 $definition['requires']
-            ), true);
+            ));
         }
 
-        return [
+        return $this->validEvidence('v0.341', $probe['provider'], [
             'valid' => true,
-            'target' => 'v0.341',
-            'provider' => $probe['provider'],
             'operations' => $operations,
             'available' => $available,
             'public_api_required' => false,
-            'fingerprint' => hash('sha256', json_encode([$probe['provider'], $available], JSON_THROW_ON_ERROR)),
-        ];
+            'fingerprint' => self::fingerprint([$probe['provider'], $available]),
+        ]);
     }
 
     public function providerExecutionPolicy(?string $provider = null): array
@@ -1761,16 +1691,14 @@ final class Deployer
             ? ['deploy', 'rollback', 'health', 'restart', 'snapshot', 'permission_check']
             : ['deploy', 'rollback', 'health', 'permission_check'];
 
-        return [
+        return $this->validEvidence('v0.342', $plan['provider'], [
             'valid' => true,
-            'target' => 'v0.342',
-            'provider' => $plan['provider'],
             'allowed_operations' => $allowed,
             'restart_allowed' => in_array('restart', $allowed, true),
             'snapshot_allowed' => in_array('snapshot', $allowed, true),
             'arbitrary_command_allowed' => false,
             'deny_by_default' => true,
-        ];
+        ]);
     }
 
     public function remoteFileSyncPlan(?string $provider = null): array
@@ -1778,16 +1706,14 @@ final class Deployer
         $plan = $this->providerExecutionPlan($provider);
         $method = $plan['provider'] === 'xserver_vps' ? 'artifact_push_or_pull' : 'sftp_push';
 
-        return [
+        return $this->validEvidence('v0.343', $plan['provider'], [
             'valid' => true,
-            'target' => 'v0.343',
-            'provider' => $plan['provider'],
             'method' => $method,
             'diff_sync_enabled' => true,
             'sha256_verification_required' => true,
             'excluded_files_respected' => true,
             'steps' => ['list_local', 'list_remote', 'diff', 'transfer', 'verify_sha256', 'record_audit'],
-        ];
+        ]);
     }
 
     public function serverStateReconciliation(?string $provider = null): array
@@ -1799,7 +1725,7 @@ final class Deployer
             'valid' => ($state['valid'] ?? false) === true && ($expected['valid'] ?? false) === true,
             'target' => 'v0.344',
             'provider' => $state['provider'],
-            'expected_state_fingerprint' => hash('sha256', json_encode($expected, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+            'expected_state_fingerprint' => self::fingerprint($expected),
             'actual_state_fingerprint' => $state['after_fingerprint'] ?? null,
             'dangerous_drift_detected' => ($state['drift_detected'] ?? true) === true,
             'apply_blocked' => ($state['apply_blocked'] ?? true) === true,
@@ -1848,16 +1774,14 @@ final class Deployer
             'policy' => $this->providerExecutionPolicy($provider)['allowed_operations'] ?? [],
         ];
 
-        return [
+        return $this->validEvidence('v0.347', $payload['provider'], [
             'valid' => true,
-            'target' => 'v0.347',
-            'provider' => $payload['provider'],
             'operation' => $operation,
             'append_only' => true,
             'format' => 'jsonl_evidence',
             'secret_values_exposed' => false,
-            'fingerprint' => hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
-        ];
+            'fingerprint' => self::fingerprint($payload),
+        ]);
     }
 
     public function deploymentRecoveryEngine(string $failure = 'health_failed'): array
@@ -1877,15 +1801,13 @@ final class Deployer
 
     public function dashboardAutomationConsole(?string $provider = null): array
     {
-        return [
+        return $this->readyEvidence('v0.349', $this->providerName($provider), [
             'ready' => true,
-            'target' => 'v0.349',
-            'provider' => $this->providerExecutionPlan($provider)['provider'],
             'read_only' => false,
             'command_execution_allowed' => 'safety_gated',
             'writes_allowed' => 'audit_only',
             'sections' => ['operation_catalog', 'execution_policy', 'file_sync_plan', 'state_reconciliation', 'restart_orchestrator', 'snapshot_backup', 'audit_trail', 'recovery_engine'],
-        ];
+        ]);
     }
 
     public function serverAutomationReleaseGate(?string $provider = null): array
@@ -1903,15 +1825,13 @@ final class Deployer
             'dashboard_console' => ($this->dashboardAutomationConsole($provider)['ready'] ?? false) === true,
         ];
 
-        return [
-            'ready' => !in_array(false, $checks, true),
-            'target' => 'v0.350',
-            'provider' => $this->providerExecutionPlan($provider)['provider'],
+        return $this->readyEvidence('v0.350', $this->providerName($provider), [
+            'ready' => self::gateReady($checks),
             'safe_automation_complete' => true,
             'command_execution_allowed' => 'safety_gated',
             'arbitrary_command_allowed' => false,
             'checks' => $checks,
-        ];
+        ]);
     }
 
     public function executeServerAutomation(?string $provider = null, string $operation = 'deploy'): array
@@ -1934,6 +1854,111 @@ final class Deployer
             'arbitrary_command_allowed' => false,
             'audit_trail' => $this->serverApiAuditTrail($provider, $operation),
             'block_reason' => $executed ? null : 'operation_not_allowed_or_gate_not_ready',
+        ];
+    }
+
+    private function providerName(?string $provider = null): string
+    {
+        return $this->selectedProvider($provider);
+    }
+
+    private function selectedProvider(?string $provider = null): string
+    {
+        $profiles = self::providerProfiles();
+        $selected = $provider ?? (string)$this->config->get('provider', 'xserver_rental');
+
+        return isset($profiles[$selected]) ? $selected : 'generic_provider';
+    }
+
+    private function providerCapabilities(?string $provider = null): array
+    {
+        $profile = self::providerProfiles()[$this->selectedProvider($provider)] ?? [];
+
+        return is_array($profile['capabilities'] ?? null) ? $profile['capabilities'] : [];
+    }
+
+    private function validEvidence(string $target, string $provider, array $payload): array
+    {
+        return array_replace([
+            'valid' => true,
+            'target' => $target,
+            'provider' => $provider,
+        ], $payload);
+    }
+
+    private function readyEvidence(string $target, string $provider, array $payload): array
+    {
+        return array_replace([
+            'ready' => true,
+            'target' => $target,
+            'provider' => $provider,
+        ], $payload);
+    }
+
+    private static function fingerprint(mixed $payload): string
+    {
+        return hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+    }
+
+    private static function gateReady(array $checks): bool
+    {
+        return !in_array(false, $checks, true);
+    }
+
+    private static function providerProfiles(): array
+    {
+        return [
+            'xserver_rental' => [
+                'label' => 'Xserver Rental Server',
+                'server_type' => 'rental_server',
+                'adapter' => 'manual_or_ssh_push_adapter',
+                'capabilities' => [
+                    'push_artifact' => true,
+                    'pull_artifact' => false,
+                    'ssh' => 'optional',
+                    'sftp' => true,
+                    'service_restart' => false,
+                    'snapshot' => false,
+                    'rollback' => 'file_snapshot',
+                    'health_check' => true,
+                    'server_api' => 'unconfirmed',
+                    'manual_required' => true,
+                ],
+            ],
+            'xserver_vps' => [
+                'label' => 'Xserver VPS',
+                'server_type' => 'vps',
+                'adapter' => 'server_api_or_ssh_command_adapter',
+                'capabilities' => [
+                    'push_artifact' => true,
+                    'pull_artifact' => true,
+                    'ssh' => true,
+                    'sftp' => true,
+                    'service_restart' => true,
+                    'snapshot' => 'provider_api_or_manual',
+                    'rollback' => true,
+                    'health_check' => true,
+                    'server_api' => 'planned',
+                    'manual_required' => false,
+                ],
+            ],
+            'generic_provider' => [
+                'label' => 'Generic Provider',
+                'server_type' => 'provider_api',
+                'adapter' => 'provider_registry_adapter',
+                'capabilities' => [
+                    'push_artifact' => true,
+                    'pull_artifact' => 'provider_declared',
+                    'ssh' => 'provider_declared',
+                    'sftp' => 'provider_declared',
+                    'service_restart' => 'provider_declared',
+                    'snapshot' => 'provider_declared',
+                    'rollback' => 'provider_declared',
+                    'health_check' => true,
+                    'server_api' => 'provider_declared',
+                    'manual_required' => 'provider_declared',
+                ],
+            ],
         ];
     }
 
@@ -1988,7 +2013,7 @@ final class Deployer
 
         return [
             'enabled' => $enabled,
-            'valid' => !in_array(false, $checks, true),
+            'valid' => self::gateReady($checks),
             'read_only' => true,
             'configuration_file' => false,
             'audit_artifact' => true,
@@ -2028,7 +2053,7 @@ final class Deployer
 
         return [
             'enabled' => $enabled,
-            'valid' => !in_array(false, $checks, true),
+            'valid' => self::gateReady($checks),
             'read_only' => true,
             'configuration_file' => false,
             'audit_artifact' => true,
@@ -2084,7 +2109,7 @@ final class Deployer
 
         return [
             'enabled' => $enabled,
-            'valid' => !in_array(false, $checks, true),
+            'valid' => self::gateReady($checks),
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
@@ -2120,7 +2145,7 @@ final class Deployer
 
         return [
             'enabled' => $enabled,
-            'valid' => !in_array(false, $checks, true),
+            'valid' => self::gateReady($checks),
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
@@ -2174,10 +2199,10 @@ final class Deployer
             'manifest' => $manifest['manifest'] ?? [],
             'artifact_pre_extract' => $preExtract['summary'] ?? [],
         ];
-        $fingerprint = hash('sha256', json_encode($fingerprintSource, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        $fingerprint = self::fingerprint($fingerprintSource);
 
         return [
-            'valid' => !in_array(false, $checks, true),
+            'valid' => self::gateReady($checks),
             'frozen' => true,
             'read_only' => true,
             'command_execution_allowed' => false,

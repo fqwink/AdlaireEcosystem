@@ -144,6 +144,20 @@ function test_release_identity(): void
     assert_same(0, $spec['bug_zero_stabilization']['documentation_duplication_count'] ?? null, 'bug zero stabilization should expose zero documentation duplication');
     assert_same('Adlaire::v0351BugZeroStabilizationPolicy()', $spec['bug_zero_stabilization']['method'] ?? null, 'bug zero stabilization should expose policy method');
     assert_same(false, $spec['bug_zero_stabilization']['arbitrary_command_allowed'] ?? null, 'bug zero stabilization should reject arbitrary commands');
+    assert_same('v0.352', $spec['source_code_improvement_v0352']['target'] ?? null, 'v0.352 source code improvement should be specified');
+    assert_same(true, $spec['source_code_improvement_v0352']['breaking_change'] ?? null, 'v0.352 source code improvement should be breaking');
+    assert_same(false, $spec['source_code_improvement_v0352']['compatibility_guaranteed'] ?? null, 'v0.352 source code improvement should not guarantee compatibility');
+    assert_same('Adlaire::v0352SourceCodeImprovementPolicy()', $spec['source_code_improvement_v0352']['method'] ?? null, 'v0.352 source code improvement should expose policy method');
+    assert_same('v0.450', $spec['source_code_improvement_v0353_v0450']['target'] ?? null, 'v0.353-v0.450 source improvement should target v0.450');
+    assert_same('v0.353-v0.450', $spec['source_code_improvement_v0353_v0450']['range'] ?? null, 'v0.353-v0.450 source improvement should expose range');
+    assert_same(true, $spec['source_code_improvement_v0353_v0450']['breaking_change'] ?? null, 'v0.353-v0.450 source improvement should be breaking');
+    assert_same(false, $spec['source_code_improvement_v0353_v0450']['compatibility_guaranteed'] ?? null, 'v0.353-v0.450 source improvement should not guarantee compatibility');
+    assert_same('Adlaire::v0450FrameworkWideSourceImprovementPolicy()', $spec['source_code_improvement_v0353_v0450']['method'] ?? null, 'v0.353-v0.450 source improvement should expose policy method');
+    assert_same('v0.475', $spec['source_code_improvement_v0450_v0475']['target'] ?? null, 'v0.450-v0.475 source commonization should target v0.475');
+    assert_same('v0.450-v0.475', $spec['source_code_improvement_v0450_v0475']['range'] ?? null, 'v0.450-v0.475 source commonization should expose range');
+    assert_same(true, $spec['source_code_improvement_v0450_v0475']['breaking_change'] ?? null, 'v0.450-v0.475 source commonization should be breaking');
+    assert_same(false, $spec['source_code_improvement_v0450_v0475']['compatibility_guaranteed'] ?? null, 'v0.450-v0.475 source commonization should not guarantee compatibility');
+    assert_same('Adlaire::v0475FrameworkWideCommonizationPolicy()', $spec['source_code_improvement_v0450_v0475']['method'] ?? null, 'v0.450-v0.475 source commonization should expose policy method');
     $configurationPolicy = Adlaire::configurationFilePolicy();
     assert_same(true, $configurationPolicy['ini_files_allowed'] ?? null, 'ini files should be fully allowed');
     assert_true(!in_array('*.ini', $configurationPolicy['prohibited_patterns'] ?? [], true), 'ini files should not be prohibited');
@@ -225,6 +239,34 @@ function test_stable_release_policy(): void
     assert_same(false, $stabilization['public_api_required'] ?? null, 'v0.351 stabilization should not require public API');
     assert_same(false, $stabilization['arbitrary_command_allowed'] ?? null, 'v0.351 stabilization should reject arbitrary command execution');
     assert_same('safety_gated', $stabilization['server_automation_execution'] ?? null, 'v0.351 stabilization should keep server automation safety gated');
+
+    $sourceImprovement = Adlaire::v0352SourceCodeImprovementPolicy();
+    assert_same('v0.352 Repository-wide Source Code Improvement', $sourceImprovement['theme'] ?? null, 'v0.352 source improvement should define theme');
+    assert_same('breaking_source_improvement_applied', $sourceImprovement['status'] ?? null, 'v0.352 source improvement should be applied');
+    assert_same(true, $sourceImprovement['breaking_change'] ?? null, 'v0.352 source improvement should be breaking');
+    assert_same(false, $sourceImprovement['compatibility_guaranteed'] ?? null, 'v0.352 source improvement should not guarantee compatibility');
+    assert_true(in_array('runtime_dashboard_readiness_common_helpers', $sourceImprovement['improvements'] ?? [], true), 'v0.352 source improvement should include readiness helper consolidation');
+    assert_same(0, $sourceImprovement['known_bug_count'] ?? null, 'v0.352 source improvement should keep known bugs at zero');
+
+    $frameworkWide = Adlaire::v0450FrameworkWideSourceImprovementPolicy();
+    assert_same('v0.353-v0.450 Framework-wide Source Code Improvement', $frameworkWide['theme'] ?? null, 'v0.450 framework-wide improvement should define theme');
+    assert_same('breaking_commonization_applied', $frameworkWide['status'] ?? null, 'v0.450 framework-wide improvement should be applied');
+    assert_same('v0.450', $frameworkWide['target'] ?? null, 'v0.450 framework-wide improvement should target v0.450');
+    assert_same(true, $frameworkWide['breaking_change'] ?? null, 'v0.450 framework-wide improvement should be breaking');
+    assert_same(false, $frameworkWide['compatibility_guaranteed'] ?? null, 'v0.450 framework-wide improvement should not guarantee compatibility');
+    assert_true(in_array('deployment_core_fingerprint_helper', $frameworkWide['improvements'] ?? [], true), 'v0.450 framework-wide improvement should include fingerprint helper');
+    assert_same(0, $frameworkWide['known_bug_count'] ?? null, 'v0.450 framework-wide improvement should keep known bugs at zero');
+
+    $commonization = Adlaire::v0475FrameworkWideCommonizationPolicy();
+    assert_same('v0.450-v0.475 Framework-wide Source Code Commonization', $commonization['theme'] ?? null, 'v0.475 commonization should define theme');
+    assert_same('breaking_commonization_expanded', $commonization['status'] ?? null, 'v0.475 commonization should be applied');
+    assert_same('v0.475', $commonization['target'] ?? null, 'v0.475 commonization should target v0.475');
+    assert_same('v0.450-v0.475', $commonization['range'] ?? null, 'v0.475 commonization should expose range');
+    assert_same(true, $commonization['breaking_change'] ?? null, 'v0.475 commonization should be breaking');
+    assert_same(false, $commonization['compatibility_guaranteed'] ?? null, 'v0.475 commonization should not guarantee compatibility');
+    assert_true(in_array('deployment_core_provider_profiles_helper', $commonization['improvements'] ?? [], true), 'v0.475 commonization should include provider profile helper');
+    assert_true(in_array('deployment_core_gate_ready_helper', $commonization['improvements'] ?? [], true), 'v0.475 commonization should include gate helper');
+    assert_same(0, $commonization['known_bug_count'] ?? null, 'v0.475 commonization should keep known bugs at zero');
 
     $manifest = Adlaire::distributionManifest();
     assert_same(true, $manifest['files_unique'] ?? null, 'distribution manifest files should be unique');
@@ -658,7 +700,26 @@ function test_documentation_deduplication(): void
     assert_true(is_string($spec), 'adlaire ecosystem spec should be readable');
     assert_true(!str_contains($spec, 'ダッシュボードからのdeploy実行は引き続き無効'), 'spec should not keep stale dashboard execution wording');
     assert_true(str_contains($spec, 'v0.351ではBug Zero Stabilizationを追加する'), 'spec should document v0.351 stabilization');
+    assert_true(str_contains($spec, 'v0.352ではRepository-wide Source Code Improvementを追加する'), 'spec should document v0.352 source improvement');
+    assert_true(str_contains($spec, 'v0.353からv0.450ではFramework-wide Source Code Improvementを追加する'), 'spec should document v0.353-v0.450 source improvement');
+    assert_true(str_contains($spec, 'v0.450からv0.475ではFramework-wide Source Code Commonizationを追加する'), 'spec should document v0.450-v0.475 source commonization');
     assert_true(str_contains($spec, '任意deploy実行は無効'), 'spec should distinguish arbitrary deploy from safety-gated automation');
+
+    $dashboardData = file_get_contents(__DIR__ . '/../Frameworks/Runtime/DashboardData.php');
+    assert_true(is_string($dashboardData), 'dashboard data source should be readable');
+    assert_true(str_contains($dashboardData, 'specMethodReadiness'), 'dashboard data should centralize method readiness checks');
+    assert_true(str_contains($dashboardData, 'readinessResponse'), 'dashboard data should centralize readiness response shape');
+
+    $deployerSource = file_get_contents(__DIR__ . '/../Core/Deployer.php');
+    assert_true(is_string($deployerSource), 'deployer source should be readable');
+    assert_true(str_contains($deployerSource, 'function providerName'), 'deployer should centralize provider name lookup');
+    assert_true(str_contains($deployerSource, 'function providerProfiles'), 'deployer should centralize provider profiles');
+    assert_true(str_contains($deployerSource, 'function selectedProvider'), 'deployer should centralize selected provider lookup');
+    assert_true(str_contains($deployerSource, 'function providerCapabilities'), 'deployer should centralize provider capabilities lookup');
+    assert_true(str_contains($deployerSource, 'function gateReady'), 'deployer should centralize gate readiness checks');
+    assert_true(str_contains($deployerSource, 'function fingerprint'), 'deployer should centralize fingerprint generation');
+    assert_true(str_contains($deployerSource, 'function validEvidence'), 'deployer should centralize valid response shape');
+    assert_true(str_contains($deployerSource, 'function readyEvidence'), 'deployer should centralize ready response shape');
 }
 
 function test_dashboard_control_matrix(): void
