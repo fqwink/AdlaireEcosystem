@@ -1766,6 +1766,27 @@ final class Adlaire
                 'known_bug_count' => 0,
                 'method' => 'Adlaire::v0475FrameworkWideCommonizationPolicy()',
             ],
+            'source_code_improvement_v0475_v0600' => [
+                'target' => 'v0.600',
+                'range' => 'v0.475-v0.600',
+                'breaking_change' => true,
+                'compatibility_guaranteed' => false,
+                'scope' => 'repository-wide framework commonization and bug-zero cleanup',
+                'primary_changes' => [
+                    'Backend Support owns shared all-true checks',
+                    'Backend Support owns shared JSON fingerprint generation',
+                    'Core release gates use shared Support checks',
+                    'Deployment Core fingerprint and gate helpers delegate to Support',
+                    'Runtime Dashboard fingerprint and readiness checks use shared Support helpers',
+                    'Documentation duplication remains reduced to specification-only detail',
+                ],
+                'framework_file_count_changed' => false,
+                'legacy_shims_added' => false,
+                'public_api_required' => false,
+                'configuration_file' => false,
+                'known_bug_count' => 0,
+                'method' => 'Adlaire::v0600RepositoryWideCommonizationPolicy()',
+            ],
             'release_gate' => 'sh scripts/release-check.sh',
             'release_check_evidence' => [
                 'summary_required' => true,
@@ -1859,6 +1880,7 @@ final class Adlaire
                 'DEPLOY-REQ-024' => 'Repository-wide source code improvement consolidates Runtime Dashboard specification readiness checks behind shared helpers while preserving the five-file principle and breaking-change policy.',
                 'DEPLOY-REQ-025' => 'Framework-wide source code improvement commonizes Deployment Core provider lookup, evidence fingerprinting, ready responses, valid responses, and Runtime Dashboard readiness helpers without compatibility guarantees.',
                 'DEPLOY-REQ-026' => 'Framework-wide commonization centralizes provider profiles, selected provider resolution, provider capabilities, gate readiness checks, and fingerprint helper usage while keeping Public API removed.',
+                'DEPLOY-REQ-027' => 'Repository-wide commonization centralizes all-true checks and JSON fingerprint generation in Backend Support for Core, Deployment Core, and Runtime Dashboard with zero known bugs.',
             ],
             'tests/debug.php' => [
                 'TEST-REQ-001' => 'The official debug test emits OK only after all registered tests pass.',
@@ -1942,6 +1964,7 @@ final class Adlaire
                 'RELEASE-REQ-075' => 'The v0.352 source code improvement release performs breaking repository-wide simplification of duplicated readiness logic with zero known bugs.',
                 'RELEASE-REQ-076' => 'The v0.353-v0.450 framework-wide source improvement stream applies breaking commonization across Deployment Core and Runtime Dashboard with zero known bugs.',
                 'RELEASE-REQ-077' => 'The v0.450-v0.475 framework-wide commonization stream applies breaking provider profile, capability, gate, and fingerprint helper consolidation with zero known bugs.',
+                'RELEASE-REQ-078' => 'The v0.475-v0.600 repository-wide commonization stream applies breaking Support-owned check and fingerprint consolidation across active frameworks with zero known bugs.',
             ],
         ];
     }
@@ -1996,6 +2019,7 @@ final class Adlaire
             'source_code_improvement_v0352' => ['DEPLOY-REQ-024', 'RELEASE-REQ-075'],
             'source_code_improvement_v0353_v0450' => ['DEPLOY-REQ-025', 'RELEASE-REQ-076'],
             'source_code_improvement_v0450_v0475' => ['DEPLOY-REQ-026', 'RELEASE-REQ-077'],
+            'source_code_improvement_v0475_v0600' => ['DEPLOY-REQ-027', 'RELEASE-REQ-078'],
             'dashboard_gated_controls_policy' => ['CORE-REQ-004', 'DEPLOY-REQ-003', 'RELEASE-REQ-046'],
             'reorganization_readiness_boundary_policy' => ['CORE-REQ-010', 'CORE-REQ-011', 'RELEASE-REQ-047'],
             'reorganization_architecture_plan_policy' => ['CORE-REQ-010', 'CORE-REQ-011', 'RELEASE-REQ-048'],
@@ -2325,7 +2349,7 @@ final class Adlaire
         }
 
         return [
-            'valid' => !in_array(false, $checks, true),
+            'valid' => AdlaireSupport::allTrue($checks),
             'checks' => $checks,
             'details' => $details,
         ];
@@ -4814,6 +4838,72 @@ final class Adlaire
             && self::v0450FrameworkWideSourceImprovementPassed(self::v0450FrameworkWideSourceImprovementPolicy());
     }
 
+    public static function v0600RepositoryWideCommonizationPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'v0.475-v0.600 Repository-wide Framework Commonization',
+            'status' => 'breaking_repository_commonization_applied',
+            'target' => 'v0.600',
+            'range' => 'v0.475-v0.600',
+            'breaking_change' => true,
+            'compatibility_guaranteed' => false,
+            'scope' => [
+                'Core/Core.php',
+                'Core/Deployer.php',
+                'Core/Kernel.php',
+                'Frameworks/Backend/Support.php',
+                'Frameworks/Runtime/DashboardData.php',
+                'tests/debug.php',
+                'adlaire-ecosystem.md',
+            ],
+            'improvements' => [
+                'backend_support_all_true_helper',
+                'backend_support_fingerprint_helper',
+                'core_release_gate_checks_delegate_to_support',
+                'deployment_core_gate_and_fingerprint_delegate_to_support',
+                'runtime_dashboard_gate_and_fingerprint_delegate_to_support',
+                'documentation_detail_remains_specification_only',
+                'known_bug_count_zero',
+            ],
+            'framework_five_file_principle_retained' => true,
+            'legacy_shims_added' => false,
+            'public_api_required' => false,
+            'configuration_file' => false,
+            'known_bug_count' => 0,
+            'required_verifications' => [
+                'official_debug_test',
+                'release_check',
+                'framework_five_file_principle',
+                'documentation_deduplication',
+                'git_diff_check',
+            ],
+        ];
+    }
+
+    private static function v0600RepositoryWideCommonizationPassed(array $policy): bool
+    {
+        return ($policy['theme'] ?? null) === 'v0.475-v0.600 Repository-wide Framework Commonization'
+            && ($policy['status'] ?? null) === 'breaking_repository_commonization_applied'
+            && ($policy['target'] ?? null) === 'v0.600'
+            && ($policy['range'] ?? null) === 'v0.475-v0.600'
+            && ($policy['breaking_change'] ?? false) === true
+            && ($policy['compatibility_guaranteed'] ?? true) === false
+            && in_array('backend_support_all_true_helper', $policy['improvements'] ?? [], true)
+            && in_array('backend_support_fingerprint_helper', $policy['improvements'] ?? [], true)
+            && in_array('core_release_gate_checks_delegate_to_support', $policy['improvements'] ?? [], true)
+            && in_array('deployment_core_gate_and_fingerprint_delegate_to_support', $policy['improvements'] ?? [], true)
+            && in_array('runtime_dashboard_gate_and_fingerprint_delegate_to_support', $policy['improvements'] ?? [], true)
+            && in_array('known_bug_count_zero', $policy['improvements'] ?? [], true)
+            && ($policy['framework_five_file_principle_retained'] ?? false) === true
+            && ($policy['legacy_shims_added'] ?? true) === false
+            && ($policy['public_api_required'] ?? true) === false
+            && ($policy['configuration_file'] ?? true) === false
+            && ($policy['known_bug_count'] ?? null) === 0
+            && in_array('release_check', $policy['required_verifications'] ?? [], true)
+            && self::v0475FrameworkWideCommonizationPassed(self::v0475FrameworkWideCommonizationPolicy());
+    }
+
     public static function v0284StableReleasePolicy(): array
     {
         return [
@@ -5913,6 +6003,7 @@ final class Adlaire
             'v0_352_source_code_improvement_policy' => self::v0352SourceCodeImprovementPassed(self::v0352SourceCodeImprovementPolicy()),
             'v0_450_framework_wide_source_improvement_policy' => self::v0450FrameworkWideSourceImprovementPassed(self::v0450FrameworkWideSourceImprovementPolicy()),
             'v0_475_framework_wide_commonization_policy' => self::v0475FrameworkWideCommonizationPassed(self::v0475FrameworkWideCommonizationPolicy()),
+            'v0_600_repository_wide_commonization_policy' => self::v0600RepositoryWideCommonizationPassed(self::v0600RepositoryWideCommonizationPolicy()),
             'v0_284_stable_release_policy' => self::v0284StableReleasePassed(self::v0284StableReleasePolicy()),
             'development_workflow_policy' => self::developmentWorkflowPolicy()['theme'] === 'Specification-First Development Workflow'
                 && self::developmentWorkflowPolicy()['highest_absolute_principle'] === true
@@ -5977,7 +6068,7 @@ final class Adlaire
         ];
 
         return [
-            'valid' => !in_array(false, $checks, true),
+            'valid' => AdlaireSupport::allTrue($checks),
             'checks' => $checks,
         ];
     }
@@ -6256,11 +6347,11 @@ final class Adlaire
             'dashboard_control_matrix_required' => true,
             'framework_five_file_principle_required' => true,
         ];
-        $manifestFingerprint = hash('sha256', json_encode([
+        $manifestFingerprint = AdlaireSupport::fingerprint([
             'version' => self::version(),
             'safe_release' => $safeRelease,
             'files' => $fileFingerprints,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        ]);
 
         return [
             'version' => self::version(),
@@ -7203,7 +7294,7 @@ final class Adlaire
 
         return [
             'version' => self::version(),
-            'ready' => !in_array(false, $checks, true),
+            'ready' => AdlaireSupport::allTrue($checks),
             'checks' => $checks,
             'audit' => $audit,
         ];

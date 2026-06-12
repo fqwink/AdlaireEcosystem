@@ -158,6 +158,11 @@ function test_release_identity(): void
     assert_same(true, $spec['source_code_improvement_v0450_v0475']['breaking_change'] ?? null, 'v0.450-v0.475 source commonization should be breaking');
     assert_same(false, $spec['source_code_improvement_v0450_v0475']['compatibility_guaranteed'] ?? null, 'v0.450-v0.475 source commonization should not guarantee compatibility');
     assert_same('Adlaire::v0475FrameworkWideCommonizationPolicy()', $spec['source_code_improvement_v0450_v0475']['method'] ?? null, 'v0.450-v0.475 source commonization should expose policy method');
+    assert_same('v0.600', $spec['source_code_improvement_v0475_v0600']['target'] ?? null, 'v0.475-v0.600 source commonization should target v0.600');
+    assert_same('v0.475-v0.600', $spec['source_code_improvement_v0475_v0600']['range'] ?? null, 'v0.475-v0.600 source commonization should expose range');
+    assert_same(true, $spec['source_code_improvement_v0475_v0600']['breaking_change'] ?? null, 'v0.475-v0.600 source commonization should be breaking');
+    assert_same(false, $spec['source_code_improvement_v0475_v0600']['compatibility_guaranteed'] ?? null, 'v0.475-v0.600 source commonization should not guarantee compatibility');
+    assert_same('Adlaire::v0600RepositoryWideCommonizationPolicy()', $spec['source_code_improvement_v0475_v0600']['method'] ?? null, 'v0.475-v0.600 source commonization should expose policy method');
     $configurationPolicy = Adlaire::configurationFilePolicy();
     assert_same(true, $configurationPolicy['ini_files_allowed'] ?? null, 'ini files should be fully allowed');
     assert_true(!in_array('*.ini', $configurationPolicy['prohibited_patterns'] ?? [], true), 'ini files should not be prohibited');
@@ -267,6 +272,18 @@ function test_stable_release_policy(): void
     assert_true(in_array('deployment_core_provider_profiles_helper', $commonization['improvements'] ?? [], true), 'v0.475 commonization should include provider profile helper');
     assert_true(in_array('deployment_core_gate_ready_helper', $commonization['improvements'] ?? [], true), 'v0.475 commonization should include gate helper');
     assert_same(0, $commonization['known_bug_count'] ?? null, 'v0.475 commonization should keep known bugs at zero');
+
+    $repositoryCommonization = Adlaire::v0600RepositoryWideCommonizationPolicy();
+    assert_same('v0.475-v0.600 Repository-wide Framework Commonization', $repositoryCommonization['theme'] ?? null, 'v0.600 commonization should define theme');
+    assert_same('breaking_repository_commonization_applied', $repositoryCommonization['status'] ?? null, 'v0.600 commonization should be applied');
+    assert_same('v0.600', $repositoryCommonization['target'] ?? null, 'v0.600 commonization should target v0.600');
+    assert_same('v0.475-v0.600', $repositoryCommonization['range'] ?? null, 'v0.600 commonization should expose range');
+    assert_same(true, $repositoryCommonization['breaking_change'] ?? null, 'v0.600 commonization should be breaking');
+    assert_same(false, $repositoryCommonization['compatibility_guaranteed'] ?? null, 'v0.600 commonization should not guarantee compatibility');
+    assert_true(in_array('backend_support_all_true_helper', $repositoryCommonization['improvements'] ?? [], true), 'v0.600 commonization should include all-true helper');
+    assert_true(in_array('backend_support_fingerprint_helper', $repositoryCommonization['improvements'] ?? [], true), 'v0.600 commonization should include fingerprint helper');
+    assert_true(in_array('runtime_dashboard_gate_and_fingerprint_delegate_to_support', $repositoryCommonization['improvements'] ?? [], true), 'v0.600 commonization should include runtime delegation');
+    assert_same(0, $repositoryCommonization['known_bug_count'] ?? null, 'v0.600 commonization should keep known bugs at zero');
 
     $manifest = Adlaire::distributionManifest();
     assert_same(true, $manifest['files_unique'] ?? null, 'distribution manifest files should be unique');
@@ -703,6 +720,7 @@ function test_documentation_deduplication(): void
     assert_true(str_contains($spec, 'v0.352ではRepository-wide Source Code Improvementを追加する'), 'spec should document v0.352 source improvement');
     assert_true(str_contains($spec, 'v0.353からv0.450ではFramework-wide Source Code Improvementを追加する'), 'spec should document v0.353-v0.450 source improvement');
     assert_true(str_contains($spec, 'v0.450からv0.475ではFramework-wide Source Code Commonizationを追加する'), 'spec should document v0.450-v0.475 source commonization');
+    assert_true(str_contains($spec, 'v0.475からv0.600ではRepository-wide Framework Commonizationを追加する'), 'spec should document v0.475-v0.600 repository commonization');
     assert_true(str_contains($spec, '任意deploy実行は無効'), 'spec should distinguish arbitrary deploy from safety-gated automation');
 
     $dashboardData = file_get_contents(__DIR__ . '/../Frameworks/Runtime/DashboardData.php');
@@ -720,6 +738,15 @@ function test_documentation_deduplication(): void
     assert_true(str_contains($deployerSource, 'function fingerprint'), 'deployer should centralize fingerprint generation');
     assert_true(str_contains($deployerSource, 'function validEvidence'), 'deployer should centralize valid response shape');
     assert_true(str_contains($deployerSource, 'function readyEvidence'), 'deployer should centralize ready response shape');
+
+    $supportSource = file_get_contents(__DIR__ . '/../Frameworks/Backend/Support.php');
+    assert_true(is_string($supportSource), 'support source should be readable');
+    assert_true(str_contains($supportSource, 'function allTrue'), 'support should centralize all-true checks');
+    assert_true(str_contains($supportSource, 'function fingerprint'), 'support should centralize fingerprint generation');
+    assert_true(str_contains($deployerSource, 'AdlaireSupport::allTrue'), 'deployer should delegate gate checks to support');
+    assert_true(str_contains($deployerSource, 'AdlaireSupport::fingerprint'), 'deployer should delegate fingerprints to support');
+    assert_true(str_contains($dashboardData, 'AdlaireSupport::allTrue'), 'runtime dashboard should delegate readiness checks to support');
+    assert_true(str_contains($dashboardData, 'AdlaireSupport::fingerprint'), 'runtime dashboard should delegate fingerprints to support');
 }
 
 function test_dashboard_control_matrix(): void

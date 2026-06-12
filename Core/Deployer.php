@@ -10,6 +10,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../Frameworks/Backend/Logger.php';
+require_once __DIR__ . '/../Frameworks/Backend/Support.php';
 require_once __DIR__ . '/DeployConfig.php';
 
 final class Deployer
@@ -1897,12 +1898,12 @@ final class Deployer
 
     private static function fingerprint(mixed $payload): string
     {
-        return hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        return AdlaireSupport::fingerprint($payload);
     }
 
     private static function gateReady(array $checks): bool
     {
-        return !in_array(false, $checks, true);
+        return AdlaireSupport::allTrue($checks);
     }
 
     private static function providerProfiles(): array

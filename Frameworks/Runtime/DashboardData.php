@@ -239,13 +239,13 @@ final class AdlaireDashboardData
             'reason' => $releaseAllowed ? 'all_controls_ready' : 'blocked_controls_present',
             'blockers' => $blockers,
         ];
-        $fingerprint = hash('sha256', json_encode([
+        $fingerprint = AdlaireSupport::fingerprint([
             'version' => Adlaire::version(),
             'status' => $releaseAllowed ? 'ready' : 'blocked',
             'summary' => $summary,
             'decision' => $decision,
             'rows' => $rows,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        ]);
 
         return [
             'policy' => Adlaire::dashboardDeploymentControlMatrixPolicy(),
@@ -354,7 +354,7 @@ final class AdlaireDashboardData
         ];
 
         return [
-            'ready' => !in_array(false, array_column($events, 'ready'), true),
+            'ready' => AdlaireSupport::allTrue(array_column($events, 'ready')),
             'read_only' => true,
             'command_execution_allowed' => false,
             'writes_allowed' => false,
@@ -412,7 +412,7 @@ final class AdlaireDashboardData
         ];
 
         return [
-            'ready' => !in_array(false, $checks, true),
+            'ready' => AdlaireSupport::allTrue($checks),
             'target' => 'v0.290',
             'full_auto_deployment_enabled' => true,
             'release_gate_required' => true,
@@ -563,7 +563,7 @@ final class AdlaireDashboardData
     private static function readinessResponse(array $policy, array $checks, array $extra = []): array
     {
         return array_replace([
-            'ready' => !in_array(false, $checks, true),
+            'ready' => AdlaireSupport::allTrue($checks),
             'target' => $policy['target'] ?? null,
             'read_only' => true,
             'command_execution_allowed' => false,

@@ -9,6 +9,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../Frameworks/Backend/Support.php';
+
 if (PHP_VERSION_ID < 80300) {
     echo json_encode(['error' => 'Adlaire Ecosystem requires PHP 8.3 or higher. Current version: ' . PHP_VERSION]);
     exit(1);
@@ -132,7 +134,7 @@ final class ApplicationModuleBoundary implements AutonomousModule
         ];
 
         return [
-            'valid' => !in_array(false, $checks, true),
+            'valid' => AdlaireSupport::allTrue($checks),
             'checks' => $checks,
         ];
     }

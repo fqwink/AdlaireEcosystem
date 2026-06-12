@@ -90,6 +90,16 @@ final class AdlaireSupport
         return $default;
     }
 
+    public static function allTrue(array $checks): bool
+    {
+        return !in_array(false, $checks, true);
+    }
+
+    public static function fingerprint(mixed $payload): string
+    {
+        return hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+    }
+
     public static function slug(string $value): string
     {
         $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9]+/', '-', $value) ?? '', '-'));
