@@ -47,6 +47,9 @@ final class AdlaireDashboardView
 <section><h2>Provider Orchestrated Deployment</h2>' . self::table(self::section($sections, 'provider_orchestrated_deployment')) . '</section>
 <section><h2>Provider Runtime Foundation</h2>' . self::table(self::section($sections, 'provider_runtime_foundation')) . '</section>
 <section><h2>Provider Runtime Execution</h2>' . self::table(self::section($sections, 'provider_runtime_execution')) . '</section>
+<section><h2>Provider Runtime Operations</h2>' . self::table(self::section($sections, 'provider_runtime_operations')) . '</section>
+<section><h2>Server API Execution</h2>' . self::table(self::section($sections, 'server_api_execution')) . '</section>
+<section><h2>Server Automation Control</h2>' . self::table(self::section($sections, 'server_automation_control')) . '</section>
 <section><h2>Safety Score</h2>' . self::table(self::section($sections, 'safety_score')) . '</section>
 <section><h2>Deploy History</h2>' . self::table(self::section($sections, 'deploy_history')) . '</section>
 <section><h2>Database</h2>' . self::table(self::section($sections, 'database')) . '</section>

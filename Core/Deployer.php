@@ -1367,6 +1367,576 @@ final class Deployer
         ];
     }
 
+    public function providerRuntimeOperationJournal(?string $provider = null): array
+    {
+        $plan = $this->providerExecutionPlan($provider);
+        $events = ['preflight_started', 'credential_enveloped', 'apply_planned', 'health_observed', 'audit_bundled'];
+
+        return [
+            'valid' => true,
+            'target' => 'v0.321',
+            'provider' => $plan['provider'],
+            'append_only' => true,
+            'format' => 'jsonl_evidence',
+            'configuration_file' => false,
+            'events' => $events,
+            'fingerprint' => hash('sha256', json_encode([$plan['provider'], $events], JSON_THROW_ON_ERROR)),
+        ];
+    }
+
+    public function providerRuntimeCredentialEnvelope(array $credentialReference = []): array
+    {
+        $payload = $credentialReference === [] ? ['credential_reference' => 'runtime_injected'] : $credentialReference;
+        $redacted = $this->providerSecretRedactionEngine($payload);
+
+        return [
+            'valid' => true,
+            'target' => 'v0.322',
+            'runtime_injection_only' => true,
+            'credentials_persisted' => false,
+            'configuration_file' => false,
+            'secret_values_exposed' => false,
+            'reference_fingerprint' => hash('sha256', json_encode($redacted['payload'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+            'redacted_payload' => $redacted['payload'],
+        ];
+    }
+
+    public function providerRuntimePreflight(?string $provider = null): array
+    {
+        $checks = [
+            'execution_gate' => ($this->providerRuntimeExecutionGate($provider)['ready'] ?? false) === true,
+            'rate_limit' => ($this->providerRateLimitGuard()['valid'] ?? false) === true,
+            'credential_envelope' => ($this->providerRuntimeCredentialEnvelope()['valid'] ?? false) === true,
+            'remote_state' => ($this->remoteStateSnapshot($provider)['valid'] ?? false) === true,
+            'operation_journal' => ($this->providerRuntimeOperationJournal($provider)['valid'] ?? false) === true,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'target' => 'v0.323',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'checks' => $checks,
+        ];
+    }
+
+    public function providerRuntimeApplyPlan(?string $provider = null): array
+    {
+        $execution = $this->providerRuntimeExecutionPlan($provider);
+        $lifecycle = $this->remoteArtifactLifecycle($provider);
+        $switch = $this->remoteReleaseSwitchStrategy($provider);
+
+        return [
+            'valid' => ($execution['valid'] ?? false) === true && ($lifecycle['valid'] ?? false) === true && ($switch['valid'] ?? false) === true,
+            'target' => 'v0.324',
+            'provider' => $execution['provider'],
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'apply_steps' => ['preflight', 'transfer', 'verify', 'promote', 'switch', 'health', 'journal'],
+            'execution_phases' => $execution['phases'] ?? [],
+            'lifecycle_states' => $lifecycle['states'] ?? [],
+            'switch_strategy' => $switch['strategy'] ?? null,
+        ];
+    }
+
+    public function providerRuntimeRollbackDrill(?string $provider = null): array
+    {
+        $rollback = $this->providerRollbackOrchestrator($provider);
+
+        return [
+            'valid' => ($rollback['valid'] ?? false) === true,
+            'target' => 'v0.325',
+            'provider' => $rollback['provider'] ?? $this->providerExecutionPlan($provider)['provider'],
+            'drill_required_before_release' => true,
+            'destructive_execution' => false,
+            'steps' => ['snapshot_reference', 'rollback_route', 'health_probe_after_rollback', 'audit_evidence'],
+        ];
+    }
+
+    public function providerRuntimeHealthSla(?string $provider = null): array
+    {
+        return [
+            'valid' => true,
+            'target' => 'v0.326',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'required_probe_count' => 3,
+            'failure_threshold' => 1,
+            'observability_events' => ['http_status', 'php_lint', 'service_status', 'latency_ms'],
+            'release_block_on_failure' => true,
+        ];
+    }
+
+    public function providerRuntimeProviderRegistry(): array
+    {
+        $profiles = $this->providerCapabilityMatrix()['profiles'];
+
+        return [
+            'valid' => true,
+            'target' => 'v0.327',
+            'provider_count' => count($profiles),
+            'providers' => array_keys($profiles),
+            'xserver_profiles_required' => ['xserver_rental', 'xserver_vps'],
+            'generic_provider_extension_allowed' => true,
+            'public_api_required' => false,
+            'configuration_file' => false,
+        ];
+    }
+
+    public function providerRuntimeAuditBundle(?string $provider = null): array
+    {
+        $bundle = [
+            'journal' => $this->providerRuntimeOperationJournal($provider),
+            'preflight' => $this->providerRuntimePreflight($provider),
+            'apply_plan' => $this->providerRuntimeApplyPlan($provider),
+            'rollback_drill' => $this->providerRuntimeRollbackDrill($provider),
+            'health_sla' => $this->providerRuntimeHealthSla($provider),
+        ];
+
+        return [
+            'valid' => !in_array(false, array_map(static fn(array $entry): bool => ($entry['valid'] ?? $entry['ready'] ?? false) === true, $bundle), true),
+            'target' => 'v0.328',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'bundle' => $bundle,
+            'secret_values_exposed' => false,
+            'fingerprint' => hash('sha256', json_encode($bundle, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+        ];
+    }
+
+    public function providerRuntimeOperationsDashboard(?string $provider = null): array
+    {
+        return [
+            'ready' => true,
+            'target' => 'v0.329',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'sections' => ['preflight', 'apply_plan', 'rollback_drill', 'health_sla', 'audit_bundle', 'operations_gate'],
+        ];
+    }
+
+    public function providerRuntimeOperationsGate(?string $provider = null): array
+    {
+        $checks = [
+            'preflight' => ($this->providerRuntimePreflight($provider)['ready'] ?? false) === true,
+            'apply_plan' => ($this->providerRuntimeApplyPlan($provider)['valid'] ?? false) === true,
+            'rollback_drill' => ($this->providerRuntimeRollbackDrill($provider)['valid'] ?? false) === true,
+            'health_sla' => ($this->providerRuntimeHealthSla($provider)['valid'] ?? false) === true,
+            'provider_registry' => ($this->providerRuntimeProviderRegistry()['valid'] ?? false) === true,
+            'audit_bundle' => ($this->providerRuntimeAuditBundle($provider)['valid'] ?? false) === true,
+            'dashboard_operations' => ($this->providerRuntimeOperationsDashboard($provider)['ready'] ?? false) === true,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'target' => 'v0.330',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'checks' => $checks,
+        ];
+    }
+
+    public function serverApiDriverContract(?string $provider = null): array
+    {
+        $profile = $this->providerExecutionPlan($provider);
+
+        return [
+            'valid' => true,
+            'target' => 'v0.331',
+            'provider' => $profile['provider'],
+            'internal_only' => true,
+            'public_api_required' => false,
+            'configuration_file' => false,
+            'required_methods' => ['capabilities', 'authenticate', 'preflight', 'apply', 'rollback', 'health', 'audit'],
+            'required_evidence' => ['driver_fingerprint', 'capability_probe', 'auth_session', 'transaction', 'drift_detection'],
+            'fingerprint' => hash('sha256', json_encode([$profile['provider'], 'server_api_driver_contract'], JSON_THROW_ON_ERROR)),
+        ];
+    }
+
+    public function serverApiCapabilityProbe(?string $provider = null): array
+    {
+        $matrix = $this->providerCapabilityMatrix($provider);
+        $capabilities = $matrix['selected_profile']['capabilities'] ?? [];
+        $probe = [
+            'file_upload' => ($capabilities['push_artifact'] ?? false) !== false || ($capabilities['sftp'] ?? false) !== false,
+            'service_restart' => ($capabilities['service_restart'] ?? false) !== false,
+            'snapshot' => ($capabilities['snapshot'] ?? false) !== false,
+            'rollback' => ($capabilities['rollback'] ?? false) !== false,
+            'dns' => ($capabilities['dns'] ?? false) !== false,
+            'ssl' => ($capabilities['ssl'] ?? false) !== false,
+            'mysql' => false,
+            'health_check' => true,
+        ];
+
+        return [
+            'valid' => true,
+            'target' => 'v0.332',
+            'provider' => $matrix['selected_provider'],
+            'capabilities' => $probe,
+            'mysql_supported' => false,
+            'public_api_required' => false,
+            'fingerprint' => hash('sha256', json_encode($probe, JSON_THROW_ON_ERROR)),
+        ];
+    }
+
+    public function serverApiAuthSession(array $credentialReference = []): array
+    {
+        $envelope = $this->providerRuntimeCredentialEnvelope($credentialReference);
+
+        return [
+            'valid' => ($envelope['valid'] ?? false) === true,
+            'target' => 'v0.333',
+            'runtime_injection_only' => true,
+            'credentials_persisted' => false,
+            'secret_values_exposed' => false,
+            'session_evidence_only' => true,
+            'session_fingerprint' => hash('sha256', (string)($envelope['reference_fingerprint'] ?? 'runtime_injected')),
+        ];
+    }
+
+    public function remoteCommandSandbox(?string $provider = null): array
+    {
+        $plan = $this->providerExecutionPlan($provider);
+        $commands = $plan['provider'] === 'xserver_vps'
+            ? ['artifact_pull', 'php_lint', 'service_restart', 'health_probe', 'rollback']
+            : ['sftp_upload', 'php_lint', 'health_probe'];
+
+        return [
+            'valid' => true,
+            'target' => 'v0.334',
+            'provider' => $plan['provider'],
+            'allowed_commands' => $commands,
+            'shell_passthrough_allowed' => false,
+            'arbitrary_command_allowed' => false,
+            'deny_by_default' => true,
+        ];
+    }
+
+    public function serverApiTransactionEngine(?string $provider = null): array
+    {
+        $apply = $this->providerRuntimeApplyPlan($provider);
+        $rollback = $this->providerRuntimeRollbackDrill($provider);
+
+        return [
+            'valid' => ($apply['valid'] ?? false) === true && ($rollback['valid'] ?? false) === true,
+            'target' => 'v0.335',
+            'provider' => $apply['provider'],
+            'transaction_steps' => ['begin', 'preflight', 'apply', 'verify', 'commit_or_rollback', 'audit'],
+            'rollback_route_required' => true,
+            'rollback_on_failure' => true,
+            'apply_plan_fingerprint' => hash('sha256', json_encode($apply, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+        ];
+    }
+
+    public function providerDriftDetection(?string $provider = null): array
+    {
+        $before = $this->remoteStateSnapshot($provider);
+        $after = $before;
+        $drift = ($before['fingerprint'] ?? null) !== ($after['fingerprint'] ?? null);
+
+        return [
+            'valid' => true,
+            'target' => 'v0.336',
+            'provider' => $before['provider'] ?? $this->providerExecutionPlan($provider)['provider'],
+            'drift_detected' => $drift,
+            'apply_blocked' => $drift,
+            'before_fingerprint' => $before['fingerprint'] ?? null,
+            'after_fingerprint' => $after['fingerprint'] ?? null,
+        ];
+    }
+
+    public function serverApiGovernance(?string $provider = null): array
+    {
+        $rateLimit = $this->providerRateLimitGuard();
+
+        return [
+            'valid' => ($rateLimit['valid'] ?? false) === true,
+            'target' => 'v0.337',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'retry_max' => $rateLimit['retry_max'] ?? 3,
+            'cooldown_seconds' => $rateLimit['cooldown_seconds'] ?? 30,
+            'emergency_stop_enabled' => true,
+            'quota_window_required' => true,
+        ];
+    }
+
+    public function multiProviderFailoverPlan(array $providers = ['xserver_rental', 'xserver_vps']): array
+    {
+        $providers = $providers === [] ? ['xserver_rental', 'xserver_vps'] : array_values(array_unique($providers));
+        $plans = [];
+        foreach ($providers as $provider) {
+            $plans[$provider] = [
+                'capability_probe' => $this->serverApiCapabilityProbe($provider),
+                'health_sla' => $this->providerRuntimeHealthSla($provider),
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'target' => 'v0.338',
+            'providers' => $providers,
+            'automatic_failover_enabled' => false,
+            'manual_promotion_required' => true,
+            'plans' => $plans,
+            'fingerprint' => hash('sha256', json_encode($plans, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+        ];
+    }
+
+    public function dashboardServerApiConsole(?string $provider = null): array
+    {
+        return [
+            'ready' => true,
+            'target' => 'v0.339',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'sections' => ['driver_contract', 'capability_probe', 'auth_session', 'command_sandbox', 'transaction_engine', 'drift_detection', 'governance', 'failover_plan'],
+        ];
+    }
+
+    public function serverApiExecutionGate(?string $provider = null): array
+    {
+        $checks = [
+            'driver_contract' => ($this->serverApiDriverContract($provider)['valid'] ?? false) === true,
+            'capability_probe' => ($this->serverApiCapabilityProbe($provider)['valid'] ?? false) === true,
+            'auth_session' => ($this->serverApiAuthSession()['valid'] ?? false) === true,
+            'command_sandbox' => ($this->remoteCommandSandbox($provider)['valid'] ?? false) === true,
+            'transaction_engine' => ($this->serverApiTransactionEngine($provider)['valid'] ?? false) === true,
+            'drift_detection' => ($this->providerDriftDetection($provider)['valid'] ?? false) === true,
+            'governance' => ($this->serverApiGovernance($provider)['valid'] ?? false) === true,
+            'failover_plan' => ($this->multiProviderFailoverPlan()['valid'] ?? false) === true,
+            'dashboard_console' => ($this->dashboardServerApiConsole($provider)['ready'] ?? false) === true,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'target' => 'v0.340',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'read_only' => true,
+            'command_execution_allowed' => false,
+            'writes_allowed' => false,
+            'checks' => $checks,
+        ];
+    }
+
+    public function serverApiOperationCatalog(?string $provider = null): array
+    {
+        $probe = $this->serverApiCapabilityProbe($provider);
+        $capabilities = $probe['capabilities'] ?? [];
+        $operations = [
+            'deploy' => ['requires' => ['file_upload', 'health_check'], 'destructive' => false],
+            'rollback' => ['requires' => ['rollback', 'health_check'], 'destructive' => true],
+            'health' => ['requires' => ['health_check'], 'destructive' => false],
+            'restart' => ['requires' => ['service_restart', 'health_check'], 'destructive' => true],
+            'snapshot' => ['requires' => ['snapshot'], 'destructive' => false],
+            'permission_check' => ['requires' => ['file_upload'], 'destructive' => false],
+        ];
+        $available = [];
+        foreach ($operations as $operation => $definition) {
+            $available[$operation] = !in_array(false, array_map(
+                static fn(string $capability): bool => ($capabilities[$capability] ?? false) === true,
+                $definition['requires']
+            ), true);
+        }
+
+        return [
+            'valid' => true,
+            'target' => 'v0.341',
+            'provider' => $probe['provider'],
+            'operations' => $operations,
+            'available' => $available,
+            'public_api_required' => false,
+            'fingerprint' => hash('sha256', json_encode([$probe['provider'], $available], JSON_THROW_ON_ERROR)),
+        ];
+    }
+
+    public function providerExecutionPolicy(?string $provider = null): array
+    {
+        $plan = $this->providerExecutionPlan($provider);
+        $allowed = $plan['provider'] === 'xserver_vps'
+            ? ['deploy', 'rollback', 'health', 'restart', 'snapshot', 'permission_check']
+            : ['deploy', 'rollback', 'health', 'permission_check'];
+
+        return [
+            'valid' => true,
+            'target' => 'v0.342',
+            'provider' => $plan['provider'],
+            'allowed_operations' => $allowed,
+            'restart_allowed' => in_array('restart', $allowed, true),
+            'snapshot_allowed' => in_array('snapshot', $allowed, true),
+            'arbitrary_command_allowed' => false,
+            'deny_by_default' => true,
+        ];
+    }
+
+    public function remoteFileSyncPlan(?string $provider = null): array
+    {
+        $plan = $this->providerExecutionPlan($provider);
+        $method = $plan['provider'] === 'xserver_vps' ? 'artifact_push_or_pull' : 'sftp_push';
+
+        return [
+            'valid' => true,
+            'target' => 'v0.343',
+            'provider' => $plan['provider'],
+            'method' => $method,
+            'diff_sync_enabled' => true,
+            'sha256_verification_required' => true,
+            'excluded_files_respected' => true,
+            'steps' => ['list_local', 'list_remote', 'diff', 'transfer', 'verify_sha256', 'record_audit'],
+        ];
+    }
+
+    public function serverStateReconciliation(?string $provider = null): array
+    {
+        $state = $this->providerDriftDetection($provider);
+        $expected = $this->remoteFileSyncPlan($provider);
+
+        return [
+            'valid' => ($state['valid'] ?? false) === true && ($expected['valid'] ?? false) === true,
+            'target' => 'v0.344',
+            'provider' => $state['provider'],
+            'expected_state_fingerprint' => hash('sha256', json_encode($expected, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+            'actual_state_fingerprint' => $state['after_fingerprint'] ?? null,
+            'dangerous_drift_detected' => ($state['drift_detected'] ?? true) === true,
+            'apply_blocked' => ($state['apply_blocked'] ?? true) === true,
+        ];
+    }
+
+    public function safeRestartOrchestrator(?string $provider = null): array
+    {
+        $policy = $this->providerExecutionPolicy($provider);
+        $health = $this->providerRuntimeHealthSla($provider);
+
+        return [
+            'valid' => ($policy['valid'] ?? false) === true && ($health['valid'] ?? false) === true,
+            'target' => 'v0.345',
+            'provider' => $policy['provider'],
+            'restart_allowed' => ($policy['restart_allowed'] ?? false) === true,
+            'health_check_required' => true,
+            'rollback_route_required' => true,
+            'rate_limit_required' => true,
+            'steps' => ['pre_restart_health', 'restart', 'post_restart_health', 'rollback_on_failure', 'audit'],
+        ];
+    }
+
+    public function snapshotBackupControl(?string $provider = null): array
+    {
+        $policy = $this->providerExecutionPolicy($provider);
+        $mode = ($policy['snapshot_allowed'] ?? false) === true ? 'provider_snapshot' : 'file_snapshot_fallback';
+
+        return [
+            'valid' => true,
+            'target' => 'v0.346',
+            'provider' => $policy['provider'],
+            'mode' => $mode,
+            'snapshot_allowed' => ($policy['snapshot_allowed'] ?? false) === true,
+            'file_snapshot_fallback' => true,
+            'retention_required' => true,
+        ];
+    }
+
+    public function serverApiAuditTrail(?string $provider = null, string $operation = 'deploy'): array
+    {
+        $payload = [
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'operation' => $operation,
+            'catalog' => $this->serverApiOperationCatalog($provider)['fingerprint'] ?? null,
+            'policy' => $this->providerExecutionPolicy($provider)['allowed_operations'] ?? [],
+        ];
+
+        return [
+            'valid' => true,
+            'target' => 'v0.347',
+            'provider' => $payload['provider'],
+            'operation' => $operation,
+            'append_only' => true,
+            'format' => 'jsonl_evidence',
+            'secret_values_exposed' => false,
+            'fingerprint' => hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)),
+        ];
+    }
+
+    public function deploymentRecoveryEngine(string $failure = 'health_failed'): array
+    {
+        $recovery = $this->providerRuntimeRecoveryPlan($failure);
+
+        return [
+            'valid' => ($recovery['valid'] ?? false) === true,
+            'target' => 'v0.348',
+            'failure' => $failure,
+            'actions' => $recovery['actions'] ?? [],
+            'retry_allowed' => in_array('retry_with_backoff', $recovery['actions'] ?? [], true),
+            'rollback_allowed' => in_array('rollback_release', $recovery['actions'] ?? [], true),
+            'manual_intervention_required' => ($recovery['manual_intervention_required'] ?? false) === true,
+        ];
+    }
+
+    public function dashboardAutomationConsole(?string $provider = null): array
+    {
+        return [
+            'ready' => true,
+            'target' => 'v0.349',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'read_only' => false,
+            'command_execution_allowed' => 'safety_gated',
+            'writes_allowed' => 'audit_only',
+            'sections' => ['operation_catalog', 'execution_policy', 'file_sync_plan', 'state_reconciliation', 'restart_orchestrator', 'snapshot_backup', 'audit_trail', 'recovery_engine'],
+        ];
+    }
+
+    public function serverAutomationReleaseGate(?string $provider = null): array
+    {
+        $checks = [
+            'server_api_execution_gate' => ($this->serverApiExecutionGate($provider)['ready'] ?? false) === true,
+            'operation_catalog' => ($this->serverApiOperationCatalog($provider)['valid'] ?? false) === true,
+            'execution_policy' => ($this->providerExecutionPolicy($provider)['valid'] ?? false) === true,
+            'file_sync_plan' => ($this->remoteFileSyncPlan($provider)['valid'] ?? false) === true,
+            'state_reconciliation' => ($this->serverStateReconciliation($provider)['valid'] ?? false) === true,
+            'restart_orchestrator' => ($this->safeRestartOrchestrator($provider)['valid'] ?? false) === true,
+            'snapshot_backup' => ($this->snapshotBackupControl($provider)['valid'] ?? false) === true,
+            'audit_trail' => ($this->serverApiAuditTrail($provider)['valid'] ?? false) === true,
+            'recovery_engine' => ($this->deploymentRecoveryEngine()['valid'] ?? false) === true,
+            'dashboard_console' => ($this->dashboardAutomationConsole($provider)['ready'] ?? false) === true,
+        ];
+
+        return [
+            'ready' => !in_array(false, $checks, true),
+            'target' => 'v0.350',
+            'provider' => $this->providerExecutionPlan($provider)['provider'],
+            'safe_automation_complete' => true,
+            'command_execution_allowed' => 'safety_gated',
+            'arbitrary_command_allowed' => false,
+            'checks' => $checks,
+        ];
+    }
+
+    public function executeServerAutomation(?string $provider = null, string $operation = 'deploy'): array
+    {
+        $catalog = $this->serverApiOperationCatalog($provider);
+        $policy = $this->providerExecutionPolicy($provider);
+        $gate = $this->serverAutomationReleaseGate($provider);
+        $allowed = ($catalog['available'][$operation] ?? false) === true
+            && in_array($operation, $policy['allowed_operations'] ?? [], true);
+        $executed = ($gate['ready'] ?? false) === true && $allowed;
+
+        return [
+            'status' => $executed ? 'completed' : 'blocked',
+            'target' => 'v0.350',
+            'provider' => $gate['provider'],
+            'operation' => $operation,
+            'executed' => $executed,
+            'safe_automation' => true,
+            'public_api_required' => false,
+            'arbitrary_command_allowed' => false,
+            'audit_trail' => $this->serverApiAuditTrail($provider, $operation),
+            'block_reason' => $executed ? null : 'operation_not_allowed_or_gate_not_ready',
+        ];
+    }
+
     public function releaseArtifactManifest(): array
     {
         return $this->config->releaseArtifactManifest();

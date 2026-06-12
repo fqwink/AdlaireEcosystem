@@ -1605,6 +1605,115 @@ final class Adlaire
                     'execution_gate' => 'Deployer::providerRuntimeExecutionGate()',
                 ],
             ],
+            'provider_runtime_operations' => [
+                'target' => 'v0.330',
+                'public_api_required' => false,
+                'configuration_file' => false,
+                'credentials_persisted' => false,
+                'phases' => [
+                    'v0.321' => 'Provider Runtime Operation Journal',
+                    'v0.322' => 'Provider Runtime Credential Envelope',
+                    'v0.323' => 'Provider Runtime Preflight',
+                    'v0.324' => 'Provider Runtime Apply Plan',
+                    'v0.325' => 'Provider Runtime Rollback Drill',
+                    'v0.326' => 'Provider Runtime Health SLA',
+                    'v0.327' => 'Provider Runtime Provider Registry',
+                    'v0.328' => 'Provider Runtime Audit Bundle',
+                    'v0.329' => 'Provider Runtime Operations Dashboard',
+                    'v0.330' => 'Provider Runtime Operations Gate',
+                ],
+                'methods' => [
+                    'operation_journal' => 'Deployer::providerRuntimeOperationJournal()',
+                    'credential_envelope' => 'Deployer::providerRuntimeCredentialEnvelope()',
+                    'preflight' => 'Deployer::providerRuntimePreflight()',
+                    'apply_plan' => 'Deployer::providerRuntimeApplyPlan()',
+                    'rollback_drill' => 'Deployer::providerRuntimeRollbackDrill()',
+                    'health_sla' => 'Deployer::providerRuntimeHealthSla()',
+                    'provider_registry' => 'Deployer::providerRuntimeProviderRegistry()',
+                    'audit_bundle' => 'Deployer::providerRuntimeAuditBundle()',
+                    'operations_dashboard' => 'Deployer::providerRuntimeOperationsDashboard()',
+                    'operations_gate' => 'Deployer::providerRuntimeOperationsGate()',
+                ],
+            ],
+            'server_api_execution' => [
+                'target' => 'v0.340',
+                'public_api_required' => false,
+                'configuration_file' => false,
+                'credentials_persisted' => false,
+                'mysql_supported' => false,
+                'phases' => [
+                    'v0.331' => 'Server API Driver Contract',
+                    'v0.332' => 'Server API Capability Probe',
+                    'v0.333' => 'Server API Auth Session',
+                    'v0.334' => 'Remote Command Sandbox',
+                    'v0.335' => 'Server API Transaction Engine',
+                    'v0.336' => 'Provider Drift Detection',
+                    'v0.337' => 'Server API Governance',
+                    'v0.338' => 'Multi Provider Failover Plan',
+                    'v0.339' => 'Dashboard Server API Console',
+                    'v0.340' => 'Server API Execution Gate',
+                ],
+                'methods' => [
+                    'driver_contract' => 'Deployer::serverApiDriverContract()',
+                    'capability_probe' => 'Deployer::serverApiCapabilityProbe()',
+                    'auth_session' => 'Deployer::serverApiAuthSession()',
+                    'command_sandbox' => 'Deployer::remoteCommandSandbox()',
+                    'transaction_engine' => 'Deployer::serverApiTransactionEngine()',
+                    'drift_detection' => 'Deployer::providerDriftDetection()',
+                    'governance' => 'Deployer::serverApiGovernance()',
+                    'failover_plan' => 'Deployer::multiProviderFailoverPlan()',
+                    'dashboard_console' => 'Deployer::dashboardServerApiConsole()',
+                    'execution_gate' => 'Deployer::serverApiExecutionGate()',
+                ],
+            ],
+            'server_automation_control' => [
+                'target' => 'v0.350',
+                'public_api_required' => false,
+                'configuration_file' => false,
+                'credentials_persisted' => false,
+                'mysql_supported' => false,
+                'arbitrary_command_allowed' => false,
+                'command_execution_allowed' => 'safety_gated',
+                'phases' => [
+                    'v0.341' => 'Server API Operation Catalog',
+                    'v0.342' => 'Provider Execution Policy',
+                    'v0.343' => 'Remote File Sync Plan',
+                    'v0.344' => 'Server State Reconciliation',
+                    'v0.345' => 'Safe Restart Orchestrator',
+                    'v0.346' => 'Snapshot Backup Control',
+                    'v0.347' => 'Server API Audit Trail',
+                    'v0.348' => 'Deployment Recovery Engine',
+                    'v0.349' => 'Dashboard Automation Console',
+                    'v0.350' => 'Server Automation Release Gate and safe execution',
+                ],
+                'methods' => [
+                    'operation_catalog' => 'Deployer::serverApiOperationCatalog()',
+                    'execution_policy' => 'Deployer::providerExecutionPolicy()',
+                    'file_sync_plan' => 'Deployer::remoteFileSyncPlan()',
+                    'state_reconciliation' => 'Deployer::serverStateReconciliation()',
+                    'restart_orchestrator' => 'Deployer::safeRestartOrchestrator()',
+                    'snapshot_backup' => 'Deployer::snapshotBackupControl()',
+                    'audit_trail' => 'Deployer::serverApiAuditTrail()',
+                    'recovery_engine' => 'Deployer::deploymentRecoveryEngine()',
+                    'dashboard_console' => 'Deployer::dashboardAutomationConsole()',
+                    'release_gate' => 'Deployer::serverAutomationReleaseGate()',
+                    'safe_execution' => 'Deployer::executeServerAutomation()',
+                ],
+            ],
+            'bug_zero_stabilization' => [
+                'target' => 'v0.351',
+                'known_bug_count' => 0,
+                'documentation_duplication_count' => 0,
+                'release_check_required' => true,
+                'git_diff_check_required' => true,
+                'public_api_required' => false,
+                'configuration_file' => false,
+                'credentials_persisted' => false,
+                'mysql_supported' => false,
+                'arbitrary_command_allowed' => false,
+                'dashboard_execution_policy' => 'arbitrary deploy disabled; catalogued server automation is safety-gated',
+                'method' => 'Adlaire::v0351BugZeroStabilizationPolicy()',
+            ],
             'release_gate' => 'sh scripts/release-check.sh',
             'release_check_evidence' => [
                 'summary_required' => true,
@@ -1691,6 +1800,10 @@ final class Adlaire
                 'DEPLOY-REQ-017' => 'Provider orchestrated deployment coordinates provider orchestration, remote operation plan, credential policy, transport evidence, multi-provider plan, health probe, rollback orchestrator, dashboard control, and release gate.',
                 'DEPLOY-REQ-018' => 'Provider runtime foundation defines runtime interface, remote state snapshot, transaction plan, retry backoff, rate limit guard, and secret redaction engine for server API operations.',
                 'DEPLOY-REQ-019' => 'Provider runtime execution defines Xserver rental and VPS runtime adapters, execution plan, artifact lifecycle, switch strategy, failure classifier, recovery plan, dashboard control, and execution gate.',
+                'DEPLOY-REQ-020' => 'Provider runtime operations define journal, credential envelope, preflight, apply plan, rollback drill, health SLA, provider registry, audit bundle, operations dashboard, and operations gate.',
+                'DEPLOY-REQ-021' => 'Server API execution defines internal driver contract, capability probe, auth session, command sandbox, transaction engine, drift detection, governance, failover plan, dashboard console, and execution gate.',
+                'DEPLOY-REQ-022' => 'Server automation control defines operation catalog, provider execution policy, remote file sync, state reconciliation, safe restart, snapshot backup, audit trail, recovery engine, dashboard automation console, release gate, and safe execution.',
+                'DEPLOY-REQ-023' => 'Bug zero stabilization requires zero known bugs, zero documentation duplication, release-check success, no Public API, no credential persistence, no MySQL, no arbitrary shell execution, and safety-gated server automation only.',
             ],
             'tests/debug.php' => [
                 'TEST-REQ-001' => 'The official debug test emits OK only after all registered tests pass.',
@@ -1767,6 +1880,10 @@ final class Adlaire
                 'RELEASE-REQ-068' => 'The v0.296-v0.305 provider orchestrated deployment stream rebuilds deployment around provider orchestration and integrates provider release gate.',
                 'RELEASE-REQ-069' => 'The v0.306-v0.311 provider runtime foundation stream adds runtime interface, remote state, transactions, retry, quota, and secret redaction.',
                 'RELEASE-REQ-070' => 'The v0.312-v0.320 provider runtime execution stream adds Xserver runtime adapters and runtime execution gate.',
+                'RELEASE-REQ-071' => 'The v0.321-v0.330 provider runtime operations stream adds preflight, apply plan, rollback drill, health SLA, audit bundle, dashboard operations, and operations gate.',
+                'RELEASE-REQ-072' => 'The v0.331-v0.340 server API execution stream adds driver contract, capability probe, auth session, command sandbox, transaction, drift, governance, failover, dashboard console, and execution gate.',
+                'RELEASE-REQ-073' => 'The v0.341-v0.350 server automation control stream completes safety-gated server operation execution without Public API, credential persistence, MySQL, or arbitrary command execution.',
+                'RELEASE-REQ-074' => 'The v0.351 bug zero stabilization release fixes known bugs to zero and removes stale documentation duplication after server automation control.',
             ],
         ];
     }
@@ -1814,6 +1931,10 @@ final class Adlaire
             'provider_orchestrated_deployment' => ['DEPLOY-REQ-017', 'RELEASE-REQ-068'],
             'provider_runtime_foundation' => ['DEPLOY-REQ-018', 'RELEASE-REQ-069'],
             'provider_runtime_execution' => ['DEPLOY-REQ-019', 'RELEASE-REQ-070'],
+            'provider_runtime_operations' => ['DEPLOY-REQ-020', 'RELEASE-REQ-071'],
+            'server_api_execution' => ['DEPLOY-REQ-021', 'RELEASE-REQ-072'],
+            'server_automation_control' => ['DEPLOY-REQ-022', 'RELEASE-REQ-073'],
+            'bug_zero_stabilization' => ['DEPLOY-REQ-023', 'RELEASE-REQ-074'],
             'dashboard_gated_controls_policy' => ['CORE-REQ-004', 'DEPLOY-REQ-003', 'RELEASE-REQ-046'],
             'reorganization_readiness_boundary_policy' => ['CORE-REQ-010', 'CORE-REQ-011', 'RELEASE-REQ-047'],
             'reorganization_architecture_plan_policy' => ['CORE-REQ-010', 'CORE-REQ-011', 'RELEASE-REQ-048'],
@@ -4406,6 +4527,55 @@ final class Adlaire
             && ($policy['deployment_core_contract_changed'] ?? false) === true;
     }
 
+    public static function v0351BugZeroStabilizationPolicy(): array
+    {
+        return [
+            'version' => self::version(),
+            'theme' => 'v0.351 Bug Zero Stabilization',
+            'status' => 'stabilized',
+            'target' => 'v0.351',
+            'known_bug_count' => 0,
+            'documentation_duplication_count' => 0,
+            'release_allowed_with_known_bugs' => false,
+            'readme_detail_duplication_allowed' => false,
+            'support_doc_detail_duplication_allowed' => false,
+            'public_api_required' => false,
+            'configuration_file' => false,
+            'credentials_persisted' => false,
+            'mysql_supported' => false,
+            'arbitrary_command_allowed' => false,
+            'server_automation_execution' => 'safety_gated',
+            'required_verifications' => [
+                'official_debug_test',
+                'release_check',
+                'documentation_deduplication',
+                'git_diff_check',
+                'empty_directories_absent',
+                'docker_container_absent_after_tests',
+            ],
+        ];
+    }
+
+    private static function v0351BugZeroStabilizationPassed(array $policy): bool
+    {
+        return ($policy['theme'] ?? null) === 'v0.351 Bug Zero Stabilization'
+            && ($policy['status'] ?? null) === 'stabilized'
+            && ($policy['target'] ?? null) === 'v0.351'
+            && ($policy['known_bug_count'] ?? null) === 0
+            && ($policy['documentation_duplication_count'] ?? null) === 0
+            && ($policy['release_allowed_with_known_bugs'] ?? true) === false
+            && ($policy['readme_detail_duplication_allowed'] ?? true) === false
+            && ($policy['support_doc_detail_duplication_allowed'] ?? true) === false
+            && ($policy['public_api_required'] ?? true) === false
+            && ($policy['configuration_file'] ?? true) === false
+            && ($policy['credentials_persisted'] ?? true) === false
+            && ($policy['mysql_supported'] ?? true) === false
+            && ($policy['arbitrary_command_allowed'] ?? true) === false
+            && ($policy['server_automation_execution'] ?? null) === 'safety_gated'
+            && in_array('documentation_deduplication', $policy['required_verifications'] ?? [], true)
+            && self::bugZeroRemediationPassed(self::bugZeroRemediationPolicy());
+    }
+
     public static function v0284StableReleasePolicy(): array
     {
         return [
@@ -5501,6 +5671,7 @@ final class Adlaire
             'consolidated_source_improvement_policy' => self::consolidatedSourceImprovementPassed(self::consolidatedSourceImprovementPolicy()),
             'physical_cleanup_cycle_policy' => self::physicalCleanupCyclePassed(self::physicalCleanupCyclePolicy()),
             'bug_zero_remediation_policy' => self::bugZeroRemediationPassed(self::bugZeroRemediationPolicy()),
+            'v0_351_bug_zero_stabilization_policy' => self::v0351BugZeroStabilizationPassed(self::v0351BugZeroStabilizationPolicy()),
             'v0_284_stable_release_policy' => self::v0284StableReleasePassed(self::v0284StableReleasePolicy()),
             'development_workflow_policy' => self::developmentWorkflowPolicy()['theme'] === 'Specification-First Development Workflow'
                 && self::developmentWorkflowPolicy()['highest_absolute_principle'] === true

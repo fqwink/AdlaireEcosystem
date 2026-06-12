@@ -122,6 +122,28 @@ function test_release_identity(): void
     assert_same('Deployer::xserverRentalRuntimeAdapter()', $spec['provider_runtime_execution']['methods']['xserver_rental_adapter'] ?? null, 'provider runtime execution should expose rental adapter');
     assert_same('Deployer::xserverVpsRuntimeAdapter()', $spec['provider_runtime_execution']['methods']['xserver_vps_adapter'] ?? null, 'provider runtime execution should expose vps adapter');
     assert_same('Deployer::providerRuntimeExecutionGate()', $spec['provider_runtime_execution']['methods']['execution_gate'] ?? null, 'provider runtime execution should expose execution gate');
+    assert_same('v0.330', $spec['provider_runtime_operations']['target'] ?? null, 'provider runtime operations should target v0.330');
+    assert_same('Deployer::providerRuntimePreflight()', $spec['provider_runtime_operations']['methods']['preflight'] ?? null, 'provider runtime operations should expose preflight');
+    assert_same('Deployer::providerRuntimeApplyPlan()', $spec['provider_runtime_operations']['methods']['apply_plan'] ?? null, 'provider runtime operations should expose apply plan');
+    assert_same('Deployer::providerRuntimeOperationsGate()', $spec['provider_runtime_operations']['methods']['operations_gate'] ?? null, 'provider runtime operations should expose operations gate');
+    assert_same(false, $spec['provider_runtime_operations']['credentials_persisted'] ?? null, 'provider runtime operations should not persist credentials');
+    assert_same('v0.340', $spec['server_api_execution']['target'] ?? null, 'server API execution should target v0.340');
+    assert_same('Deployer::serverApiDriverContract()', $spec['server_api_execution']['methods']['driver_contract'] ?? null, 'server API execution should expose driver contract');
+    assert_same('Deployer::serverApiCapabilityProbe()', $spec['server_api_execution']['methods']['capability_probe'] ?? null, 'server API execution should expose capability probe');
+    assert_same('Deployer::serverApiExecutionGate()', $spec['server_api_execution']['methods']['execution_gate'] ?? null, 'server API execution should expose execution gate');
+    assert_same(false, $spec['server_api_execution']['public_api_required'] ?? null, 'server API execution should not require public API');
+    assert_same(false, $spec['server_api_execution']['mysql_supported'] ?? null, 'server API execution should not support MySQL');
+    assert_same('v0.350', $spec['server_automation_control']['target'] ?? null, 'server automation control should target v0.350');
+    assert_same('Deployer::serverApiOperationCatalog()', $spec['server_automation_control']['methods']['operation_catalog'] ?? null, 'server automation control should expose operation catalog');
+    assert_same('Deployer::serverAutomationReleaseGate()', $spec['server_automation_control']['methods']['release_gate'] ?? null, 'server automation control should expose release gate');
+    assert_same('Deployer::executeServerAutomation()', $spec['server_automation_control']['methods']['safe_execution'] ?? null, 'server automation control should expose safe execution');
+    assert_same('safety_gated', $spec['server_automation_control']['command_execution_allowed'] ?? null, 'server automation control should allow only safety-gated execution');
+    assert_same(false, $spec['server_automation_control']['arbitrary_command_allowed'] ?? null, 'server automation control should reject arbitrary command execution');
+    assert_same('v0.351', $spec['bug_zero_stabilization']['target'] ?? null, 'bug zero stabilization should target v0.351');
+    assert_same(0, $spec['bug_zero_stabilization']['known_bug_count'] ?? null, 'bug zero stabilization should expose zero known bugs');
+    assert_same(0, $spec['bug_zero_stabilization']['documentation_duplication_count'] ?? null, 'bug zero stabilization should expose zero documentation duplication');
+    assert_same('Adlaire::v0351BugZeroStabilizationPolicy()', $spec['bug_zero_stabilization']['method'] ?? null, 'bug zero stabilization should expose policy method');
+    assert_same(false, $spec['bug_zero_stabilization']['arbitrary_command_allowed'] ?? null, 'bug zero stabilization should reject arbitrary commands');
     $configurationPolicy = Adlaire::configurationFilePolicy();
     assert_same(true, $configurationPolicy['ini_files_allowed'] ?? null, 'ini files should be fully allowed');
     assert_true(!in_array('*.ini', $configurationPolicy['prohibited_patterns'] ?? [], true), 'ini files should not be prohibited');
@@ -194,6 +216,15 @@ function test_stable_release_policy(): void
     assert_same(true, $policy['release_check_summary_required'] ?? null, 'release check summary should be required');
     assert_same(true, $policy['dashboard_control_matrix_required'] ?? null, 'dashboard control matrix should be required');
     assert_true(!is_dir(__DIR__ . '/../FrameworkCore'), 'legacy FrameworkCore shim should be absent');
+
+    $stabilization = Adlaire::v0351BugZeroStabilizationPolicy();
+    assert_same('v0.351 Bug Zero Stabilization', $stabilization['theme'] ?? null, 'v0.351 stabilization should define theme');
+    assert_same('stabilized', $stabilization['status'] ?? null, 'v0.351 stabilization should be stabilized');
+    assert_same(0, $stabilization['known_bug_count'] ?? null, 'v0.351 stabilization should keep known bugs at zero');
+    assert_same(0, $stabilization['documentation_duplication_count'] ?? null, 'v0.351 stabilization should keep documentation duplication at zero');
+    assert_same(false, $stabilization['public_api_required'] ?? null, 'v0.351 stabilization should not require public API');
+    assert_same(false, $stabilization['arbitrary_command_allowed'] ?? null, 'v0.351 stabilization should reject arbitrary command execution');
+    assert_same('safety_gated', $stabilization['server_automation_execution'] ?? null, 'v0.351 stabilization should keep server automation safety gated');
 
     $manifest = Adlaire::distributionManifest();
     assert_same(true, $manifest['files_unique'] ?? null, 'distribution manifest files should be unique');
@@ -460,6 +491,37 @@ function test_deployment_control_smoke(): void
     $recovery = $deployer->providerRuntimeRecoveryPlan('fingerprint_mismatch');
     $runtimeDashboard = $deployer->providerRuntimeDashboardControl('xserver_vps');
     $runtimeGate = $deployer->providerRuntimeExecutionGate('xserver_vps');
+    $operationJournal = $deployer->providerRuntimeOperationJournal('xserver_vps');
+    $credentialEnvelope = $deployer->providerRuntimeCredentialEnvelope(['api_token' => 'secret-token']);
+    $runtimePreflight = $deployer->providerRuntimePreflight('xserver_vps');
+    $runtimeApplyPlan = $deployer->providerRuntimeApplyPlan('xserver_vps');
+    $rollbackDrill = $deployer->providerRuntimeRollbackDrill('xserver_vps');
+    $healthSla = $deployer->providerRuntimeHealthSla('xserver_vps');
+    $providerRegistry = $deployer->providerRuntimeProviderRegistry();
+    $auditBundle = $deployer->providerRuntimeAuditBundle('xserver_vps');
+    $operationsDashboard = $deployer->providerRuntimeOperationsDashboard('xserver_vps');
+    $operationsGate = $deployer->providerRuntimeOperationsGate('xserver_vps');
+    $driverContract = $deployer->serverApiDriverContract('xserver_vps');
+    $capabilityProbe = $deployer->serverApiCapabilityProbe('xserver_vps');
+    $authSession = $deployer->serverApiAuthSession(['api_token' => 'secret-token']);
+    $commandSandbox = $deployer->remoteCommandSandbox('xserver_vps');
+    $transactionEngine = $deployer->serverApiTransactionEngine('xserver_vps');
+    $driftDetection = $deployer->providerDriftDetection('xserver_vps');
+    $governance = $deployer->serverApiGovernance('xserver_vps');
+    $failoverPlan = $deployer->multiProviderFailoverPlan();
+    $serverApiConsole = $deployer->dashboardServerApiConsole('xserver_vps');
+    $serverApiGate = $deployer->serverApiExecutionGate('xserver_vps');
+    $operationCatalog = $deployer->serverApiOperationCatalog('xserver_vps');
+    $executionPolicy = $deployer->providerExecutionPolicy('xserver_vps');
+    $fileSync = $deployer->remoteFileSyncPlan('xserver_vps');
+    $reconciliation = $deployer->serverStateReconciliation('xserver_vps');
+    $restartOrchestrator = $deployer->safeRestartOrchestrator('xserver_vps');
+    $snapshotBackup = $deployer->snapshotBackupControl('xserver_vps');
+    $automationAudit = $deployer->serverApiAuditTrail('xserver_vps', 'deploy');
+    $recoveryEngine = $deployer->deploymentRecoveryEngine('health_failed');
+    $automationConsole = $deployer->dashboardAutomationConsole('xserver_vps');
+    $automationGate = $deployer->serverAutomationReleaseGate('xserver_vps');
+    $automationExecution = $deployer->executeServerAutomation('xserver_vps', 'deploy');
     assert_same('xserver_rental', $rentalAdapter['provider'] ?? null, 'xserver rental runtime adapter should target rental');
     assert_same(false, $rentalAdapter['service_restart_supported'] ?? null, 'xserver rental adapter should not support service restart');
     assert_same('xserver_vps', $vpsAdapter['provider'] ?? null, 'xserver vps runtime adapter should target vps');
@@ -473,6 +535,54 @@ function test_deployment_control_smoke(): void
     assert_same(true, $runtimeDashboard['ready'] ?? null, 'provider runtime dashboard control should be ready');
     assert_same(true, $runtimeGate['ready'] ?? null, 'provider runtime execution gate should pass');
     assert_same('v0.320', $runtimeGate['target'] ?? null, 'provider runtime execution gate should target v0.320');
+    assert_same(true, $operationJournal['valid'] ?? null, 'provider runtime operation journal should validate');
+    assert_same(false, $operationJournal['configuration_file'] ?? null, 'provider runtime operation journal should not be configuration file');
+    assert_same(false, $credentialEnvelope['credentials_persisted'] ?? null, 'provider runtime credential envelope should not persist credentials');
+    assert_same('[redacted]', $credentialEnvelope['redacted_payload']['api_token'] ?? null, 'provider runtime credential envelope should redact token');
+    assert_same(true, $runtimePreflight['ready'] ?? null, 'provider runtime preflight should be ready');
+    assert_same(true, $runtimeApplyPlan['valid'] ?? null, 'provider runtime apply plan should validate');
+    assert_true(in_array('promote', $runtimeApplyPlan['apply_steps'] ?? [], true), 'provider runtime apply plan should include promote step');
+    assert_same(true, $rollbackDrill['valid'] ?? null, 'provider runtime rollback drill should validate');
+    assert_same(true, $healthSla['release_block_on_failure'] ?? null, 'provider runtime health SLA should block release on failure');
+    assert_true(in_array('xserver_vps', $providerRegistry['providers'] ?? [], true), 'provider runtime registry should include xserver vps');
+    assert_same(false, $providerRegistry['public_api_required'] ?? null, 'provider runtime registry should not require public API');
+    assert_same(true, $auditBundle['valid'] ?? null, 'provider runtime audit bundle should validate');
+    assert_same(false, $auditBundle['secret_values_exposed'] ?? null, 'provider runtime audit bundle should not expose secrets');
+    assert_same(true, $operationsDashboard['ready'] ?? null, 'provider runtime operations dashboard should be ready');
+    assert_same(true, $operationsGate['ready'] ?? null, 'provider runtime operations gate should pass');
+    assert_same('v0.330', $operationsGate['target'] ?? null, 'provider runtime operations gate should target v0.330');
+    assert_same(true, $driverContract['valid'] ?? null, 'server API driver contract should validate');
+    assert_same(false, $driverContract['public_api_required'] ?? null, 'server API driver contract should not require public API');
+    assert_same(true, $capabilityProbe['capabilities']['service_restart'] ?? null, 'xserver vps capability probe should expose service restart');
+    assert_same(false, $capabilityProbe['mysql_supported'] ?? null, 'server API capability probe should keep MySQL unsupported');
+    assert_same(false, $authSession['credentials_persisted'] ?? null, 'server API auth session should not persist credentials');
+    assert_same(false, $authSession['secret_values_exposed'] ?? null, 'server API auth session should not expose secrets');
+    assert_true(in_array('service_restart', $commandSandbox['allowed_commands'] ?? [], true), 'remote command sandbox should allow service restart for vps');
+    assert_same(false, $commandSandbox['arbitrary_command_allowed'] ?? null, 'remote command sandbox should reject arbitrary commands');
+    assert_same(true, $transactionEngine['valid'] ?? null, 'server API transaction engine should validate');
+    assert_same(true, $transactionEngine['rollback_on_failure'] ?? null, 'server API transaction engine should rollback on failure');
+    assert_same(false, $driftDetection['drift_detected'] ?? null, 'provider drift detection should not detect drift in stable snapshot');
+    assert_same(true, $governance['emergency_stop_enabled'] ?? null, 'server API governance should expose emergency stop');
+    assert_same(false, $failoverPlan['automatic_failover_enabled'] ?? null, 'multi provider failover should not enable automatic failover');
+    assert_same(true, $serverApiConsole['ready'] ?? null, 'dashboard server API console should be ready');
+    assert_same(true, $serverApiGate['ready'] ?? null, 'server API execution gate should pass');
+    assert_same('v0.340', $serverApiGate['target'] ?? null, 'server API execution gate should target v0.340');
+    assert_same(true, $operationCatalog['valid'] ?? null, 'server API operation catalog should validate');
+    assert_same(true, $operationCatalog['available']['deploy'] ?? null, 'server API operation catalog should allow deploy for vps');
+    assert_true(in_array('restart', $executionPolicy['allowed_operations'] ?? [], true), 'provider execution policy should allow restart for vps');
+    assert_same(false, $executionPolicy['arbitrary_command_allowed'] ?? null, 'provider execution policy should reject arbitrary commands');
+    assert_same(true, $fileSync['sha256_verification_required'] ?? null, 'remote file sync should require sha256 verification');
+    assert_same(false, $reconciliation['dangerous_drift_detected'] ?? null, 'server state reconciliation should not detect dangerous drift');
+    assert_same(true, $restartOrchestrator['restart_allowed'] ?? null, 'safe restart orchestrator should allow restart for vps');
+    assert_same('provider_snapshot', $snapshotBackup['mode'] ?? null, 'snapshot backup should use provider snapshot for vps');
+    assert_same(false, $automationAudit['secret_values_exposed'] ?? null, 'server API audit trail should not expose secrets');
+    assert_same(true, $recoveryEngine['rollback_allowed'] ?? null, 'deployment recovery engine should allow rollback for health failure');
+    assert_same('safety_gated', $automationConsole['command_execution_allowed'] ?? null, 'dashboard automation console should be safety gated');
+    assert_same(true, $automationGate['ready'] ?? null, 'server automation release gate should pass');
+    assert_same('v0.350', $automationGate['target'] ?? null, 'server automation release gate should target v0.350');
+    assert_same('completed', $automationExecution['status'] ?? null, 'server automation execution should complete for allowed deploy operation');
+    assert_same(true, $automationExecution['executed'] ?? null, 'server automation execution should mark deploy as executed');
+    assert_same(false, $automationExecution['arbitrary_command_allowed'] ?? null, 'server automation execution should reject arbitrary commands');
     assert_same(true, $evidence['evidence']['release_gate_inputs']['release_artifact_manifest_valid'] ?? null, 'release evidence should include artifact manifest result');
     assert_same(true, $evidence['evidence']['release_gate_inputs']['artifact_acquisition_plan_valid'] ?? null, 'release evidence should include artifact acquisition result');
     assert_same(true, $evidence['evidence']['release_gate_inputs']['artifact_pre_extract_preview_valid'] ?? null, 'release evidence should include artifact pre-extract preview result');
@@ -543,6 +653,12 @@ function test_documentation_deduplication(): void
     foreach (['Deployment Core', 'Runtime', 'GitHub Releases', 'DB方針', 'Public API', 'MySQL', 'SQLite', 'libSQL', '設定ファイル'] as $term) {
         assert_true(!str_contains($xserver, $term), 'Xserver verification doc should not duplicate broad specification term: ' . $term);
     }
+
+    $spec = file_get_contents(__DIR__ . '/../adlaire-ecosystem.md');
+    assert_true(is_string($spec), 'adlaire ecosystem spec should be readable');
+    assert_true(!str_contains($spec, 'ダッシュボードからのdeploy実行は引き続き無効'), 'spec should not keep stale dashboard execution wording');
+    assert_true(str_contains($spec, 'v0.351ではBug Zero Stabilizationを追加する'), 'spec should document v0.351 stabilization');
+    assert_true(str_contains($spec, '任意deploy実行は無効'), 'spec should distinguish arbitrary deploy from safety-gated automation');
 }
 
 function test_dashboard_control_matrix(): void
@@ -589,6 +705,9 @@ function test_dashboard_control_matrix(): void
     $providerOrchestration = $data['sections']['provider_orchestrated_deployment'] ?? null;
     $providerRuntime = $data['sections']['provider_runtime_foundation'] ?? null;
     $providerRuntimeExecution = $data['sections']['provider_runtime_execution'] ?? null;
+    $providerRuntimeOperations = $data['sections']['provider_runtime_operations'] ?? null;
+    $serverApiExecution = $data['sections']['server_api_execution'] ?? null;
+    $serverAutomationControl = $data['sections']['server_automation_control'] ?? null;
     assert_true(is_array($executionGate), 'dashboard should expose execution gate view');
     assert_same(true, $executionGate['ready'] ?? null, 'dashboard execution gate view should be ready');
     assert_same(false, $executionGate['dashboard_execution_enabled'] ?? null, 'dashboard execution gate view should keep execution disabled');
@@ -630,6 +749,18 @@ function test_dashboard_control_matrix(): void
     assert_same('v0.320', $providerRuntimeExecution['target'] ?? null, 'dashboard provider runtime execution should target v0.320');
     assert_same(true, $providerRuntimeExecution['ready'] ?? null, 'dashboard provider runtime execution should be ready');
     assert_same(false, $providerRuntimeExecution['command_execution_allowed'] ?? null, 'dashboard provider runtime execution should be read-only');
+    assert_true(is_array($providerRuntimeOperations), 'dashboard should expose provider runtime operations');
+    assert_same('v0.330', $providerRuntimeOperations['target'] ?? null, 'dashboard provider runtime operations should target v0.330');
+    assert_same(true, $providerRuntimeOperations['ready'] ?? null, 'dashboard provider runtime operations should be ready');
+    assert_same(false, $providerRuntimeOperations['command_execution_allowed'] ?? null, 'dashboard provider runtime operations should be read-only');
+    assert_true(is_array($serverApiExecution), 'dashboard should expose server API execution');
+    assert_same('v0.340', $serverApiExecution['target'] ?? null, 'dashboard server API execution should target v0.340');
+    assert_same(true, $serverApiExecution['ready'] ?? null, 'dashboard server API execution should be ready');
+    assert_same(false, $serverApiExecution['command_execution_allowed'] ?? null, 'dashboard server API execution should be read-only');
+    assert_true(is_array($serverAutomationControl), 'dashboard should expose server automation control');
+    assert_same('v0.350', $serverAutomationControl['target'] ?? null, 'dashboard server automation control should target v0.350');
+    assert_same(true, $serverAutomationControl['ready'] ?? null, 'dashboard server automation control should be ready');
+    assert_same('safety_gated', $serverAutomationControl['command_execution_allowed'] ?? null, 'dashboard server automation should be safety gated');
 
     $html = AdlaireDashboardView::render($data);
     assert_true(str_contains($html, 'Deployment Control Matrix'), 'dashboard HTML should render control matrix section');
@@ -650,6 +781,9 @@ function test_dashboard_control_matrix(): void
     assert_true(str_contains($html, 'Provider Orchestrated Deployment'), 'dashboard HTML should render provider orchestrated deployment');
     assert_true(str_contains($html, 'Provider Runtime Foundation'), 'dashboard HTML should render provider runtime foundation');
     assert_true(str_contains($html, 'Provider Runtime Execution'), 'dashboard HTML should render provider runtime execution');
+    assert_true(str_contains($html, 'Provider Runtime Operations'), 'dashboard HTML should render provider runtime operations');
+    assert_true(str_contains($html, 'Server API Execution'), 'dashboard HTML should render server API execution');
+    assert_true(str_contains($html, 'Server Automation Control'), 'dashboard HTML should render server automation control');
 }
 
 function test_dashboard_execution_tokens(): void
