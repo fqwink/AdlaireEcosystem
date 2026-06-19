@@ -19,7 +19,7 @@ final class AdlaireDatabase
             'unit' => 'realtime_database',
             'feature' => 'Realtime Database',
             'kind' => 'baas_core_feature',
-            'version' => AdlaireProject::VERSION,
+            'version' => AdlaireDeployment::VERSION,
             'deployment_axis' => 'undefined',
             'runtime_execution' => 'sqlite_persistent',
             'selected_database' => 'sqlite',
@@ -33,7 +33,7 @@ final class AdlaireDatabase
     {
         return [
             'feature' => 'realtime_database',
-            'version' => AdlaireProject::VERSION,
+            'version' => AdlaireDeployment::VERSION,
             'state' => 'planned',
             'kind' => 'baas_core_feature',
             'deployable_unit' => 'realtime_database',
@@ -50,6 +50,7 @@ final class AdlaireDatabase
             'wal_mode' => true,
             'integrity_check' => true,
             'backup_restore' => true,
+            'restore_validation' => true,
             'operational_health' => true,
             'sqlite' => true,
             'libsql' => true,
@@ -407,12 +408,17 @@ final class AdlaireDatabase
         unset($fingerprintPayload['storage_status']['path'], $fingerprintPayload['storage_status']['file_size']);
 
         return $payload + [
-            'fingerprint' => hash('sha256', self::encodeJson($fingerprintPayload)),
+            'fingerprint' => self::databaseFingerprint($fingerprintPayload),
         ];
     }
 
     public static function restoreDatabase(array $payload): array
     {
+        $validation = self::validateDatabaseExport($payload);
+        if ($validation['valid'] !== true) {
+            throw new InvalidArgumentException('Database export payload is invalid.');
+        }
+
         self::$records = [];
         self::$events = [];
         self::$collections = [];
@@ -463,6 +469,43 @@ final class AdlaireDatabase
         self::syncSequences();
 
         return self::exportDatabase();
+    }
+
+    public static function validateDatabaseExport(array $payload): array
+    {
+        $errors = [];
+        foreach (['selected_database', 'collections', 'snapshots', 'events', 'cursor'] as $key) {
+            if (!array_key_exists($key, $payload)) {
+                $errors[] = 'missing_' . $key;
+            }
+        }
+        if (($payload['selected_database'] ?? null) !== 'sqlite') {
+            $errors[] = 'selected_database_must_be_sqlite';
+        }
+        if (isset($payload['collections']) && !is_array($payload['collections'])) {
+            $errors[] = 'collections_must_be_array';
+        }
+        if (isset($payload['snapshots']) && !is_array($payload['snapshots'])) {
+            $errors[] = 'snapshots_must_be_array';
+        }
+        if (isset($payload['events']) && !is_array($payload['events'])) {
+            $errors[] = 'events_must_be_array';
+        }
+        if (isset($payload['fingerprint']) && is_string($payload['fingerprint']) && $errors === []) {
+            $fingerprintPayload = $payload;
+            unset($fingerprintPayload['fingerprint']);
+            if (isset($fingerprintPayload['storage_status']) && is_array($fingerprintPayload['storage_status'])) {
+                unset($fingerprintPayload['storage_status']['path'], $fingerprintPayload['storage_status']['file_size']);
+            }
+            if (self::databaseFingerprint($fingerprintPayload) !== $payload['fingerprint']) {
+                $errors[] = 'fingerprint_mismatch';
+            }
+        }
+
+        return [
+            'valid' => $errors === [],
+            'errors' => $errors,
+        ];
     }
 
     public static function restoreSnapshot(string $collection, array $payload): array
@@ -770,6 +813,7 @@ final class AdlaireDatabase
             'wal_mode' => $planned['wal_mode'] === true,
             'integrity_check' => $planned['integrity_check'] === true,
             'backup_restore' => $planned['backup_restore'] === true,
+            'restore_validation' => $planned['restore_validation'] === true,
             'operational_health' => $planned['operational_health'] === true,
             'collections_defined' => self::collections() !== [],
             'channels_defined' => $planned['channels'] !== [],
@@ -1061,6 +1105,11 @@ final class AdlaireDatabase
     {
         $decoded = json_decode($payload, true);
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private static function databaseFingerprint(array $payload): string
+    {
+        return hash('sha256', self::encodeJson($payload));
     }
 
     private static function all(array $checks): bool

@@ -2,17 +2,17 @@
 
 Adlaire Ecosystemは`v0.002`としてBaaS Projectの実運用土台を固める。
 
-## Project Definition
+## Deployment-Integrated Definition
 
 | 項目 | 内容 |
 |------|------|
-| Project | Adlaire Ecosystem |
+| Name | Adlaire Ecosystem |
 | Version | v0.002 |
 | Type | BaaS Project |
 | Policy | Zero-base restart |
 | Compatibility | 未定義 |
 
-プロジェクト名はAdlaire Ecosystemを継承する。実装は`v0.002`仕様から組み立てる。
+名称はAdlaire Ecosystemを継承する。実装は`v0.002`仕様から組み立てる。Coreの`Project`境界は採用せず、名称、version、manifest、readiness、release summaryはDeployment Systemへ統合する。
 
 ## Core Scope
 
@@ -72,6 +72,7 @@ Realtime DatabaseとDatabase選定の詳細は本ドキュメントのRealtime D
 ```text
 Core/
 Applications/
+Docker/
 docs/
 tests/
 ```
@@ -80,15 +81,34 @@ tests/
 
 ## Core Files
 
-`Core/`は次の3ファイルで構成する。
+`Core/`は3フォルダ、3〜5 PHPファイル原則で構成する。
+
+Core直下の境界フォルダ:
+
+```text
+Core/Runtime/
+Core/Deployment/
+Core/Database/
+```
 
 | File | Role |
 |------|------|
-| `Project.php` | project identity, readiness, release summary |
-| `Deployment.php` | deployment system blank state, reset marker, undefined release gate |
-| `Database.php` | realtime database BaaS feature, data model, event log, snapshot, readiness |
+| `Core/Runtime/Runtime.php` | shared runtime helpers |
+| `Core/Deployment/Deployment.php` | deployment system blank state, reset marker, undefined release gate |
+| `Core/Database/Database.php` | realtime database BaaS feature, data model, event log, snapshot, readiness |
 
 必要な機能は本仕様からゼロベースで実装する。
+
+Core PHPファイルは3〜5ファイルに収める。Core配下の機能境界はRuntime、Deployment、Databaseの3フォルダを正とする。Coreの`Project`境界は不要とし、作成しない。
+
+Project統合方針:
+
+```text
+Project boundary: none
+Name/version/manifest: Deployment System
+Readiness/release summary: Deployment System
+Shared helpers: Runtime
+```
 
 ## Applications
 
@@ -96,6 +116,14 @@ tests/
 
 - Application ModulesはCore外のアプリケーション層として扱う。
 - 初期状態では`Applications/.gitkeep`のみを置く。
+
+## Docker
+
+`Docker/`はDocker関連ファイルの境界として維持する。
+
+- Dockerfile、compose、Docker用スクリプト、Docker用設定は`Docker/`へ格納する。
+- Docker関連ファイルをCore、Applications、docs、tests直下へ分散させない。
+- 初期状態では`Docker/.gitkeep`のみを置く。
 
 ## Deployment System
 
@@ -156,6 +184,7 @@ Realtime DatabaseはSQLiteを正選定したBaaS Core Featureである。
 - default collectionをSQLite永続化時にも永続化対象として扱う
 - transaction失敗時はrecord、event、sequence、SQLite書き込みをrollbackする
 - export fingerprintはpath、file sizeなど環境依存値を除外して安定化する
+- restore前にdatabase export payloadを検証し、不正payloadでは既存状態を破壊しない
 - collection定義を持つ
 - collection schemaを持つ
 - channel定義を持つ
@@ -226,6 +255,7 @@ sqlite_persistence: true
 wal_mode: true
 integrity_check: true
 backup_restore: true
+restore_validation: true
 operational_health: true
 ```
 
@@ -260,6 +290,7 @@ Realtime Database readinessは、BaaS Core Featureとしてplanned state、colle
 | Operational health | storage status、integrity check、record/event count、latest cursorを返す |
 | Atomic rollback | transaction失敗時に途中のrecord、event、sequence、SQLite書き込みを残さない |
 | Stable export fingerprint | database exportのfingerprintから環境依存値を除外する |
+| Restore validation | database restore前にpayload構造、SQLite選定、fingerprintを検証する |
 | Conflict detection | expected versionと現在versionの不一致を検出する |
 | Event replay | event payloadからcollection状態を再生する |
 | Read model rebuild | event logからsnapshot viewを再構築する |
@@ -298,6 +329,7 @@ Realtime Databaseは`v0.002`ではpush型接続を持たない。realtime性はe
 | Default Collection Persistence | `system`、`application`もSQLite有効化時に永続化対象へ含める |
 | Storage Status | SQLite path、WAL、integrity check、file sizeを返す |
 | Operational Health | 永続化状態、migration状態、record/event countを返す |
+| Restore Validation | 不正なdatabase export payloadでは既存状態を破壊しない |
 
 Record metadata:
 
@@ -446,12 +478,13 @@ default collections are persisted
 failed transaction leaves no partial records
 failed transaction leaves no partial events
 export fingerprint excludes path and file_size
+restore validates selected_database and fingerprint before mutation
 json encode failure is an explicit runtime error
 ```
 
 ## Realtime Database Operations
 
-`Database.php`は次のCore内部メソッドを持つ。
+`Core/Database/Database.php`は次のCore内部メソッドを持つ。
 
 ```text
 defineCollection(collection, channel, schema, indexes, deleteMode)
@@ -469,6 +502,7 @@ stats(collection)
 snapshot(collection)
 exportSnapshot(collection)
 exportDatabase()
+validateDatabaseExport(payload)
 restoreDatabase(payload)
 restoreSnapshot(collection, payload)
 events(after)
@@ -521,7 +555,8 @@ docs/testing.md
 テストは次を検証する。
 
 - 許可ディレクトリのみ存在する
-- Coreが3ファイルである
+- Coreが3フォルダ、3〜5 PHPファイル原則を満たす
+- Docker関連境界として`Docker/`が存在する
 - Deployment Systemが白紙状態である
 - Deployment Systemがrelease readyを出さない
 - Realtime Database readinessが成功する
@@ -530,7 +565,7 @@ docs/testing.md
 - Realtime Databaseのrecord取得、record一覧、collection streamが機能する
 - Realtime Databaseのschema、metadata、query、subscription、transaction、snapshot export、index planned stateが機能する
 - Realtime Databaseのpatch、stats、migration plan、database export、snapshot restore、conflict detection、event replay、read model rebuild、access rule placeholder、realtime adapter boundaryが機能する
-- Realtime DatabaseのSQLite永続化、default collection永続化、transaction rollback、operational healthが機能する
+- Realtime DatabaseのSQLite永続化、default collection永続化、transaction rollback、restore validation、operational healthが機能する
 - Applications境界が維持される
 - docs境界が維持され、テスト関連ドキュメントが`docs/testing.md`へ集約される
 

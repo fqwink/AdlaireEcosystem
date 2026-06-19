@@ -13,7 +13,7 @@
 ## 現行方針
 
 - 現行バージョンは`v0.002`。
-- プロジェクト名はAdlaire Ecosystemを継承する。
+- 名称はAdlaire Ecosystemを継承する。
 - Adlaire EcosystemはBaaS Projectとしてゼロベースで再スタートする。
 - `v0.002`で計画する中核機能はDeployment System、Realtime Databaseのみ。
 - Deployment Systemは基本方針からやり直すため、現時点では白紙状態として扱う。
@@ -26,18 +26,33 @@
 
 - `Core/`
 - `Applications/`
+- `Docker/`
 - `docs/`
 - `tests/`
 
 現行構成は上記ディレクトリに集約する。
 
-## Coreファイル
+## Core構成
 
-`Core/`は次の3ファイルで構成する。
+`Core/`は3フォルダ、3〜5 PHPファイル原則で構成する。
 
-- `Project.php`
-- `Deployment.php`
-- `Database.php`
+- `Core/Runtime/Runtime.php`
+- `Core/Deployment/Deployment.php`
+- `Core/Database/Database.php`
+
+Core直下に置く境界フォルダは次の3つとする。
+
+- `Runtime/`
+- `Deployment/`
+- `Database/`
+
+Project境界は作成しない。名称、version、manifest、readiness、release summaryはDeployment Systemへ統合する。
+
+## Docker
+
+- `Docker/`はDocker関連ファイルの境界として維持する。
+- 今後のDockerfile、compose、Docker用スクリプト、Docker用設定は`Docker/`へ格納する。
+- 初期状態では`Docker/.gitkeep`のみを置く。
 
 ## Applications
 
