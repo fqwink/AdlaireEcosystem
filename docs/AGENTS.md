@@ -1,20 +1,21 @@
 # AGENTS.md
 
-このリポジトリで作業するエージェントは、変更前に必ず本ファイルと`ADLAIRE-ECOSYSTEM.md`を確認する。
+このリポジトリで作業するエージェントは、変更前に必ず`docs/AGENTS.md`と`docs/ADLAIRE-ECOSYSTEM.md`を確認する。
 
 ## 正本
 
-- 仕様の正本は`ADLAIRE-ECOSYSTEM.md`。
-- READMEは日本語の簡易説明のみ。
-- 詳細仕様、設計判断、リリース条件は`ADLAIRE-ECOSYSTEM.md`へ集約する。
+- 仕様の正本は`docs/ADLAIRE-ECOSYSTEM.md`。
+- READMEは`docs/README.md`に置き、日本語の簡易説明のみとする。
+- 詳細仕様、設計判断、リリース条件は`docs/ADLAIRE-ECOSYSTEM.md`へ集約する。
+- テスト関連の補助ドキュメントは`docs/testing.md`へ集約する。
 - 仕様と実装が異なる場合は、仕様を正として実装を修正する。
 
 ## 現行方針
 
-- 現行バージョンは`v0.001`。
+- 現行バージョンは`v0.002`。
 - プロジェクト名はAdlaire Ecosystemを継承する。
 - Adlaire EcosystemはBaaS Projectとしてゼロベースで再スタートする。
-- `v0.001`で計画する中核機能はDeployment System、Realtime Databaseのみ。
+- `v0.002`で計画する中核機能はDeployment System、Realtime Databaseのみ。
 - Deployment Systemは基本方針からやり直すため、現時点では白紙状態として扱う。
 - Authentication、Authorization、その他BaaS機能は未定義とし、Adlaire独自方式を確定するまで実装しない。
 - Realtime DatabaseのDatabaseはSQLiteを正選定し、libSQLは正選定ではなくSQLite互換の将来拡張候補として扱う。
@@ -55,7 +56,7 @@
 5. テスト
 6. リリース判定
 
-仕様が未定義の領域は先に`ADLAIRE-ECOSYSTEM.md`へ追記してから実装する。
+仕様が未定義の領域は先に`docs/ADLAIRE-ECOSYSTEM.md`へ追記してから実装する。
 
 ## テスト
 

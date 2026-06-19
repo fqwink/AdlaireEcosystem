@@ -30,11 +30,20 @@ function files_in(string $directory): array
     return $items;
 }
 
+function root_markdown_files(): array
+{
+    $items = glob(__DIR__ . '/../*.md') ?: [];
+    $items = array_map('basename', $items);
+    sort($items);
+    return $items;
+}
+
 function test_directory_policy(): void
 {
-    assert_same(['Database.php', 'Deployment.php', 'Project.php'], files_in('Core'), 'Core should contain v0.001 planned files');
+    assert_same([], root_markdown_files(), 'root should not contain markdown documents');
+    assert_same(['Database.php', 'Deployment.php', 'Project.php'], files_in('Core'), 'Core should contain v0.002 planned files');
     assert_same(['.gitkeep'], files_in('Applications'), 'Applications should contain only the boundary marker');
-    assert_same(['project.md'], files_in('docs'), 'docs should contain only project.md');
+    assert_same(['ADLAIRE-ECOSYSTEM.md', 'AGENTS.md', 'README.md', 'project.md', 'testing.md'], files_in('docs'), 'docs should contain all documents');
     assert_same(['debug.php'], files_in('tests'), 'tests should contain only debug.php');
 
     assert_true(is_dir(__DIR__ . '/../Core'), 'Core directory should exist');
@@ -47,10 +56,10 @@ function test_project_readiness(): void
 {
     $manifest = AdlaireProject::manifest();
     assert_same('Adlaire Ecosystem', $manifest['name'], 'project name should be inherited');
-    assert_same('v0.001', $manifest['version'], 'version should restart at v0.001');
+    assert_same('v0.002', $manifest['version'], 'version should be v0.002');
     assert_same('BaaS Project', $manifest['type'], 'project should be a BaaS Project');
-    assert_same(true, $manifest['current_scope_only'], 'project should use the current v0.001 scope');
-    assert_same(['deployment_system', 'realtime_database'], $manifest['core_scope'], 'v0.001 scope should be deployment system and realtime database');
+    assert_same(true, $manifest['current_scope_only'], 'project should use the current v0.002 scope');
+    assert_same(['deployment_system', 'realtime_database'], $manifest['core_scope'], 'v0.002 scope should be deployment system and realtime database');
     assert_true(in_array('authentication', $manifest['undefined_scope'], true), 'authentication should be undefined');
     assert_true(in_array('authorization', $manifest['undefined_scope'], true), 'authorization should be undefined');
 
@@ -66,7 +75,7 @@ function test_core_capabilities(): void
     $deployment = AdlaireDeployment::readiness();
     assert_same(true, $deployment['ready'], 'deployment system blank state should be explicit');
     assert_same('blank', $deployment['state']['state'], 'deployment system should be blank');
-    assert_same('none', $deployment['state']['execution'], 'deployment system should not execute in v0.001');
+    assert_same('none', $deployment['state']['execution'], 'deployment system should not execute in v0.002');
     assert_same(false, $deployment['state']['release_ready'], 'deployment system should not be release ready while blank');
 
     $database = AdlaireDatabase::readiness();
@@ -79,7 +88,13 @@ function test_core_capabilities(): void
     assert_same('sqlite', $database['planned_state']['selected_database'], 'database should select SQLite');
     assert_same('libsql', $database['planned_state']['compatibility_target'], 'database should keep libSQL as compatibility target');
     assert_same('sqlite_primary_libsql_compatible', $database['planned_state']['storage_policy'], 'database should use SQLite primary libSQL compatible policy');
-    assert_same('in_memory', $database['planned_state']['runtime_execution'], 'database runtime should be in-memory in v0.001');
+    assert_same('sqlite_persistent', $database['planned_state']['runtime_execution'], 'database runtime should be SQLite persistent in v0.002');
+    assert_same('in_memory', $database['planned_state']['fallback_runtime'], 'database should keep in-memory fallback');
+    assert_same(true, $database['planned_state']['sqlite_persistence'], 'database should support SQLite persistence');
+    assert_same(true, $database['planned_state']['wal_mode'], 'database should support WAL mode');
+    assert_same(true, $database['planned_state']['integrity_check'], 'database should support integrity check');
+    assert_same(true, $database['planned_state']['backup_restore'], 'database should support backup and restore');
+    assert_same(true, $database['planned_state']['operational_health'], 'database should expose operational health');
     assert_same(true, $database['planned_state']['collection_stream'], 'database should support collection stream tracking');
     assert_same(true, $database['planned_state']['record_lookup'], 'database should support record lookup');
     assert_same(true, $database['planned_state']['record_listing'], 'database should support record listing');
@@ -87,9 +102,19 @@ function test_core_capabilities(): void
     assert_same(true, $database['planned_state']['record_metadata'], 'database should support record metadata');
     assert_same(true, $database['planned_state']['query'], 'database should support query');
     assert_same(true, $database['planned_state']['index_plan'], 'database should expose index planned state');
+    assert_same(true, $database['planned_state']['migration_plan'], 'database should expose migration planned state');
+    assert_same(true, $database['planned_state']['event_payload_summary'], 'database should expose event payload summary');
     assert_same(true, $database['planned_state']['subscription_model'], 'database should expose subscription model');
     assert_same(true, $database['planned_state']['transaction_boundary'], 'database should expose transaction boundary');
     assert_same(true, $database['planned_state']['snapshot_export'], 'database should support snapshot export');
+    assert_same(true, $database['planned_state']['database_export'], 'database should support database export');
+    assert_same(true, $database['planned_state']['snapshot_restore'], 'database should support snapshot restore');
+    assert_same(true, $database['planned_state']['conflict_detection'], 'database should support conflict detection');
+    assert_same(true, $database['planned_state']['event_replay'], 'database should support event replay');
+    assert_same(true, $database['planned_state']['read_model_rebuild'], 'database should support read model rebuild');
+    assert_same('undefined', $database['planned_state']['access_rules'], 'database access rules should remain undefined');
+    assert_same('none', $database['planned_state']['realtime_adapter'], 'database realtime adapter should be none');
+    assert_same('pull_cursor', $database['planned_state']['stream_mode'], 'database stream mode should be pull cursor');
 
     $gate = AdlaireDeployment::releaseGate();
     assert_same(false, $gate['ready'], 'deployment system release gate should not pass while blank');
@@ -112,6 +137,13 @@ function test_realtime_database_data(): void
     assert_same(['action' => 'string', 'count' => 'integer'], $defined['schema'], 'custom collection should keep schema');
     assert_same(['action'], $defined['indexes'], 'custom collection should keep custom indexes');
     assert_same('soft', $defined['delete_mode'], 'custom collection should keep delete mode');
+    $taskDefinition = AdlaireDatabase::defineCollection('tasks', 'application', [
+        'title' => ['type' => 'string', 'required' => true],
+        'status' => ['type' => 'string', 'default' => 'draft', 'enum' => ['draft', 'done']],
+        'score' => ['type' => 'integer', 'min' => 0, 'max' => 10],
+        'tags' => ['type' => 'array', 'default' => []],
+    ], ['status', 'score'], 'hard');
+    assert_same('draft', $taskDefinition['schema']['status']['default'], 'rich schema should keep defaults');
 
     $created = AdlaireDatabase::create('system', ['name' => 'alpha']);
     assert_same('system', $created['collection'], 'created record should keep collection');
@@ -181,7 +213,7 @@ function test_realtime_database_data(): void
 
     $subscription = AdlaireDatabase::subscribe('audit_log');
     assert_same('collection_stream', $subscription['subscription'], 'subscription should use collection stream model');
-    assert_same(false, $subscription['push'], 'subscription should not use push in v0.001');
+    assert_same(false, $subscription['push'], 'subscription should not use push in v0.002');
 
     $export = AdlaireDatabase::exportSnapshot('audit_log');
     assert_same('audit_log', $export['collection'], 'snapshot export should keep collection');
@@ -208,12 +240,137 @@ function test_realtime_database_data(): void
     assert_same(2, count($transaction['results']), 'transaction should return operation results');
     assert_same(2, count($transaction['events']), 'transaction should return created events');
     assert_same($transaction['events'][1]['id'], $transaction['cursor'], 'transaction should expose latest event cursor');
+
+    $task = AdlaireDatabase::create('tasks', ['title' => 'Ship', 'score' => 3]);
+    assert_same('draft', $task['data']['status'], 'schema default should be applied on create');
+    $conflict = AdlaireDatabase::update('tasks', $task['id'], ['score' => 4], 99);
+    assert_same(true, $conflict['conflict'], 'update should detect version conflict');
+    assert_same(1, $conflict['current_version'], 'conflict should include current version');
+
+    $patched = AdlaireDatabase::patch('tasks', $task['id'], [
+        ['type' => 'set', 'field' => 'status', 'value' => 'done'],
+        ['type' => 'increment', 'field' => 'score', 'value' => 2],
+        ['type' => 'append', 'field' => 'tags', 'value' => 'release'],
+        ['type' => 'unset', 'field' => 'title'],
+    ], 1);
+    assert_same(5, $patched['data']['score'], 'patch should increment numeric fields');
+    assert_same(['release'], $patched['data']['tags'], 'patch should append list fields');
+    assert_true(!array_key_exists('title', $patched['data']), 'patch should unset fields');
+
+    $queryAdvanced = AdlaireDatabase::query('tasks', [
+        'where' => ['field' => 'score', 'operator' => 'gte', 'value' => 5],
+        'select' => ['status', 'score'],
+        'count_only' => false,
+    ]);
+    assert_same(1, $queryAdvanced['count'], 'advanced query should support range operators');
+    assert_same('done', $queryAdvanced['records'][0]['status'], 'advanced query should select requested fields');
+
+    $stats = AdlaireDatabase::stats('tasks');
+    assert_same(1, $stats['record_count'], 'stats should include record count');
+    assert_true(is_string($stats['schema_fingerprint']) && $stats['schema_fingerprint'] !== '', 'stats should include schema fingerprint');
+
+    $migration = AdlaireDatabase::migrationPlan();
+    assert_same('planned', $migration['persistence_status'], 'migration plan should be planned');
+    assert_same(['collections', 'records', 'events', 'schema_versions', 'database_meta'], $migration['tables'], 'migration plan should include SQLite tables');
+
+    $databaseExport = AdlaireDatabase::exportDatabase();
+    assert_same('sqlite', $databaseExport['selected_database'], 'database export should keep selected database');
+    assert_true(isset($databaseExport['collections']['tasks']), 'database export should include collection definitions');
+
+    $taskExport = AdlaireDatabase::exportSnapshot('tasks');
+    AdlaireDatabase::defineCollection('restored_tasks', 'application', $taskDefinition['schema'], $taskDefinition['indexes'], 'hard');
+    $restored = AdlaireDatabase::restoreSnapshot('restored_tasks', [
+        'definition' => ['channel' => 'application', 'schema' => $taskDefinition['schema'], 'indexes' => $taskDefinition['indexes'], 'delete_mode' => 'hard'],
+        'snapshot' => $taskExport['snapshot'],
+    ]);
+    assert_same(1, count($restored['records']), 'restore snapshot should restore records');
+
+    $rebuilt = AdlaireDatabase::rebuildSnapshot('tasks');
+    assert_same(1, count($rebuilt['records']), 'read model rebuild should replay visible records');
+    assert_same($rebuilt['fingerprint'], AdlaireDatabase::replay('tasks', AdlaireDatabase::events(null, 'tasks'))['fingerprint'], 'replay and rebuild should agree');
+
+    $taskEvents = AdlaireDatabase::events(null, 'tasks');
+    assert_true(array_key_exists('before_hash', $taskEvents[1]), 'event should include before hash');
+    assert_true(array_key_exists('after_hash', $taskEvents[1]), 'event should include after hash');
+    assert_true(in_array('score', $taskEvents[1]['changed_fields'], true), 'event should include changed fields');
+    assert_same('undefined', AdlaireDatabase::accessRules()['access_rules'], 'access rules should remain undefined');
+    assert_same('none', AdlaireDatabase::realtimeAdapter()['adapter'], 'realtime adapter should be none');
+}
+
+function test_sqlite_persistence(): void
+{
+    AdlaireDatabase::reset();
+    $path = sys_get_temp_dir() . '/adlaire_realtime_' . str_replace('.', '_', uniqid('', true)) . '.sqlite';
+    @unlink($path);
+    @unlink($path . '-wal');
+    @unlink($path . '-shm');
+
+    $status = AdlaireDatabase::enableSQLite($path);
+    assert_same(true, $status['enabled'], 'SQLite persistence should be enabled');
+    assert_same('sqlite_persistent', $status['runtime_execution'], 'SQLite runtime should be persistent');
+    assert_same(true, $status['wal_mode'], 'SQLite persistence should use WAL');
+    assert_same('ok', $status['integrity_check'], 'SQLite integrity check should pass');
+    assert_same('sqlite', AdlaireDatabase::collections()['system']['storage'], 'default system collection should use SQLite when persistence is enabled');
+    assert_same('sqlite', AdlaireDatabase::collections()['application']['storage'], 'default application collection should use SQLite when persistence is enabled');
+
+    $definition = AdlaireDatabase::defineCollection('durable_tasks', 'application', [
+        'title' => ['type' => 'string', 'required' => true],
+        'status' => ['type' => 'string', 'default' => 'open'],
+    ], ['status'], 'hard');
+    assert_same('sqlite', $definition['storage'], 'SQLite collection should be stored as sqlite');
+
+    $created = AdlaireDatabase::create('durable_tasks', ['title' => 'Persist']);
+    $updated = AdlaireDatabase::update('durable_tasks', $created['id'], ['status' => 'done']);
+    assert_same('done', $updated['data']['status'], 'SQLite-backed record should update');
+
+    $export = AdlaireDatabase::exportDatabase();
+    assert_same(true, $export['storage_status']['enabled'], 'database export should include enabled storage status');
+    assert_true(isset($export['collections']['durable_tasks']), 'database export should include durable collection');
+    assert_true(is_string($export['fingerprint']) && $export['fingerprint'] !== '', 'database export should include stable fingerprint');
+
+    $eventCountBeforeFailure = count(AdlaireDatabase::events(null, 'durable_tasks'));
+    $recordCountBeforeFailure = count(AdlaireDatabase::records('durable_tasks'));
+    try {
+        AdlaireDatabase::transaction([
+            ['type' => 'create', 'collection' => 'durable_tasks', 'data' => ['title' => 'Rolled back']],
+            ['type' => 'create', 'collection' => 'missing_collection', 'data' => ['title' => 'Invalid']],
+        ]);
+        throw new TestFailure('transaction failure should throw');
+    } catch (InvalidArgumentException $exception) {
+        assert_true(str_contains($exception->getMessage(), 'Collection'), 'transaction failure should expose collection error');
+    }
+    assert_same($recordCountBeforeFailure, count(AdlaireDatabase::records('durable_tasks')), 'failed transaction should roll back records');
+    assert_same($eventCountBeforeFailure, count(AdlaireDatabase::events(null, 'durable_tasks')), 'failed transaction should roll back events');
+
+    AdlaireDatabase::reset();
+    $reloadStatus = AdlaireDatabase::enableSQLite($path);
+    assert_same(true, $reloadStatus['enabled'], 'SQLite persistence should re-enable from existing file');
+    assert_same('sqlite', AdlaireDatabase::collections()['system']['storage'], 'reloaded default system collection should use SQLite');
+    $loaded = AdlaireDatabase::get('durable_tasks', $created['id']);
+    assert_true(is_array($loaded), 'SQLite record should load after runtime reset');
+    assert_same('done', $loaded['data']['status'], 'SQLite record should preserve updated data');
+    assert_same(2, count(AdlaireDatabase::events(null, 'durable_tasks')), 'SQLite event log should load after runtime reset');
+    assert_same(1, count(AdlaireDatabase::records('durable_tasks')), 'SQLite reload should not include rolled back records');
+
+    $health = AdlaireDatabase::operationalHealth();
+    assert_same(true, $health['ready'], 'SQLite operational health should be ready');
+    assert_same('ok', $health['storage']['integrity_check'], 'operational health should include integrity check');
+
+    $restored = AdlaireDatabase::restoreDatabase($export);
+    assert_true(isset($restored['collections']['durable_tasks']), 'database restore should restore collection definitions');
+    assert_same(1, count($restored['snapshots']['durable_tasks']['records']), 'database restore should restore records');
+    assert_same($export['fingerprint'], $restored['fingerprint'], 'database restore should keep stable export fingerprint');
+
+    AdlaireDatabase::reset();
+    @unlink($path);
+    @unlink($path . '-wal');
+    @unlink($path . '-shm');
 }
 
 function test_release_conditions(): void
 {
     $release = AdlaireProject::release();
-    assert_same('v0.001', $release['version'], 'release version should be v0.001');
+    assert_same('v0.002', $release['version'], 'release version should be v0.002');
     assert_same(false, $release['release_ready'], 'release should not be ready while deployment system is blank');
     assert_same(false, $release['deployment_gate']['ready'], 'deployment release gate should not pass while blank');
     assert_same('blank', $release['deployment_gate']['state']['state'], 'deployment gate should expose blank state');
@@ -222,20 +379,29 @@ function test_release_conditions(): void
 
 function test_documents(): void
 {
-    $spec = file_get_contents(__DIR__ . '/../ADLAIRE-ECOSYSTEM.md');
-    $readme = file_get_contents(__DIR__ . '/../README.md');
-    $agents = file_get_contents(__DIR__ . '/../AGENTS.md');
+    $spec = file_get_contents(__DIR__ . '/../docs/ADLAIRE-ECOSYSTEM.md');
+    $readme = file_get_contents(__DIR__ . '/../docs/README.md');
+    $agents = file_get_contents(__DIR__ . '/../docs/AGENTS.md');
     $projectDoc = file_get_contents(__DIR__ . '/../docs/project.md');
+    $testingDoc = file_get_contents(__DIR__ . '/../docs/testing.md');
 
-    assert_true(is_string($spec) && str_contains($spec, 'v0.001'), 'spec should describe v0.001');
+    assert_true(is_string($spec) && str_contains($spec, 'v0.002'), 'spec should describe v0.002');
     assert_true(is_string($spec) && str_contains($spec, 'Selected database | SQLite'), 'spec should select SQLite');
     assert_true(is_string($spec) && str_contains($spec, 'libSQLは正選定しない'), 'spec should not select libSQL');
     assert_true(is_string($spec) && str_contains($spec, 'Realtime Database BaaS Contract'), 'spec should define the realtime database BaaS contract');
     assert_true(is_string($spec) && str_contains($spec, 'Collection Schema'), 'spec should define collection schema');
     assert_true(is_string($spec) && str_contains($spec, 'Snapshot Export'), 'spec should define snapshot export');
+    assert_true(is_string($spec) && str_contains($spec, 'Migration planned state'), 'spec should define migration planned state');
+    assert_true(is_string($spec) && str_contains($spec, 'Realtime Adapter Boundary'), 'spec should define realtime adapter boundary');
+    assert_true(is_string($spec) && str_contains($spec, 'SQLite Persistence'), 'spec should define SQLite persistence');
+    assert_true(is_string($spec) && str_contains($spec, 'Operational Health'), 'spec should define operational health');
     assert_true(is_string($readme) && str_contains($readme, 'BaaS Project'), 'README should describe the BaaS Project');
     assert_true(is_string($agents) && str_contains($agents, '仕様取りまとめ'), 'AGENTS should define the development order');
-    assert_true(is_string($projectDoc) && str_contains($projectDoc, 'ADLAIRE-ECOSYSTEM.md'), 'project doc should delegate details to the spec');
+    assert_true(is_string($projectDoc) && str_contains($projectDoc, 'docs/ADLAIRE-ECOSYSTEM.md'), 'project doc should delegate details to the spec');
+    assert_true(is_string($testingDoc) && str_contains($testingDoc, 'php tests/debug.php'), 'testing doc should describe the official test entrypoint');
+    assert_true(is_string($testingDoc) && str_contains($testingDoc, 'v0.002 Test Scope'), 'testing doc should describe v0.002 test scope');
+    assert_true(is_string($spec) && str_contains($spec, 'docs/testing.md'), 'spec should assign testing documents to docs/testing.md');
+    assert_true(is_string($spec) && str_contains($spec, 'すべてのドキュメントは`docs/`へ集約する'), 'spec should centralize all documents under docs');
 }
 
 $tests = [
@@ -243,6 +409,7 @@ $tests = [
     'project_readiness' => test_project_readiness(...),
     'core_capabilities' => test_core_capabilities(...),
     'realtime_database_data' => test_realtime_database_data(...),
+    'sqlite_persistence' => test_sqlite_persistence(...),
     'release_conditions' => test_release_conditions(...),
     'documents' => test_documents(...),
 ];

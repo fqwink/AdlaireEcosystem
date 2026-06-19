@@ -7,6 +7,8 @@ final class AdlaireDatabase
     private static array $records = [];
     private static array $events = [];
     private static array $collections = [];
+    private static ?PDO $pdo = null;
+    private static ?string $sqlitePath = null;
     private static int $recordSequence = 0;
     private static int $eventSequence = 0;
     private static int $transactionSequence = 0;
@@ -19,7 +21,7 @@ final class AdlaireDatabase
             'kind' => 'baas_core_feature',
             'version' => AdlaireProject::VERSION,
             'deployment_axis' => 'undefined',
-            'runtime_execution' => 'in_memory',
+            'runtime_execution' => 'sqlite_persistent',
             'selected_database' => 'sqlite',
             'compatibility_target' => 'libsql',
             'storage_policy' => 'sqlite_primary_libsql_compatible',
@@ -42,7 +44,13 @@ final class AdlaireDatabase
             'selected_database' => 'sqlite',
             'compatibility_target' => 'libsql',
             'storage_policy' => 'sqlite_primary_libsql_compatible',
-            'data_runtime' => 'in_memory',
+            'data_runtime' => 'sqlite_persistent',
+            'fallback_runtime' => 'in_memory',
+            'sqlite_persistence' => true,
+            'wal_mode' => true,
+            'integrity_check' => true,
+            'backup_restore' => true,
+            'operational_health' => true,
             'sqlite' => true,
             'libsql' => true,
             'collections' => array_keys(self::collections()),
@@ -56,14 +64,55 @@ final class AdlaireDatabase
             'record_metadata' => true,
             'query' => true,
             'index_plan' => true,
+            'migration_plan' => true,
+            'event_payload_summary' => true,
             'subscription_model' => true,
             'transaction_boundary' => true,
             'snapshot_export' => true,
+            'database_export' => true,
+            'snapshot_restore' => true,
+            'conflict_detection' => true,
+            'event_replay' => true,
+            'read_model_rebuild' => true,
+            'access_rules' => 'undefined',
+            'realtime_adapter' => 'none',
+            'stream_mode' => 'pull_cursor',
             'snapshot' => 'collection_state',
             'rollback_required' => true,
-            'runtime_execution' => 'in_memory',
+            'runtime_execution' => 'sqlite_persistent',
             'readiness_source' => 'realtime_database_core',
         ];
+    }
+
+    public static function enableSQLite(string $path): array
+    {
+        if ($path === '') {
+            throw new InvalidArgumentException('SQLite path is required.');
+        }
+
+        $directory = dirname($path);
+        if (!is_dir($directory)) {
+            throw new InvalidArgumentException('SQLite directory does not exist.');
+        }
+
+        self::$sqlitePath = $path;
+        self::$pdo = new PDO('sqlite:' . $path);
+        self::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        self::$pdo->exec('PRAGMA journal_mode = WAL');
+        self::$pdo->exec('PRAGMA foreign_keys = ON');
+        self::initializeSQLite();
+        self::loadSQLite();
+        self::persistDefaultCollections();
+        self::writeMeta('schema_version', '1');
+        self::writeMeta('selected_database', 'sqlite');
+
+        return self::storageStatus();
+    }
+
+    public static function disableSQLite(): void
+    {
+        self::$pdo = null;
+        self::$sqlitePath = null;
     }
 
     public static function defineCollection(
@@ -80,11 +129,12 @@ final class AdlaireDatabase
         self::$collections[$collection] = [
             'name' => $collection,
             'channel' => $channel,
-            'storage' => 'in_memory',
+            'storage' => self::$pdo === null ? 'in_memory' : 'sqlite',
             'schema' => self::stableData($schema),
             'indexes' => array_values($indexes),
             'delete_mode' => $deleteMode,
         ];
+        self::persistCollection(self::$collections[$collection]);
 
         return self::$collections[$collection];
     }
@@ -100,7 +150,7 @@ final class AdlaireDatabase
     public static function create(string $collection, array $data): array
     {
         self::assertCollection($collection);
-        self::assertDataMatchesSchema($collection, $data);
+        $data = self::normalizeDataForSchema($collection, $data, true);
         $id = 'rec_' . str_pad((string)++self::$recordSequence, 6, '0', STR_PAD_LEFT);
         $sequence = self::$eventSequence + 1;
         $record = [
@@ -117,7 +167,8 @@ final class AdlaireDatabase
             'version' => 1,
         ];
         self::$records[$collection][$id] = $record;
-        self::recordEvent($collection, $id, 'create', $record['version'], $record['data']);
+        self::persistRecord($record);
+        self::recordEvent($collection, $id, 'create', $record['version'], $record['data'], null);
 
         return $record;
     }
@@ -151,17 +202,7 @@ final class AdlaireDatabase
         $where = $options['where'] ?? null;
         if (is_array($where)) {
             $records = array_values(array_filter($records, static function (array $record) use ($where): bool {
-                if (isset($where['field'])) {
-                    return self::valueForQuery($record, (string)$where['field']) === ($where['equals'] ?? null);
-                }
-
-                foreach ($where as $field => $expected) {
-                    if (self::valueForQuery($record, (string)$field) !== $expected) {
-                        return false;
-                    }
-                }
-
-                return true;
+                return self::matchesWhere($record, $where);
             }));
         }
 
@@ -174,31 +215,91 @@ final class AdlaireDatabase
         }
 
         $limit = $options['limit'] ?? null;
+        $offset = $options['offset'] ?? 0;
+        if (is_int($offset) && $offset > 0) {
+            $records = array_slice($records, $offset);
+        }
         if (is_int($limit) && $limit >= 0) {
             $records = array_slice($records, 0, $limit);
         }
 
+        $total = count($records);
+        $select = $options['select'] ?? null;
+        if (is_array($select)) {
+            $records = array_map(static function (array $record) use ($select): array {
+                $selected = ['id' => $record['id']];
+                foreach ($select as $field) {
+                    $selected[(string)$field] = self::valueForQuery($record, (string)$field);
+                }
+                return $selected;
+            }, $records);
+        }
+
         return [
             'collection' => $collection,
-            'records' => $records,
-            'count' => count($records),
+            'records' => ($options['count_only'] ?? false) === true ? [] : $records,
+            'count' => $total,
         ];
     }
 
-    public static function update(string $collection, string $id, array $data): array
+    public static function patch(string $collection, string $id, array $operations, ?int $expectedVersion = null): array
+    {
+        $record = self::get($collection, $id);
+        if ($record === null) {
+            throw new InvalidArgumentException('Record not found.');
+        }
+        if ($expectedVersion !== null && (int)$record['version'] !== $expectedVersion) {
+            return self::conflict($id, (int)$record['version'], $expectedVersion);
+        }
+
+        $data = $record['data'];
+        foreach ($operations as $operation) {
+            $type = $operation['type'] ?? null;
+            $field = (string)($operation['field'] ?? '');
+            if ($field === '') {
+                throw new InvalidArgumentException('Patch operation field is required.');
+            }
+
+            if ($type === 'set') {
+                $data[$field] = $operation['value'] ?? null;
+            } elseif ($type === 'unset') {
+                unset($data[$field]);
+            } elseif ($type === 'increment') {
+                $data[$field] = ($data[$field] ?? 0) + ($operation['value'] ?? 1);
+            } elseif ($type === 'append') {
+                $list = $data[$field] ?? [];
+                if (!is_array($list)) {
+                    throw new InvalidArgumentException('Patch append target must be an array.');
+                }
+                $list[] = $operation['value'] ?? null;
+                $data[$field] = $list;
+            } else {
+                throw new InvalidArgumentException('Unsupported patch operation.');
+            }
+        }
+
+        return self::update($collection, $id, $data, null, true);
+    }
+
+    public static function update(string $collection, string $id, array $data, ?int $expectedVersion = null, bool $replace = false): array
     {
         self::assertCollection($collection);
-        self::assertDataMatchesSchema($collection, $data);
         if (!isset(self::$records[$collection][$id]) || self::isDeleted(self::$records[$collection][$id])) {
             throw new InvalidArgumentException('Record not found.');
         }
         $record = self::$records[$collection][$id];
-        $record['data'] = self::stableData(array_replace($record['data'], $data));
+        if ($expectedVersion !== null && (int)$record['version'] !== $expectedVersion) {
+            return self::conflict($id, (int)$record['version'], $expectedVersion);
+        }
+        $before = $record['data'];
+        $data = self::normalizeDataForSchema($collection, $data, false);
+        $record['data'] = self::stableData($replace ? $data : array_replace($record['data'], $data));
         $record['meta']['updated_sequence'] = self::$eventSequence + 1;
         $record['meta']['revision'] = (int)$record['meta']['revision'] + 1;
         $record['version'] = (int)$record['version'] + 1;
         self::$records[$collection][$id] = $record;
-        self::recordEvent($collection, $id, 'update', $record['version'], $record['data']);
+        self::persistRecord($record);
+        self::recordEvent($collection, $id, 'update', $record['version'], $record['data'], $before);
 
         return $record;
     }
@@ -210,6 +311,7 @@ final class AdlaireDatabase
             throw new InvalidArgumentException('Record not found.');
         }
         $record = self::$records[$collection][$id];
+        $before = $record['data'];
         $deleteVersion = (int)$record['version'] + 1;
         if (self::collections()[$collection]['delete_mode'] === 'soft') {
             $record['meta']['updated_sequence'] = self::$eventSequence + 1;
@@ -217,10 +319,12 @@ final class AdlaireDatabase
             $record['meta']['revision'] = (int)$record['meta']['revision'] + 1;
             $record['version'] = $deleteVersion;
             self::$records[$collection][$id] = $record;
+            self::persistRecord($record);
         } else {
             unset(self::$records[$collection][$id]);
+            self::deletePersistedRecord($collection, $id);
         }
-        self::recordEvent($collection, $id, 'delete', $deleteVersion, $record['data']);
+        self::recordEvent($collection, $id, 'delete', $deleteVersion, $record['data'], $before);
 
         return [
             'id' => $id,
@@ -248,6 +352,26 @@ final class AdlaireDatabase
         ];
     }
 
+    public static function stats(string $collection): array
+    {
+        $snapshot = self::snapshot($collection);
+        $definition = self::collections()[$collection];
+        $schemaPayload = [
+            'schema' => $definition['schema'],
+            'indexes' => $definition['indexes'],
+            'delete_mode' => $definition['delete_mode'],
+        ];
+
+        return [
+            'collection' => $collection,
+            'record_count' => count($snapshot['records']),
+            'event_count' => count(self::events(null, $collection)),
+            'latest_cursor' => $snapshot['cursor'],
+            'schema_fingerprint' => hash('sha256', json_encode($schemaPayload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
+            'snapshot_fingerprint' => $snapshot['fingerprint'],
+        ];
+    }
+
     public static function exportSnapshot(string $collection): array
     {
         $snapshot = self::snapshot($collection);
@@ -262,6 +386,115 @@ final class AdlaireDatabase
         return $payload + [
             'fingerprint' => hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
         ];
+    }
+
+    public static function exportDatabase(): array
+    {
+        $snapshots = [];
+        foreach (array_keys(self::collections()) as $collection) {
+            $snapshots[$collection] = self::snapshot($collection);
+        }
+
+        $payload = [
+            'selected_database' => self::plannedState()['selected_database'],
+            'collections' => self::collections(),
+            'snapshots' => $snapshots,
+            'events' => self::events(),
+            'cursor' => self::cursor()['latest'],
+            'storage_status' => self::storageStatus(),
+        ];
+        $fingerprintPayload = $payload;
+        unset($fingerprintPayload['storage_status']['path'], $fingerprintPayload['storage_status']['file_size']);
+
+        return $payload + [
+            'fingerprint' => hash('sha256', self::encodeJson($fingerprintPayload)),
+        ];
+    }
+
+    public static function restoreDatabase(array $payload): array
+    {
+        self::$records = [];
+        self::$events = [];
+        self::$collections = [];
+        self::$recordSequence = 0;
+        self::$eventSequence = 0;
+        self::$transactionSequence = 0;
+
+        if (self::$pdo !== null) {
+            self::$pdo->exec('DELETE FROM records');
+            self::$pdo->exec('DELETE FROM events');
+            self::$pdo->exec('DELETE FROM collections');
+        }
+
+        foreach (($payload['collections'] ?? []) as $definition) {
+            if (!is_array($definition) || !isset($definition['name'])) {
+                continue;
+            }
+            self::defineCollection(
+                (string)$definition['name'],
+                (string)$definition['channel'],
+                $definition['schema'] ?? [],
+                $definition['indexes'] ?? [],
+                (string)($definition['delete_mode'] ?? 'hard')
+            );
+        }
+
+        foreach (($payload['snapshots'] ?? []) as $collection => $snapshot) {
+            if (!is_array($snapshot) || !isset(self::collections()[(string)$collection])) {
+                continue;
+            }
+            self::$records[(string)$collection] = [];
+            foreach (($snapshot['records'] ?? []) as $record) {
+                if (is_array($record) && isset($record['id'])) {
+                    $record['collection'] = (string)$collection;
+                    $record['channel'] = self::collections()[(string)$collection]['channel'];
+                    self::$records[(string)$collection][(string)$record['id']] = $record;
+                    self::persistRecord($record);
+                }
+            }
+        }
+
+        foreach (($payload['events'] ?? []) as $event) {
+            if (is_array($event) && isset($event['id'])) {
+                self::$events[] = $event;
+                self::persistEvent($event);
+            }
+        }
+        self::syncSequences();
+
+        return self::exportDatabase();
+    }
+
+    public static function restoreSnapshot(string $collection, array $payload): array
+    {
+        self::assertCollectionName($collection);
+        $definition = $payload['definition'] ?? self::collections()[$collection] ?? null;
+        if (!is_array($definition)) {
+            throw new InvalidArgumentException('Snapshot definition is required.');
+        }
+
+        self::defineCollection(
+            $collection,
+            (string)$definition['channel'],
+            $definition['schema'] ?? [],
+            $definition['indexes'] ?? [],
+            (string)($definition['delete_mode'] ?? 'hard')
+        );
+
+        self::$records[$collection] = [];
+        self::clearPersistedCollectionRecords($collection);
+        $snapshot = $payload['snapshot'] ?? $payload;
+        foreach (($snapshot['records'] ?? []) as $record) {
+            if (is_array($record) && isset($record['id'])) {
+                $record['collection'] = $collection;
+                $record['channel'] = self::collections()[$collection]['channel'];
+                self::$records[$collection][(string)$record['id']] = $record;
+                self::persistRecord($record);
+            }
+        }
+        self::syncSequences();
+
+        return self::snapshot($collection);
     }
 
     public static function events(?string $after = null, ?string $collection = null): array
@@ -290,6 +523,54 @@ final class AdlaireDatabase
         return $cursorEvents;
     }
 
+    public static function replay(string $collection, array $events): array
+    {
+        self::assertCollection($collection);
+        $records = [];
+        foreach ($events as $event) {
+            if (($event['collection'] ?? null) !== $collection) {
+                continue;
+            }
+            $recordId = (string)($event['record_id'] ?? '');
+            if (($event['type'] ?? null) === 'delete') {
+                unset($records[$recordId]);
+                continue;
+            }
+            $payload = $event['payload'] ?? [];
+            if (is_array($payload)) {
+                $records[$recordId] = [
+                    'id' => $recordId,
+                    'collection' => $collection,
+                    'channel' => self::collections()[$collection]['channel'],
+                    'data' => self::stableData($payload),
+                    'meta' => [
+                        'created_sequence' => (int)($event['sequence'] ?? 0),
+                        'updated_sequence' => (int)($event['sequence'] ?? 0),
+                        'deleted_sequence' => null,
+                        'revision' => (int)($event['version'] ?? 1),
+                    ],
+                    'version' => (int)($event['version'] ?? 1),
+                ];
+            }
+        }
+
+        $payload = [
+            'collection' => $collection,
+            'records' => array_values($records),
+            'version' => count($events),
+            'cursor' => self::lastEventId($events),
+        ];
+
+        return $payload + [
+            'fingerprint' => hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
+        ];
+    }
+
+    public static function rebuildSnapshot(string $collection): array
+    {
+        return self::replay($collection, self::events(null, $collection));
+    }
+
     public static function stream(string $collection, ?string $after = null): array
     {
         $events = self::events($after, $collection);
@@ -312,19 +593,46 @@ final class AdlaireDatabase
     public static function transaction(array $operations): array
     {
         $before = self::cursor()['latest'];
+        $recordsBefore = self::$records;
+        $eventsBefore = self::$events;
+        $collectionsBefore = self::$collections;
+        $recordSequenceBefore = self::$recordSequence;
+        $eventSequenceBefore = self::$eventSequence;
+        $sqliteTransaction = self::$pdo !== null && !self::$pdo->inTransaction();
+        if ($sqliteTransaction) {
+            self::$pdo->beginTransaction();
+        }
+
         $results = [];
-        foreach ($operations as $operation) {
-            $type = $operation['type'] ?? null;
-            $collection = (string)($operation['collection'] ?? '');
-            if ($type === 'create') {
-                $results[] = self::create($collection, $operation['data'] ?? []);
-            } elseif ($type === 'update') {
-                $results[] = self::update($collection, (string)($operation['id'] ?? ''), $operation['data'] ?? []);
-            } elseif ($type === 'delete') {
-                $results[] = self::delete($collection, (string)($operation['id'] ?? ''));
-            } else {
-                throw new InvalidArgumentException('Unsupported transaction operation.');
+        try {
+            foreach ($operations as $operation) {
+                $type = $operation['type'] ?? null;
+                $collection = (string)($operation['collection'] ?? '');
+                if ($type === 'create') {
+                    $results[] = self::create($collection, $operation['data'] ?? []);
+                } elseif ($type === 'update') {
+                    $results[] = self::update($collection, (string)($operation['id'] ?? ''), $operation['data'] ?? []);
+                } elseif ($type === 'patch') {
+                    $results[] = self::patch($collection, (string)($operation['id'] ?? ''), $operation['operations'] ?? []);
+                } elseif ($type === 'delete') {
+                    $results[] = self::delete($collection, (string)($operation['id'] ?? ''));
+                } else {
+                    throw new InvalidArgumentException('Unsupported transaction operation.');
+                }
             }
+            if ($sqliteTransaction) {
+                self::$pdo->commit();
+            }
+        } catch (Throwable $exception) {
+            if ($sqliteTransaction && self::$pdo !== null && self::$pdo->inTransaction()) {
+                self::$pdo->rollBack();
+            }
+            self::$records = $recordsBefore;
+            self::$events = $eventsBefore;
+            self::$collections = $collectionsBefore;
+            self::$recordSequence = $recordSequenceBefore;
+            self::$eventSequence = $eventSequenceBefore;
+            throw $exception;
         }
 
         $events = self::events($before);
@@ -351,9 +659,52 @@ final class AdlaireDatabase
         self::$records = [];
         self::$events = [];
         self::$collections = [];
+        self::disableSQLite();
         self::$recordSequence = 0;
         self::$eventSequence = 0;
         self::$transactionSequence = 0;
+    }
+
+    public static function storageStatus(): array
+    {
+        $tables = ['collections', 'records', 'events', 'schema_versions', 'database_meta'];
+        $status = [
+            'selected_database' => 'sqlite',
+            'runtime_execution' => self::$pdo === null ? 'in_memory' : 'sqlite_persistent',
+            'enabled' => self::$pdo !== null,
+            'path' => self::$sqlitePath,
+            'tables' => $tables,
+            'wal_mode' => false,
+            'integrity_check' => 'not_checked',
+        ];
+
+        if (self::$pdo !== null) {
+            $journalMode = self::$pdo->query('PRAGMA journal_mode')->fetchColumn();
+            $integrity = self::$pdo->query('PRAGMA integrity_check')->fetchColumn();
+            $status['wal_mode'] = strtolower((string)$journalMode) === 'wal';
+            $status['journal_mode'] = strtolower((string)$journalMode);
+            $status['integrity_check'] = (string)$integrity;
+            $status['file_exists'] = self::$sqlitePath !== null && is_file(self::$sqlitePath);
+            $status['file_size'] = $status['file_exists'] ? filesize((string)self::$sqlitePath) : 0;
+        }
+
+        return $status;
+    }
+
+    public static function operationalHealth(): array
+    {
+        $status = self::storageStatus();
+
+        return [
+            'ready' => $status['enabled'] === true
+                && $status['wal_mode'] === true
+                && $status['integrity_check'] === 'ok',
+            'storage' => $status,
+            'record_count' => array_sum(array_map('count', self::$records)),
+            'event_count' => count(self::$events),
+            'latest_cursor' => self::cursor()['latest'],
+            'migration' => self::migrationPlan(),
+        ];
     }
 
     public static function indexPlan(): array
@@ -372,6 +723,37 @@ final class AdlaireDatabase
         ];
     }
 
+    public static function migrationPlan(): array
+    {
+        return [
+            'schema_version' => 1,
+            'persistence_status' => 'planned',
+            'selected_database' => 'sqlite',
+            'compatibility_target' => 'libsql',
+            'tables' => ['collections', 'records', 'events', 'schema_versions', 'database_meta'],
+            'runtime_execution' => self::$pdo === null ? 'in_memory' : 'sqlite_persistent',
+            'indexes' => self::indexPlan(),
+        ];
+    }
+
+    public static function accessRules(): array
+    {
+        return [
+            'authentication' => 'undefined',
+            'authorization' => 'undefined',
+            'access_rules' => 'undefined',
+        ];
+    }
+
+    public static function realtimeAdapter(): array
+    {
+        return [
+            'adapter' => 'none',
+            'stream_mode' => 'pull_cursor',
+            'future_adapter' => ['websocket', 'sse'],
+        ];
+    }
+
     public static function readiness(): array
     {
         $planned = self::plannedState();
@@ -384,6 +766,11 @@ final class AdlaireDatabase
             'sqlite_selected' => $planned['selected_database'] === 'sqlite',
             'libsql_compatibility_target' => $planned['compatibility_target'] === 'libsql',
             'sqlite_primary_policy' => $planned['storage_policy'] === 'sqlite_primary_libsql_compatible',
+            'sqlite_persistence' => $planned['sqlite_persistence'] === true,
+            'wal_mode' => $planned['wal_mode'] === true,
+            'integrity_check' => $planned['integrity_check'] === true,
+            'backup_restore' => $planned['backup_restore'] === true,
+            'operational_health' => $planned['operational_health'] === true,
             'collections_defined' => self::collections() !== [],
             'channels_defined' => $planned['channels'] !== [],
             'event_stream_internal' => $planned['event_stream'] === 'internal',
@@ -395,13 +782,24 @@ final class AdlaireDatabase
             'record_metadata' => $planned['record_metadata'] === true,
             'query' => $planned['query'] === true,
             'index_plan' => $planned['index_plan'] === true,
+            'migration_plan' => $planned['migration_plan'] === true,
+            'event_payload_summary' => $planned['event_payload_summary'] === true,
             'subscription_model' => $planned['subscription_model'] === true,
             'transaction_boundary' => $planned['transaction_boundary'] === true,
             'snapshot_export' => $planned['snapshot_export'] === true,
+            'database_export' => $planned['database_export'] === true,
+            'snapshot_restore' => $planned['snapshot_restore'] === true,
+            'conflict_detection' => $planned['conflict_detection'] === true,
+            'event_replay' => $planned['event_replay'] === true,
+            'read_model_rebuild' => $planned['read_model_rebuild'] === true,
+            'access_rules_undefined' => $planned['access_rules'] === 'undefined',
+            'realtime_adapter_none' => $planned['realtime_adapter'] === 'none',
+            'stream_mode_pull_cursor' => $planned['stream_mode'] === 'pull_cursor',
             'snapshot_collection_state' => $planned['snapshot'] === 'collection_state',
             'deployment_axis_undefined' => $planned['deployment_axis'] === 'undefined',
             'rollback_required' => $planned['rollback_required'] === true,
-            'in_memory_runtime' => $planned['runtime_execution'] === 'in_memory',
+            'sqlite_persistent_runtime' => $planned['runtime_execution'] === 'sqlite_persistent',
+            'in_memory_fallback' => $planned['fallback_runtime'] === 'in_memory',
         ];
 
         return [
@@ -410,6 +808,259 @@ final class AdlaireDatabase
             'planned_state' => $planned,
             'fingerprint' => hash('sha256', json_encode($planned, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
         ];
+    }
+
+    private static function initializeSQLite(): void
+    {
+        if (self::$pdo === null) {
+            return;
+        }
+
+        self::$pdo->exec('CREATE TABLE IF NOT EXISTS collections (
+            name TEXT PRIMARY KEY,
+            channel TEXT NOT NULL,
+            storage TEXT NOT NULL,
+            schema_json TEXT NOT NULL,
+            indexes_json TEXT NOT NULL,
+            delete_mode TEXT NOT NULL
+        )');
+        self::$pdo->exec('CREATE TABLE IF NOT EXISTS records (
+            id TEXT NOT NULL,
+            collection TEXT NOT NULL,
+            channel TEXT NOT NULL,
+            data_json TEXT NOT NULL,
+            meta_json TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            PRIMARY KEY (collection, id)
+        )');
+        self::$pdo->exec('CREATE TABLE IF NOT EXISTS events (
+            id TEXT PRIMARY KEY,
+            sequence INTEGER NOT NULL,
+            collection TEXT NOT NULL,
+            channel TEXT NOT NULL,
+            record_id TEXT NOT NULL,
+            type TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            payload_hash TEXT NOT NULL,
+            before_hash TEXT,
+            after_hash TEXT,
+            changed_fields_json TEXT NOT NULL,
+            payload_json TEXT NOT NULL
+        )');
+        self::$pdo->exec('CREATE TABLE IF NOT EXISTS schema_versions (
+            version INTEGER PRIMARY KEY,
+            applied_sequence INTEGER NOT NULL
+        )');
+        self::$pdo->exec('CREATE TABLE IF NOT EXISTS database_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )');
+        self::$pdo->exec('CREATE INDEX IF NOT EXISTS idx_records_collection ON records (collection)');
+        self::$pdo->exec('CREATE INDEX IF NOT EXISTS idx_events_sequence ON events (sequence)');
+        self::$pdo->exec('CREATE INDEX IF NOT EXISTS idx_events_collection_record ON events (collection, record_id)');
+        self::$pdo->exec('INSERT OR IGNORE INTO schema_versions (version, applied_sequence) VALUES (1, 0)');
+    }
+
+    private static function loadSQLite(): void
+    {
+        if (self::$pdo === null) {
+            return;
+        }
+
+        self::$collections = [];
+        self::$records = [];
+        self::$events = [];
+
+        $collectionRows = self::$pdo->query('SELECT * FROM collections ORDER BY name')->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($collectionRows as $row) {
+            self::$collections[(string)$row['name']] = [
+                'name' => (string)$row['name'],
+                'channel' => (string)$row['channel'],
+                'storage' => (string)$row['storage'],
+                'schema' => self::decodeJson((string)$row['schema_json']),
+                'indexes' => self::decodeJson((string)$row['indexes_json']),
+                'delete_mode' => (string)$row['delete_mode'],
+            ];
+        }
+
+        $recordRows = self::$pdo->query('SELECT * FROM records ORDER BY collection, id')->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($recordRows as $row) {
+            $collection = (string)$row['collection'];
+            self::$records[$collection][(string)$row['id']] = [
+                'id' => (string)$row['id'],
+                'collection' => $collection,
+                'channel' => (string)$row['channel'],
+                'data' => self::decodeJson((string)$row['data_json']),
+                'meta' => self::decodeJson((string)$row['meta_json']),
+                'version' => (int)$row['version'],
+            ];
+        }
+
+        $eventRows = self::$pdo->query('SELECT * FROM events ORDER BY sequence')->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($eventRows as $row) {
+            self::$events[] = [
+                'id' => (string)$row['id'],
+                'sequence' => (int)$row['sequence'],
+                'collection' => (string)$row['collection'],
+                'channel' => (string)$row['channel'],
+                'record_id' => (string)$row['record_id'],
+                'type' => (string)$row['type'],
+                'version' => (int)$row['version'],
+                'payload_hash' => (string)$row['payload_hash'],
+                'before_hash' => $row['before_hash'] === null ? null : (string)$row['before_hash'],
+                'after_hash' => $row['after_hash'] === null ? null : (string)$row['after_hash'],
+                'changed_fields' => self::decodeJson((string)$row['changed_fields_json']),
+                'payload' => self::decodeJson((string)$row['payload_json']),
+            ];
+        }
+
+        self::syncSequences();
+    }
+
+    private static function persistCollection(array $definition): void
+    {
+        if (self::$pdo === null) {
+            return;
+        }
+
+        $statement = self::$pdo->prepare('INSERT OR REPLACE INTO collections
+            (name, channel, storage, schema_json, indexes_json, delete_mode)
+            VALUES (:name, :channel, :storage, :schema_json, :indexes_json, :delete_mode)');
+        $statement->execute([
+            ':name' => $definition['name'],
+            ':channel' => $definition['channel'],
+            ':storage' => 'sqlite',
+            ':schema_json' => self::encodeJson($definition['schema']),
+            ':indexes_json' => self::encodeJson($definition['indexes']),
+            ':delete_mode' => $definition['delete_mode'],
+        ]);
+    }
+
+    private static function persistDefaultCollections(): void
+    {
+        if (self::$pdo === null) {
+            return;
+        }
+
+        foreach (self::defaultCollections() as $collection => $definition) {
+            if (!isset(self::$collections[$collection])) {
+                self::persistCollection($definition);
+            }
+        }
+    }
+
+    private static function persistRecord(array $record): void
+    {
+        if (self::$pdo === null) {
+            return;
+        }
+
+        $statement = self::$pdo->prepare('INSERT OR REPLACE INTO records
+            (id, collection, channel, data_json, meta_json, version)
+            VALUES (:id, :collection, :channel, :data_json, :meta_json, :version)');
+        $statement->execute([
+            ':id' => $record['id'],
+            ':collection' => $record['collection'],
+            ':channel' => $record['channel'],
+            ':data_json' => self::encodeJson($record['data']),
+            ':meta_json' => self::encodeJson($record['meta']),
+            ':version' => $record['version'],
+        ]);
+    }
+
+    private static function deletePersistedRecord(string $collection, string $id): void
+    {
+        if (self::$pdo === null) {
+            return;
+        }
+
+        $statement = self::$pdo->prepare('DELETE FROM records WHERE collection = :collection AND id = :id');
+        $statement->execute([':collection' => $collection, ':id' => $id]);
+    }
+
+    private static function clearPersistedCollectionRecords(string $collection): void
+    {
+        if (self::$pdo === null) {
+            return;
+        }
+
+        $statement = self::$pdo->prepare('DELETE FROM records WHERE collection = :collection');
+        $statement->execute([':collection' => $collection]);
+    }
+
+    private static function persistEvent(array $event): void
+    {
+        if (self::$pdo === null) {
+            return;
+        }
+
+        $statement = self::$pdo->prepare('INSERT OR REPLACE INTO events
+            (id, sequence, collection, channel, record_id, type, version, payload_hash, before_hash, after_hash, changed_fields_json, payload_json)
+            VALUES (:id, :sequence, :collection, :channel, :record_id, :type, :version, :payload_hash, :before_hash, :after_hash, :changed_fields_json, :payload_json)');
+        $statement->execute([
+            ':id' => $event['id'],
+            ':sequence' => $event['sequence'],
+            ':collection' => $event['collection'],
+            ':channel' => $event['channel'],
+            ':record_id' => $event['record_id'],
+            ':type' => $event['type'],
+            ':version' => $event['version'],
+            ':payload_hash' => $event['payload_hash'],
+            ':before_hash' => $event['before_hash'],
+            ':after_hash' => $event['after_hash'],
+            ':changed_fields_json' => self::encodeJson($event['changed_fields']),
+            ':payload_json' => self::encodeJson($event['payload']),
+        ]);
+    }
+
+    private static function writeMeta(string $key, string $value): void
+    {
+        if (self::$pdo === null) {
+            return;
+        }
+
+        $statement = self::$pdo->prepare('INSERT OR REPLACE INTO database_meta (key, value) VALUES (:key, :value)');
+        $statement->execute([':key' => $key, ':value' => $value]);
+    }
+
+    private static function syncSequences(): void
+    {
+        self::$recordSequence = 0;
+        foreach (self::$records as $records) {
+            foreach ($records as $record) {
+                self::$recordSequence = max(self::$recordSequence, self::sequenceFromId((string)$record['id']));
+            }
+        }
+
+        self::$eventSequence = 0;
+        foreach (self::$events as $event) {
+            self::$eventSequence = max(self::$eventSequence, (int)$event['sequence'], self::sequenceFromId((string)$event['id']));
+        }
+    }
+
+    private static function sequenceFromId(string $id): int
+    {
+        if (preg_match('/_(\d+)$/', $id, $matches) !== 1) {
+            return 0;
+        }
+
+        return (int)$matches[1];
+    }
+
+    private static function encodeJson(array $payload): string
+    {
+        $encoded = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if (!is_string($encoded)) {
+            throw new RuntimeException('Failed to encode JSON payload.');
+        }
+
+        return $encoded;
+    }
+
+    private static function decodeJson(string $payload): array
+    {
+        $decoded = json_decode($payload, true);
+        return is_array($decoded) ? $decoded : [];
     }
 
     private static function all(array $checks): bool
@@ -452,14 +1103,59 @@ final class AdlaireDatabase
         }
     }
 
-    private static function assertDataMatchesSchema(string $collection, array $data): void
+    private static function normalizeDataForSchema(string $collection, array $data, bool $applyDefaults): array
     {
         $schema = self::collections()[$collection]['schema'];
-        foreach ($schema as $field => $type) {
-            if (array_key_exists($field, $data) && !self::matchesType($data[$field], (string)$type)) {
+        foreach ($schema as $field => $rule) {
+            $definition = self::schemaDefinition($rule);
+            $hasValue = array_key_exists($field, $data);
+            if (!$hasValue && $applyDefaults && array_key_exists('default', $definition)) {
+                $data[$field] = $definition['default'];
+                $hasValue = true;
+            }
+            if (!$hasValue) {
+                if (($definition['required'] ?? false) === true && $applyDefaults) {
+                    throw new InvalidArgumentException('Required schema field is missing.');
+                }
+                continue;
+            }
+            if ($data[$field] === null && ($definition['nullable'] ?? false) === true) {
+                continue;
+            }
+            if (!self::matchesType($data[$field], (string)$definition['type'])) {
                 throw new InvalidArgumentException('Record data does not match collection schema.');
             }
+            if (isset($definition['enum']) && is_array($definition['enum']) && !in_array($data[$field], $definition['enum'], true)) {
+                throw new InvalidArgumentException('Record data does not match collection enum.');
+            }
+            if (isset($definition['min']) && is_numeric($data[$field]) && $data[$field] < $definition['min']) {
+                throw new InvalidArgumentException('Record data is below schema min.');
+            }
+            if (isset($definition['max']) && is_numeric($data[$field]) && $data[$field] > $definition['max']) {
+                throw new InvalidArgumentException('Record data is above schema max.');
+            }
         }
+
+        return self::stableData($data);
+    }
+
+    private static function schemaDefinition(mixed $rule): array
+    {
+        if (is_array($rule)) {
+            $definition = [
+                'type' => $rule['type'] ?? 'mixed',
+                'required' => $rule['required'] ?? false,
+                'nullable' => $rule['nullable'] ?? false,
+            ];
+            foreach (['default', 'enum', 'min', 'max'] as $key) {
+                if (array_key_exists($key, $rule)) {
+                    $definition[$key] = $rule[$key];
+                }
+            }
+            return $definition;
+        }
+
+        return ['type' => (string)$rule, 'required' => false, 'nullable' => false];
     }
 
     private static function matchesType(mixed $value, string $type): bool
@@ -504,8 +1200,64 @@ final class AdlaireDatabase
         return strcmp((string)$left, (string)$right);
     }
 
-    private static function recordEvent(string $collection, string $recordId, string $type, int $version, array $payload): array
+    private static function matchesWhere(array $record, array $where): bool
     {
+        if (isset($where['field'])) {
+            $value = self::valueForQuery($record, (string)$where['field']);
+            $operator = (string)($where['operator'] ?? (array_key_exists('equals', $where) ? 'equals' : 'equals'));
+            $expected = $where['value'] ?? ($where['equals'] ?? null);
+            return self::compareWhereValue($value, $operator, $expected);
+        }
+
+        foreach ($where as $field => $expected) {
+            if (!self::compareWhereValue(self::valueForQuery($record, (string)$field), 'equals', $expected)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function compareWhereValue(mixed $value, string $operator, mixed $expected): bool
+    {
+        return match ($operator) {
+            'equals' => $value === $expected,
+            'not_equals' => $value !== $expected,
+            'gt' => self::compareValues($value, $expected) > 0,
+            'gte' => self::compareValues($value, $expected) >= 0,
+            'lt' => self::compareValues($value, $expected) < 0,
+            'lte' => self::compareValues($value, $expected) <= 0,
+            'contains' => is_array($value) ? in_array($expected, $value, true) : str_contains((string)$value, (string)$expected),
+            default => false,
+        };
+    }
+
+    private static function conflict(string $id, int $currentVersion, int $expectedVersion): array
+    {
+        return [
+            'conflict' => true,
+            'id' => $id,
+            'current_version' => $currentVersion,
+            'expected_version' => $expectedVersion,
+        ];
+    }
+
+    private static function changedFields(?array $before, array $after): array
+    {
+        $fields = array_unique(array_merge(array_keys($before ?? []), array_keys($after)));
+        $changed = [];
+        foreach ($fields as $field) {
+            if (($before[$field] ?? null) !== ($after[$field] ?? null)) {
+                $changed[] = $field;
+            }
+        }
+        sort($changed);
+        return $changed;
+    }
+
+    private static function recordEvent(string $collection, string $recordId, string $type, int $version, array $payload, ?array $before): array
+    {
+        $afterHash = hash('sha256', json_encode(self::stableData($payload), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         $event = [
             'id' => 'evt_' . str_pad((string)++self::$eventSequence, 6, '0', STR_PAD_LEFT),
             'sequence' => self::$eventSequence,
@@ -514,9 +1266,14 @@ final class AdlaireDatabase
             'record_id' => $recordId,
             'type' => $type,
             'version' => $version,
-            'payload_hash' => hash('sha256', json_encode(self::stableData($payload), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
+            'payload_hash' => $afterHash,
+            'before_hash' => $before === null ? null : hash('sha256', json_encode(self::stableData($before), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
+            'after_hash' => $type === 'delete' ? null : $afterHash,
+            'changed_fields' => self::changedFields($before, $payload),
+            'payload' => self::stableData($payload),
         ];
         self::$events[] = $event;
+        self::persistEvent($event);
 
         return $event;
     }
@@ -543,11 +1300,13 @@ final class AdlaireDatabase
 
     private static function defaultCollections(): array
     {
+        $storage = self::$pdo === null ? 'in_memory' : 'sqlite';
+
         return [
             'application' => [
                 'name' => 'application',
                 'channel' => 'application',
-                'storage' => 'in_memory',
+                'storage' => $storage,
                 'schema' => [],
                 'indexes' => ['id'],
                 'delete_mode' => 'hard',
@@ -555,7 +1314,7 @@ final class AdlaireDatabase
             'system' => [
                 'name' => 'system',
                 'channel' => 'system',
-                'storage' => 'in_memory',
+                'storage' => $storage,
                 'schema' => [],
                 'indexes' => ['id'],
                 'delete_mode' => 'hard',
