@@ -19,7 +19,7 @@ final class AdlaireProject
             'zero_base_restart' => true,
             'compatibility' => false,
             'core_scope' => [
-                'deployment',
+                'deployment_system',
                 'realtime_database',
             ],
             'undefined_scope' => ['authentication', 'authorization', 'other_baas_features'],
@@ -48,16 +48,17 @@ final class AdlaireProject
     public static function release(): array
     {
         $readiness = self::readiness();
+        $deploymentGate = AdlaireDeployment::releaseGate();
 
         return [
             'version' => self::VERSION,
-            'release_ready' => $readiness['ready'],
+            'release_ready' => $readiness['ready'] && $deploymentGate['ready'],
             'readiness' => $readiness,
-            'deployment_gate' => AdlaireDeployment::releaseGate(),
+            'deployment_gate' => $deploymentGate,
             'fingerprint' => self::fingerprint([
                 self::manifest(),
                 $readiness,
-                AdlaireDeployment::releaseGate(),
+                $deploymentGate,
             ]),
         ];
     }

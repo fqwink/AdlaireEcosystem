@@ -14,8 +14,8 @@
 - 現行バージョンは`v0.001`。
 - プロジェクト名はAdlaire Ecosystemを継承する。
 - Adlaire EcosystemはBaaS Projectとしてゼロベースで再スタートする。
-- `v0.001`で計画する中核機能はDeployment、Realtime Databaseのみ。
-- 契約方式は従来型ではなく、Deployment Systemを軸にしたAdlaire独自方式として扱う。
+- `v0.001`で計画する中核機能はDeployment System、Realtime Databaseのみ。
+- Deployment Systemは基本方針からやり直すため、現時点では白紙状態として扱う。
 - Authentication、Authorization、その他BaaS機能は未定義とし、Adlaire独自方式を確定するまで実装しない。
 - SQLite / libSQL方針を優先する。
 

@@ -2,7 +2,7 @@
 
 Adlaire Ecosystemは`v0.001`からBaaS Projectとしてゼロベースで再スタートします。
 
-`v0.001`で計画する中核機能はDeploymentとRealtime Databaseです。
+`v0.001`で計画する中核機能はDeployment SystemとRealtime Databaseです。
 
 ## 主要ディレクトリ
 
