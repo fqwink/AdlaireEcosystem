@@ -540,11 +540,23 @@ Adlaire独自方式の問題を解消するまで、次は未定義とする。
 
 ## Tests
 
+現行の公式テストはPHPソースコードベースで行う。
+
 公式テスト入口は次のみ。
 
 ```sh
 php tests/debug.php
 ```
+
+現行方針:
+
+```text
+test_mode: php_source_code_based
+test_entrypoint: php tests/debug.php
+docker_test_mode: future_production_like_environment
+```
+
+Dockerを使う本番相当テストは将来計画とする。将来的に`Docker/`配下へDockerfile、compose、Docker用設定を集約し、本番相当環境を作成してテスト、デバッグ、本番さながらの検証を行う。
 
 テスト関連ドキュメント:
 
@@ -557,6 +569,8 @@ docs/testing.md
 - 許可ディレクトリのみ存在する
 - Coreが3フォルダ、3〜5 PHPファイル原則を満たす
 - Docker関連境界として`Docker/`が存在する
+- 現行テストがPHPソースコードベースである
+- Docker本番相当テストが将来計画として整理されている
 - Deployment Systemが白紙状態である
 - Deployment Systemがrelease readyを出さない
 - Realtime Database readinessが成功する

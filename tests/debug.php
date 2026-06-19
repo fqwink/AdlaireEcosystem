@@ -441,6 +441,9 @@ function test_documents(): void
     assert_true(is_string($projectDoc) && str_contains($projectDoc, 'docs/ADLAIRE-ECOSYSTEM.md'), 'project doc should delegate details to the spec');
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'php tests/debug.php'), 'testing doc should describe the official test entrypoint');
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'v0.002 Test Scope'), 'testing doc should describe v0.002 test scope');
+    assert_true(is_string($testingDoc) && str_contains($testingDoc, 'php_source_code_based'), 'testing doc should define PHP source-code based tests');
+    assert_true(is_string($testingDoc) && str_contains($testingDoc, 'docker_production_like_environment'), 'testing doc should define future Docker production-like tests');
+    assert_true(is_string($spec) && str_contains($spec, 'docker_test_mode: future_production_like_environment'), 'spec should define future Docker test mode');
     assert_true(is_string($spec) && str_contains($spec, 'docs/testing.md'), 'spec should assign testing documents to docs/testing.md');
     assert_true(is_string($spec) && str_contains($spec, 'すべてのドキュメントは`docs/`へ集約する'), 'spec should centralize all documents under docs');
 }
