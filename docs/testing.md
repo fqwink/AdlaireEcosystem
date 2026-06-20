@@ -6,9 +6,9 @@ Adlaire Ecosystemの公式テスト入口は次のみです。
 php tests/debug.php
 ```
 
-現行テストはPHPソースコードベースで行います。Dockerを使った本番相当環境テストは将来計画とし、Docker関連ファイルは`Docker/`へ集約します。
+現行テストはPHPソースコードベースで行います。
 
-このファイルは、今後のテスト関連ドキュメントを集約する場所です。すべてのドキュメントは`docs/`配下に置きます。
+このファイルは、テスト関連ドキュメントの集約先です。
 
 ## Test Policy
 
@@ -28,9 +28,7 @@ bugfix_until_zero: true
 
 バグ修正は承認工程に含めません。実装後にバグがある場合は、追加承認を待たずにバグ修正ゼロになるまで必ず修正します。
 
-将来的には`Docker/`配下に本番同等の環境を作成し、テスト、デバッグ、本番さながらの本番テストを行います。
-
-## v0.004 Test Scope
+## v0.007 Test Scope
 
 - 許可ディレクトリのみ存在すること
 - Coreが3フォルダ、3〜5 PHPファイル原則を満たすこと
@@ -44,6 +42,9 @@ bugfix_until_zero: true
 - Realtime DatabaseのSQLite永続化、WAL、integrity checkが動作すること
 - Realtime Databaseの実運用耐性機能が動作すること
 - Realtime Databaseのv0.004新機能が動作すること
+- Realtime Databaseのv0.005新機能が動作すること
+- Realtime Databaseのv0.006実運用耐性機能が動作すること
+- Realtime Databaseのv0.007実運用強化機能が動作すること
 - SQLite有効化時にdefault collectionがSQLite対象として扱われること
 - 失敗したtransactionがrecord、event、SQLite書き込みを残さないこと
 - database export fingerprintが環境依存値に引っ張られないこと

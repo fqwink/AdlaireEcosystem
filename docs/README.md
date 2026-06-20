@@ -1,12 +1,12 @@
 # Adlaire Ecosystem
 
-Adlaire Ecosystemは`v0.004`としてBaaS Projectの実運用土台を固めます。
+Adlaire Ecosystemは`v0.007`としてBaaS Projectの実運用土台を固めます。
 
-`v0.004`で計画する中核機能はDeployment SystemとRealtime Databaseです。
+`v0.007`で計画する中核機能はDeployment SystemとRealtime Databaseです。
 
 Realtime DatabaseのDatabaseはSQLiteを正選定し、実運用耐性とRealtime Database機能を強化します。
 
-すべての仕様確定、設計、実装、リリース判定は`docs/ADLAIRE-ECOSYSTEM.md`の承認プロセスを正とします。提案案は草案であり、仕様確定承認を得るまで正本仕様ではありません。
+詳細仕様、承認プロセス、判断根拠は`docs/ADLAIRE-ECOSYSTEM.md`を正とします。
 
 ## 主要ディレクトリ
 
@@ -18,16 +18,10 @@ docs/
 tests/
 ```
 
-Docker関連ファイルは`Docker/`へ集約します。
-
 ## テスト
 
 ```sh
 php tests/debug.php
 ```
 
-テスト関連の補助ドキュメントは`docs/testing.md`へ集約します。
-
-承認済みバージョン計画は`docs/version-plan.md`へ集約します。
-
-詳細仕様と設計判断は`docs/ADLAIRE-ECOSYSTEM.md`へ集約します。
+関連ドキュメント: `docs/testing.md`, `docs/version-plan.md`

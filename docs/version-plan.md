@@ -1,145 +1,110 @@
 # Version Plan
 
-このファイルは、全てのバージョン計画承認を集約する単一のバージョン計画ファイルである。
+- このファイルは、全てのバージョン計画承認を集約する単一のバージョン計画ファイルである。
+- 記載順は最新バージョンを上にする。
+- 記載形式はリスト形式に統一する。
+- 記載内容は要点のみを簡潔に明記する。
+- テスト関係はバージョン計画に含めない。
+- バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
-バージョン計画承認後の承認状態は、このファイルへ簡潔に明記する。
+## v0.007
 
-バージョン計画ファイルの記載は、要点のみを簡潔に明記する。
+- `version: v0.007`
+- `status: version_plan_approved`
+- `scope: realtime_database_only`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: realtime_database`
+- `purpose: realtime_database_operational_hardening`
+- `deployment_system: blank`
+- `authentication: undefined`
+- `authorization: undefined`
+- `external_dependency: not_allowed`
+- `remote_sync: not_adopted`
+- `libsql_implementation: out_of_scope`
+- `implementation_targets: Write Intent Log, Write Commit Verification, Recovery Simulation, Restore Impact Report, Event Chain Integrity, Snapshot Integrity Seal, Operational Runbook Report, Degraded Mode, Critical Operation Guard, Operational Evidence Bundle`
+- `out_of_scope: automatic_repair, automatic_restore, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
 
-## Bug Fix Summary
+## v0.006
 
-バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
+- `version: v0.006`
+- `status: version_plan_approved`
+- `scope: realtime_database_only`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: realtime_database`
+- `purpose: realtime_database_operational_resilience`
+- `deployment_system: blank`
+- `authentication: undefined`
+- `authorization: undefined`
+- `external_dependency: not_allowed`
+- `remote_sync: not_adopted`
+- `libsql_implementation: out_of_scope`
+- `implementation_targets: Health Baseline, Drift Baseline Compare, Write Safety Preflight, Restore Safety Gate, Backup Consistency Report, Event Gap Report, Corruption Suspect Report, Operational Risk Score, Recovery Decision Report, Safe Mode, Readonly Runtime Report, Incident Timeline`
+- `out_of_scope: automatic_repair, automatic_restore, automatic_backup_generation_management, automatic_deletion, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec`
+- `bugfix_summary: 承認プロセス文言とテスト期待値の旧表記を修正`
 
-### v0.003
+## v0.005
 
-- Query Explainのfull scan判定確認条件を、indexed fieldではなくnon-indexed field基準に修正。
-
-### v0.004
-
-- Read Model Drift判定のrestore後の偽陽性を修正。
-- 複数record状態のsnapshot restore/rebuild件数不整合を修正。
+- `version: v0.005`
+- `status: version_plan_approved`
+- `scope: realtime_database_only`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: realtime_database`
+- `purpose: realtime_database_feature_enhancement`
+- `deployment_system: blank`
+- `authentication: undefined`
+- `authorization: undefined`
+- `external_dependency: not_allowed`
+- `remote_sync: not_adopted`
+- `libsql_implementation: out_of_scope`
+- `implementation_targets: Change Feed Filter, Record Version History, Record Diff, Snapshot Retention Plan, Backup Manifest, Restore Preview, Collection Lock, Write Quota Guard, Event Checkpoint, Operational Incident Report, Query Cursor Enhancement, Import Validation Enhancement, Audit Integrity Enhancement, Operational Report Enhancement, Data Redaction Export Enhancement, Schema Versioning Enhancement`
+- `out_of_scope: remote_sync, websocket, sse, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation, automatic_repair, automatic_backup_generation_management, automatic_deletion`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
 
 ## v0.004
 
-### Status
+- `version: v0.004`
+- `status: version_plan_approved`
+- `scope: realtime_database_only`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: realtime_database`
+- `purpose: operational_resilience_and_realtime_database_features`
+- `deployment_system: blank`
+- `authentication: undefined`
+- `authorization: undefined`
+- `external_dependency: not_allowed`
+- `remote_sync: not_adopted`
+- `selected_database: sqlite`
+- `sqlite_role: primary_storage`
+- `libsql_role: decided_sqlite_compatible_future_extension`
+- `libsql_runtime: not_implemented_in_v0.004`
+- `operational_resilience: Operational Guard, Maintenance Mode, Write Policy Enforcement, Startup Self Check, Backup Verification, Restore Dry Run, Recovery Check, Event Log Consistency Check, Cursor Safety, Read Model Drift Detection, Operational Metrics, Operational Report`
+- `realtime_database_features: Collection Lifecycle, Schema Versioning, Bulk Import Dry Run, Bulk Write, Record Restore, Snapshot Compare, Event Replay Range, Query Cursor Pagination, Collection Export Filter, Data Redaction Export`
+- `plan_only: Record TTL Plan, Subscriber Checkpoint Plan`
+- `out_of_scope: deployment_system_redesign, authentication, authorization, non_realtime_database_baas_features, libsql_implementation, remote_sync, sdk_implementation, api_gateway_implementation, websocket_implementation, automatic_repair, automatic_backup_generation_management, automatic_event_deletion`
+- `constraints: no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec, core_3_folders_3_to_5_php_files`
+- `bugfix_summary: Read Model Drift判定のrestore後の偽陽性と、複数record状態のsnapshot restore/rebuild件数不整合を修正`
 
-```text
-version: v0.004
-status: version_plan_approved
-scope: realtime_database_only
-implementation_status: implemented
-implementation_approval: approved
-```
+## v0.003
 
-### Approval
-
-`v0.004`は次の承認状態とする。
-
-```text
-specification_confirmation: approved
-version_plan: approved
-implementation: approved
-```
-
-実装承認済み。実装は確定仕様と本バージョン計画に基づく。
-
-### Axis
-
-`v0.004`はRealtime Databaseを軸にする。
-
-```text
-primary_axis: realtime_database
-purpose: operational_resilience_and_realtime_database_features
-deployment_system: blank
-authentication: undefined
-authorization: undefined
-external_dependency: not_allowed
-remote_sync: not_adopted
-```
-
-### Database Position
-
-```text
-selected_database: sqlite
-sqlite_role: primary_storage
-libsql_role: decided_sqlite_compatible_future_extension
-libsql_runtime: not_implemented_in_v0.004
-```
-
-SQLiteは正選定を維持する。libSQLはSQLite互換の将来拡張として決定済みであるが、`v0.004`では実装しない。
-
-### Implementation Targets
-
-`v0.004`の実装対象はRealtime Databaseに限定する。
-
-#### Operational Resilience
-
-- Operational Guard
-- Maintenance Mode
-- Write Policy Enforcement
-- Startup Self Check
-- Backup Verification
-- Restore Dry Run
-- Recovery Check
-- Event Log Consistency Check
-- Cursor Safety
-- Read Model Drift Detection
-- Operational Metrics
-- Operational Report
-
-#### Realtime Database Features
-
-- Collection Lifecycle
-- Schema Versioning
-- Bulk Import Dry Run
-- Bulk Write
-- Record Restore
-- Snapshot Compare
-- Event Replay Range
-- Query Cursor Pagination
-- Collection Export Filter
-- Data Redaction Export
-
-#### Plan Only
-
-- Record TTL Plan
-- Subscriber Checkpoint Plan
-
-### Out Of Scope
-
-`v0.004`では次を実装しない。
-
-```text
-deployment_system_redesign
-authentication
-authorization
-non_realtime_database_baas_features
-libsql_implementation
-remote_sync
-sdk_implementation
-api_gateway_implementation
-websocket_implementation
-automatic_repair
-automatic_backup_generation_management
-automatic_event_deletion
-```
-
-### Constraints
-
-- 外部依存は追加しない。
-- remote syncは採用しない。
-- 実装は確定仕様に厳格に従う。
-- 仕様外実装、先行実装、ついで実装は禁止する。
-- Coreは3フォルダ、3〜5 PHPファイル原則を維持する。
-- バグ修正はバグ修正後にまとめて記載する。
-- テスト関係はバージョン計画に含めない。
-
-### Completion Conditions
-
-- `v0.004` planned stateが確定仕様と一致する。
-- Realtime Databaseの実運用耐性が仕様通りに実装される。
-- Realtime Database新機能が仕様通りに実装される。
-- 外部依存が追加されていない。
-- remote syncが実装されていない。
-- libSQLが実装されていない。
-- docsが`v0.004`仕様と一致する。
+- `version: v0.003`
+- `bugfix_summary: Query Explainのfull scan判定確認条件を、indexed fieldではなくnon-indexed field基準に修正`

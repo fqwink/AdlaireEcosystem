@@ -6,7 +6,7 @@
 
 - 仕様の正本は`docs/ADLAIRE-ECOSYSTEM.md`。
 - READMEは`docs/README.md`に置き、日本語の簡易説明のみとする。
-- 詳細仕様、設計判断、リリース条件は`docs/ADLAIRE-ECOSYSTEM.md`へ集約する。
+- 詳細仕様、判断根拠、リリース条件は`docs/ADLAIRE-ECOSYSTEM.md`へ集約する。
 - テスト関連の補助ドキュメントは`docs/testing.md`へ集約する。
 - 仕様と実装が異なる場合は、仕様を正として実装を修正する。
 - 実装は確定仕様に厳格に従う。
@@ -52,13 +52,13 @@
 
 ## 現行方針
 
-- 現行バージョンは`v0.004`。
+- 現行バージョンは`v0.007`。
 - 名称はAdlaire Ecosystemを継承する。
 - Adlaire EcosystemはBaaS Projectとしてゼロベースで再スタートする。
-- `v0.004`で計画する中核機能はDeployment System、Realtime Databaseのみ。
+- `v0.007`で計画する中核機能はDeployment System、Realtime Databaseのみ。
 - Deployment Systemは基本方針からやり直すため、現時点では白紙状態として扱う。
 - Authentication、Authorization、その他BaaS機能は未定義とし、Adlaire独自方式を確定するまで実装しない。
-- Realtime DatabaseのDatabaseはSQLiteを正選定し、libSQLはSQLite互換の将来拡張として決定済みとする。ただし`v0.004`ではlibSQLを実装しない。
+- Realtime DatabaseのDatabaseはSQLiteを正選定し、libSQLはSQLite互換の将来拡張として決定済みとする。ただし`v0.007`ではlibSQLを実装しない。
 
 ## 許可ディレクトリ
 
@@ -104,12 +104,15 @@ Project境界は作成しない。名称、version、manifest、readiness、rele
 
 すべての変更は次の順序で進める。
 
-1. 仕様取りまとめ
-2. 設計
-3. 実装
-4. バグ修正
-5. テスト
-6. リリース判定
+1. 仕様確定案
+2. 仕様確定承認
+3. バージョン計画承認
+4. 実装承認
+5. 実装
+6. バグ修正
+7. テスト
+8. リリース判定承認
+9. リリース判定
 
 仕様が未定義の領域は先に`docs/ADLAIRE-ECOSYSTEM.md`へ追記してから実装する。
 
