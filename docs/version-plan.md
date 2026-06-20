@@ -7,6 +7,29 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.008
+
+- `version: v0.008`
+- `status: version_plan_approved`
+- `scope: realtime_database_only`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: realtime_database`
+- `purpose: realtime_database_operational_resilience_hardening`
+- `deployment_system: blank`
+- `authentication: undefined`
+- `authorization: undefined`
+- `external_dependency: not_allowed`
+- `remote_sync: not_adopted`
+- `libsql_implementation: out_of_scope`
+- `implementation_targets: Pre-Write Risk Evaluation, Critical Write Two-Step Guard, Backup Restore Compatibility Check, Snapshot Seal Verification, Operational Degradation Reason, Incident Severity Classification, Recovery Readiness Report, Operation Freeze Policy, Data Durability Report, Release Safety Evidence`
+- `out_of_scope: automatic_repair, automatic_restore, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
 ## v0.007
 
 - `version: v0.007`

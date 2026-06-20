@@ -1,8 +1,8 @@
 # Adlaire Ecosystem
 
-Adlaire Ecosystemは`v0.007`としてBaaS Projectの実運用土台を固めます。
+Adlaire Ecosystemは`v0.008`としてBaaS Projectの実運用土台を固めます。
 
-`v0.007`で計画する中核機能はDeployment SystemとRealtime Databaseです。
+`v0.008`で計画する中核機能はDeployment SystemとRealtime Databaseです。
 
 Realtime DatabaseのDatabaseはSQLiteを正選定し、実運用耐性とRealtime Database機能を強化します。
 

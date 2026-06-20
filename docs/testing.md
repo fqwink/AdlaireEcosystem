@@ -28,7 +28,7 @@ bugfix_until_zero: true
 
 バグ修正は承認工程に含めません。実装後にバグがある場合は、追加承認を待たずにバグ修正ゼロになるまで必ず修正します。
 
-## v0.007 Test Scope
+## v0.008 Test Scope
 
 - 許可ディレクトリのみ存在すること
 - Coreが3フォルダ、3〜5 PHPファイル原則を満たすこと
@@ -45,6 +45,7 @@ bugfix_until_zero: true
 - Realtime Databaseのv0.005新機能が動作すること
 - Realtime Databaseのv0.006実運用耐性機能が動作すること
 - Realtime Databaseのv0.007実運用強化機能が動作すること
+- Realtime Databaseのv0.008実運用耐性強化機能が動作すること
 - SQLite有効化時にdefault collectionがSQLite対象として扱われること
 - 失敗したtransactionがrecord、event、SQLite書き込みを残さないこと
 - database export fingerprintが環境依存値に引っ張られないこと
