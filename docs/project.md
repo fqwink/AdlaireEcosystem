@@ -10,8 +10,12 @@ Realtime DatabaseはSQLiteを正選定し、SQLiteファイル永続化の詳細
 
 Coreは3フォルダ、3〜5 PHPファイル原則で維持します。
 
+仕様確定、設計、実装、リリース判定は、正本の承認プロセスに従います。実装は確定仕様と承認済み設計に厳格に従い、仕様外実装は行いません。
+
 Docker関連ファイルは`Docker/`へ集約します。
 
 テスト関連の補助ドキュメントは`docs/testing.md`へ集約します。
+
+承認済みバージョン計画は`docs/version-plan.md`へ集約します。
 
 詳細仕様と設計判断は`docs/ADLAIRE-ECOSYSTEM.md`に集約します。

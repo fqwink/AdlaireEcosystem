@@ -64,7 +64,7 @@ function test_directory_policy(): void
     assert_true(count(recursive_php_files('Core')) >= 3 && count(recursive_php_files('Core')) <= 5, 'Core should keep three to five PHP files');
     assert_same(['.gitkeep'], files_in('Applications'), 'Applications should contain only the boundary marker');
     assert_same(['.gitkeep'], files_in('Docker'), 'Docker should contain only the boundary marker until Docker assets are added');
-    assert_same(['ADLAIRE-ECOSYSTEM.md', 'AGENTS.md', 'README.md', 'project.md', 'testing.md'], files_in('docs'), 'docs should contain all documents');
+    assert_same(['ADLAIRE-ECOSYSTEM.md', 'AGENTS.md', 'README.md', 'project.md', 'testing.md', 'version-plan.md'], files_in('docs'), 'docs should contain all documents');
     assert_same(['debug.php'], files_in('tests'), 'tests should contain only debug.php');
 
     assert_true(is_dir(__DIR__ . '/../Core'), 'Core directory should exist');
@@ -318,7 +318,7 @@ function test_realtime_database_data(): void
     $explain = AdlaireDatabase::queryExplain('tasks', ['where' => ['field' => 'score', 'operator' => 'gte', 'value' => 5]]);
     assert_same(true, $explain['uses_index'], 'query explain should detect indexed fields');
     assert_same(false, $explain['full_scan'], 'query explain should avoid full scan when index exists');
-    $fullScanExplain = AdlaireDatabase::queryExplain('tasks', ['where' => ['field' => 'status', 'equals' => 'done']]);
+    $fullScanExplain = AdlaireDatabase::queryExplain('tasks', ['where' => ['field' => 'title', 'equals' => 'Ship']]);
     assert_same(true, $fullScanExplain['full_scan'], 'query explain should warn about full scans');
 
     $policy = AdlaireDatabase::writePolicy();
@@ -460,6 +460,7 @@ function test_documents(): void
     $agents = file_get_contents(__DIR__ . '/../docs/AGENTS.md');
     $projectDoc = file_get_contents(__DIR__ . '/../docs/project.md');
     $testingDoc = file_get_contents(__DIR__ . '/../docs/testing.md');
+    $versionPlan = file_get_contents(__DIR__ . '/../docs/version-plan.md');
 
     assert_true(is_string($spec) && str_contains($spec, 'v0.003'), 'spec should describe v0.003');
     assert_true(is_string($spec) && str_contains($spec, 'Selected database | SQLite'), 'spec should select SQLite');
@@ -483,7 +484,12 @@ function test_documents(): void
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'docker_production_like_environment'), 'testing doc should define future Docker production-like tests');
     assert_true(is_string($spec) && str_contains($spec, 'docker_test_mode: future_production_like_environment'), 'spec should define future Docker test mode');
     assert_true(is_string($spec) && str_contains($spec, 'docs/testing.md'), 'spec should assign testing documents to docs/testing.md');
+    assert_true(is_string($spec) && str_contains($spec, 'docs/version-plan.md'), 'spec should assign version plan documents to docs/version-plan.md');
     assert_true(is_string($spec) && str_contains($spec, 'すべてのドキュメントは`docs/`へ集約する'), 'spec should centralize all documents under docs');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'version: v0.004'), 'version plan should describe v0.004');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'status: version_plan_approved'), 'version plan should be approved');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'implementation: not_approved'), 'version plan should not approve implementation');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'remote_sync: not_adopted'), 'version plan should reject remote sync');
 }
 
 $tests = [

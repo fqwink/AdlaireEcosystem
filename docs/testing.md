@@ -17,7 +17,16 @@ current: php_source_code_based
 entrypoint: php tests/debug.php
 future: docker_production_like_environment
 docker_assets: Docker/
+approval_required: false
+required_after_implementation: true
+required_after_bugfix: true
+bugfix_approval_required: false
+bugfix_until_zero: true
 ```
+
+テストは承認工程に含めません。実装後とバグ修正後は、追加承認を待たずに必ず公式テストを実行します。
+
+バグ修正は承認工程に含めません。実装後にバグがある場合は、追加承認を待たずにバグ修正ゼロになるまで必ず修正します。
 
 将来的には`Docker/`配下に本番同等の環境を作成し、テスト、デバッグ、本番さながらの本番テストを行います。
 
