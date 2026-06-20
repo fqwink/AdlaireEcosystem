@@ -1,8 +1,8 @@
 # Adlaire Ecosystem Boundary
 
-Adlaire Ecosystemは`v0.002`としてBaaS Projectの実運用土台を固めます。
+Adlaire Ecosystemは`v0.003`としてBaaS Projectの実運用土台を固めます。
 
-`v0.002`で計画する中核はDeployment SystemとRealtime Databaseです。
+`v0.003`で計画する中核はDeployment SystemとRealtime Databaseです。
 
 Project境界は作成せず、名称、version、manifest、readiness、release summaryはDeployment Systemへ統合します。
 

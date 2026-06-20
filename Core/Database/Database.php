@@ -52,6 +52,11 @@ final class AdlaireDatabase
             'backup_restore' => true,
             'restore_validation' => true,
             'operational_health' => true,
+            'integrity_audit' => true,
+            'diagnostics' => true,
+            'write_policy' => true,
+            'query_explain' => true,
+            'import_validation' => true,
             'sqlite' => true,
             'libsql' => true,
             'collections' => array_keys(self::collections()),
@@ -64,6 +69,7 @@ final class AdlaireDatabase
             'schema' => true,
             'record_metadata' => true,
             'query' => true,
+            'query_explain' => true,
             'index_plan' => true,
             'migration_plan' => true,
             'event_payload_summary' => true,
@@ -75,6 +81,10 @@ final class AdlaireDatabase
             'conflict_detection' => true,
             'event_replay' => true,
             'read_model_rebuild' => true,
+            'integrity_audit' => true,
+            'diagnostics' => true,
+            'write_policy' => true,
+            'import_validation' => true,
             'access_rules' => 'undefined',
             'realtime_adapter' => 'none',
             'stream_mode' => 'pull_cursor',
@@ -240,6 +250,34 @@ final class AdlaireDatabase
             'collection' => $collection,
             'records' => ($options['count_only'] ?? false) === true ? [] : $records,
             'count' => $total,
+        ];
+    }
+
+    public static function queryExplain(string $collection, array $options = []): array
+    {
+        self::assertCollection($collection);
+        $where = $options['where'] ?? null;
+        $field = null;
+        if (is_array($where) && isset($where['field'])) {
+            $field = (string)$where['field'];
+        } elseif (is_array($where) && count($where) === 1) {
+            $field = (string)array_key_first($where);
+        }
+
+        $indexes = self::collections()[$collection]['indexes'];
+        $usesIndex = $field !== null && in_array($field, $indexes, true);
+        $orderBy = is_string($options['order_by'] ?? null) ? (string)$options['order_by'] : null;
+
+        return [
+            'collection' => $collection,
+            'where_field' => $field,
+            'order_by' => $orderBy,
+            'index_candidate' => $field,
+            'uses_index' => $usesIndex,
+            'full_scan' => $field !== null && !$usesIndex,
+            'estimated_records' => count(self::records($collection)),
+            'warnings' => $field !== null && !$usesIndex ? ['missing_index'] : [],
+            'hints' => $field !== null && !$usesIndex ? ['add_index:' . $field] : [],
         ];
     }
 
@@ -508,6 +546,39 @@ final class AdlaireDatabase
         ];
     }
 
+    public static function importValidation(string $collection, array $records): array
+    {
+        self::assertCollection($collection);
+        $errors = [];
+        $seen = [];
+        foreach ($records as $position => $record) {
+            if (!is_array($record)) {
+                $errors[] = ['position' => $position, 'error' => 'record_must_be_array'];
+                continue;
+            }
+            $id = (string)($record['id'] ?? '');
+            if ($id !== '') {
+                if (isset($seen[$id]) || self::get($collection, $id) !== null) {
+                    $errors[] = ['position' => $position, 'error' => 'duplicate_id', 'id' => $id];
+                }
+                $seen[$id] = true;
+            }
+            try {
+                self::normalizeDataForSchema($collection, $record['data'] ?? $record, true);
+            } catch (Throwable $exception) {
+                $errors[] = ['position' => $position, 'error' => 'schema_violation', 'message' => $exception->getMessage()];
+            }
+        }
+
+        return [
+            'collection' => $collection,
+            'valid' => $errors === [],
+            'record_count' => count($records),
+            'errors' => $errors,
+            'dry_run' => true,
+        ];
+    }
+
     public static function restoreSnapshot(string $collection, array $payload): array
     {
         self::assertCollectionName($collection);
@@ -737,16 +808,110 @@ final class AdlaireDatabase
     public static function operationalHealth(): array
     {
         $status = self::storageStatus();
+        $audit = self::auditIntegrity();
 
         return [
             'ready' => $status['enabled'] === true
                 && $status['wal_mode'] === true
-                && $status['integrity_check'] === 'ok',
+                && $status['integrity_check'] === 'ok'
+                && $audit['valid'] === true,
             'storage' => $status,
             'record_count' => array_sum(array_map('count', self::$records)),
             'event_count' => count(self::$events),
             'latest_cursor' => self::cursor()['latest'],
             'migration' => self::migrationPlan(),
+            'audit' => $audit,
+        ];
+    }
+
+    public static function auditIntegrity(): array
+    {
+        $errors = [];
+        $recordIds = [];
+        foreach (self::$records as $collection => $records) {
+            foreach ($records as $id => $record) {
+                $key = $collection . ':' . $id;
+                if (isset($recordIds[$key])) {
+                    $errors[] = ['type' => 'duplicate_record_id', 'collection' => $collection, 'id' => $id];
+                }
+                $recordIds[$key] = true;
+                if (($record['collection'] ?? null) !== $collection) {
+                    $errors[] = ['type' => 'record_collection_mismatch', 'collection' => $collection, 'id' => $id];
+                }
+                try {
+                    self::normalizeDataForSchema($collection, $record['data'] ?? [], false);
+                } catch (Throwable $exception) {
+                    $errors[] = ['type' => 'schema_violation', 'collection' => $collection, 'id' => $id, 'message' => $exception->getMessage()];
+                }
+            }
+        }
+
+        $lastSequence = 0;
+        foreach (self::$events as $event) {
+            $collection = (string)($event['collection'] ?? '');
+            if ($collection === '' || !isset(self::collections()[$collection])) {
+                $errors[] = ['type' => 'event_collection_missing', 'event' => $event['id'] ?? null];
+            }
+            if ((int)($event['sequence'] ?? 0) <= $lastSequence) {
+                $errors[] = ['type' => 'event_sequence_not_increasing', 'event' => $event['id'] ?? null];
+            }
+            $lastSequence = (int)($event['sequence'] ?? 0);
+            if (!isset($event['payload_hash'], $event['payload']) || !is_array($event['payload'])) {
+                $errors[] = ['type' => 'event_payload_invalid', 'event' => $event['id'] ?? null];
+                continue;
+            }
+            $payloadHash = hash('sha256', self::encodeJson(self::stableData($event['payload'])));
+            if ($payloadHash !== $event['payload_hash']) {
+                $errors[] = ['type' => 'event_payload_hash_mismatch', 'event' => $event['id'] ?? null];
+            }
+        }
+
+        return [
+            'valid' => $errors === [],
+            'errors' => $errors,
+            'record_count' => array_sum(array_map('count', self::$records)),
+            'event_count' => count(self::$events),
+            'latest_cursor' => self::cursor()['latest'],
+        ];
+    }
+
+    public static function diagnostics(): array
+    {
+        $storage = self::storageStatus();
+        $audit = self::auditIntegrity();
+
+        return [
+            'ready' => $audit['valid'] === true,
+            'storage' => $storage,
+            'schema' => [
+                'collection_count' => count(self::collections()),
+                'collections' => array_keys(self::collections()),
+            ],
+            'query' => [
+                'index_plan' => self::indexPlan(),
+            ],
+            'event' => [
+                'event_count' => count(self::$events),
+                'latest_cursor' => self::cursor()['latest'],
+            ],
+            'backup' => [
+                'export_ready' => true,
+                'restore_validation' => true,
+            ],
+            'audit' => $audit,
+            'release_readiness_hint' => $audit['valid'] === true ? 'database_ready' : 'database_needs_repair',
+        ];
+    }
+
+    public static function writePolicy(): array
+    {
+        return [
+            'max_record_size_bytes' => 65536,
+            'max_collection_name_length' => 64,
+            'allowed_schema_types' => ['string', 'integer', 'float', 'boolean', 'array', 'map', 'mixed'],
+            'max_patch_operations' => 32,
+            'max_transaction_operations' => 64,
+            'write_mode' => 'validated',
         ];
     }
 
@@ -769,13 +934,16 @@ final class AdlaireDatabase
     public static function migrationPlan(): array
     {
         return [
-            'schema_version' => 1,
+            'schema_version' => 2,
             'persistence_status' => 'planned',
             'selected_database' => 'sqlite',
             'compatibility_target' => 'libsql',
             'tables' => ['collections', 'records', 'events', 'schema_versions', 'database_meta'],
             'runtime_execution' => self::$pdo === null ? 'in_memory' : 'sqlite_persistent',
             'indexes' => self::indexPlan(),
+            'dry_run' => true,
+            'rollback_plan' => true,
+            'history' => [],
         ];
     }
 
@@ -815,6 +983,11 @@ final class AdlaireDatabase
             'backup_restore' => $planned['backup_restore'] === true,
             'restore_validation' => $planned['restore_validation'] === true,
             'operational_health' => $planned['operational_health'] === true,
+            'integrity_audit' => $planned['integrity_audit'] === true,
+            'diagnostics' => $planned['diagnostics'] === true,
+            'write_policy' => $planned['write_policy'] === true,
+            'query_explain' => $planned['query_explain'] === true,
+            'import_validation' => $planned['import_validation'] === true,
             'collections_defined' => self::collections() !== [],
             'channels_defined' => $planned['channels'] !== [],
             'event_stream_internal' => $planned['event_stream'] === 'internal',

@@ -21,7 +21,7 @@ docker_assets: Docker/
 
 将来的には`Docker/`配下に本番同等の環境を作成し、テスト、デバッグ、本番さながらの本番テストを行います。
 
-## v0.002 Test Scope
+## v0.003 Test Scope
 
 - 許可ディレクトリのみ存在すること
 - Coreが3フォルダ、3〜5 PHPファイル原則を満たすこと
@@ -38,4 +38,9 @@ docker_assets: Docker/
 - database export fingerprintが環境依存値に引っ張られないこと
 - 不正なdatabase restore payloadが既存状態を破壊しないこと
 - SQLite上のsoft deleteが再ロード後も非表示として扱われること
+- integrity auditがrecord、event、schema、payload hashを検査できること
+- diagnosticsがstorage、schema、query、event、backup、auditをまとめて返すこと
+- write policyが書き込み上限と許可schema typeを返すこと
+- query explainがindex利用とfull scan警告を返すこと
+- import validationが外部record投入前にdry-run検証できること
 - Applications境界とdocs境界が維持されること

@@ -1,22 +1,22 @@
 # Adlaire Ecosystem Specification
 
-Adlaire Ecosystemは`v0.002`としてBaaS Projectの実運用土台を固める。
+Adlaire Ecosystemは`v0.003`としてBaaS Projectの実運用土台を固める。
 
 ## Deployment-Integrated Definition
 
 | 項目 | 内容 |
 |------|------|
 | Name | Adlaire Ecosystem |
-| Version | v0.002 |
+| Version | v0.003 |
 | Type | BaaS Project |
 | Policy | Zero-base restart |
 | Compatibility | 未定義 |
 
-名称はAdlaire Ecosystemを継承する。実装は`v0.002`仕様から組み立てる。Coreの`Project`境界は採用せず、名称、version、manifest、readiness、release summaryはDeployment Systemへ統合する。
+名称はAdlaire Ecosystemを継承する。実装は`v0.003`仕様から組み立てる。Coreの`Project`境界は採用せず、名称、version、manifest、readiness、release summaryはDeployment Systemへ統合する。
 
 ## Core Scope
 
-`v0.002`で計画する中核機能は次のみ。
+`v0.003`で計画する中核機能は次のみ。
 
 1. Deployment System
 2. Realtime Database
@@ -41,11 +41,11 @@ Adlaire独自方式で定義する項目は次の通り。
 | Rollback view | 変更前へ戻す見通しを出せること |
 | Runtime independence | 実行時APIやSDKを前提にしないこと |
 
-`v0.002`では、Adlaire独自方式をDeployment SystemとRealtime Databaseにのみ適用する。
+`v0.003`では、Adlaire独自方式をDeployment SystemとRealtime Databaseにのみ適用する。
 
-## v0.002 Design Decision
+## v0.003 Design Decision
 
-`v0.002`はRealtime Databaseを実運用へ進めるための土台バージョンである。Deployment Systemは白紙状態として維持し、Realtime DatabaseはSQLite永続化を中核に据える。
+`v0.003`はRealtime Databaseを実運用へ進めるための安全性、診断性、投入前検証を強化するバージョンである。Deployment Systemは白紙状態として維持し、Realtime DatabaseはSQLite永続化を中核に据える。
 
 | 項目 | 方針 |
 |------|------|
@@ -60,6 +60,8 @@ Adlaire独自方式で定義する項目は次の通り。
 | Storage policy | SQLite primary, libSQL compatible |
 | Runtime fallback | in-memory互換 |
 | Fingerprint | 時刻情報を含めない安定fingerprint |
+| Safety | integrity audit、write policy、import validation |
+| Operability | diagnostics、query explain |
 | Authentication | 未定義 |
 | Authorization | 未定義 |
 
@@ -131,7 +133,7 @@ Deployment Systemは基本方針からやり直す。
 
 現時点のDeployment Systemは白紙状態である。過去のDeployment設計、release gate、preview、evidence、rollback view、release decisionを正本仕様として採用しない。
 
-`v0.002`では、Deployment Systemについて次のみを定義する。
+`v0.003`では、Deployment Systemについて次のみを定義する。
 
 - Deployment Systemは存在するが、方式は未定義である
 - Deployment Systemは実行しない
@@ -154,7 +156,7 @@ Realtime DatabaseはSQLiteを正選定したBaaS Core Featureである。
 
 ### Database Selection
 
-`v0.002`のRealtime DatabaseはSQLiteを正選定する。libSQLは正選定しない。
+`v0.003`のRealtime DatabaseはSQLiteを正選定する。libSQLは正選定しない。
 
 選定結果:
 
@@ -163,14 +165,14 @@ Realtime DatabaseはSQLiteを正選定したBaaS Core Featureである。
 | Selected database | SQLite |
 | Role | local embedded database |
 | Reason | BaaS Core Featureの初期実装を小さく保ち、Event Log型のデータモデルと相性がよい |
-| Runtime in v0.002 | SQLite persistent |
+| Runtime in v0.003 | SQLite persistent |
 | Fallback runtime | in-memory |
-| Persistence in v0.002 | 実装する |
+| Persistence in v0.003 | 実装する |
 | Compatibility target | libSQL |
 | libSQL role | SQLite互換の将来remote/sync/edge拡張候補 |
 | libSQL selection | 正選定しない |
 
-`v0.002`ではSQLiteファイル永続化を実装する。libSQL接続、remote syncは実装しない。in-memoryはテストと互換用途のfallbackとして残す。
+`v0.003`ではSQLiteファイル永続化を実装する。libSQL接続、remote syncは実装しない。in-memoryはテストと互換用途のfallbackとして残す。
 
 必須要件:
 
@@ -185,6 +187,11 @@ Realtime DatabaseはSQLiteを正選定したBaaS Core Featureである。
 - transaction失敗時はrecord、event、sequence、SQLite書き込みをrollbackする
 - export fingerprintはpath、file sizeなど環境依存値を除外して安定化する
 - restore前にdatabase export payloadを検証し、不正payloadでは既存状態を破壊しない
+- data integrity auditを返す
+- database diagnosticsを返す
+- write policyを返す
+- query explainを返す
+- import validationを返す
 - collection定義を持つ
 - collection schemaを持つ
 - channel定義を持つ
@@ -213,7 +220,7 @@ Realtime Database planned state:
 
 ```text
 feature: realtime_database
-version: v0.002
+version: v0.003
 state: planned
 kind: baas_core_feature
 deployable_unit: realtime_database
@@ -257,13 +264,18 @@ integrity_check: true
 backup_restore: true
 restore_validation: true
 operational_health: true
+integrity_audit: true
+diagnostics: true
+write_policy: true
+query_explain: true
+import_validation: true
 ```
 
 Realtime Database readinessは、BaaS Core Featureとしてplanned state、collection model、event log、snapshot、cursor、SQLite persistence、in-memory fallbackを判定できる状態を意味する。Deployment Systemの新方針が確定するまでは、Realtime DatabaseはDeployment Systemに依存しない。
 
 ### Realtime Database BaaS Contract
 
-`v0.002`のRealtime Databaseは外部公開APIではないが、BaaS機能として次のCore契約を持つ。
+`v0.003`のRealtime Databaseは外部公開APIではないが、BaaS機能として次のCore契約を持つ。
 
 | 契約 | 内容 |
 |------|------|
@@ -291,6 +303,11 @@ Realtime Database readinessは、BaaS Core Featureとしてplanned state、colle
 | Atomic rollback | transaction失敗時に途中のrecord、event、sequence、SQLite書き込みを残さない |
 | Stable export fingerprint | database exportのfingerprintから環境依存値を除外する |
 | Restore validation | database restore前にpayload構造、SQLite選定、fingerprintを検証する |
+| Integrity audit | record、event、schema、payload hashの整合性を検査する |
+| Diagnostics | storage、schema、query、event、backup、auditをまとめて診断する |
+| Write policy | record size、collection name、schema type、patch/transaction上限を示す |
+| Query explain | queryのindex候補、full scan警告、最適化hintを返す |
+| Import validation | 外部record投入前にschema、重複id、型をdry-run検証する |
 | Conflict detection | expected versionと現在versionの不一致を検出する |
 | Event replay | event payloadからcollection状態を再生する |
 | Read model rebuild | event logからsnapshot viewを再構築する |
@@ -298,11 +315,11 @@ Realtime Database readinessは、BaaS Core Featureとしてplanned state、colle
 | Access rules | Authentication/Authorization未定義のため`undefined`を返す |
 | Realtime adapter boundary | `none`を返し、pull cursor方式を明示する |
 
-Realtime Databaseは`v0.002`ではpush型接続を持たない。realtime性はevent logとcursorによる追跡可能性として扱う。
+Realtime Databaseは`v0.003`ではpush型接続を持たない。realtime性はevent logとcursorによる追跡可能性として扱う。
 
 ### Realtime Database Feature Set
 
-`v0.002`で実装するBaaSデータベース機能は次の通り。
+`v0.003`で実装するBaaSデータベース機能は次の通り。
 
 | 機能 | 方針 |
 |------|------|
@@ -330,6 +347,11 @@ Realtime Databaseは`v0.002`ではpush型接続を持たない。realtime性はe
 | Storage Status | SQLite path、WAL、integrity check、file sizeを返す |
 | Operational Health | 永続化状態、migration状態、record/event countを返す |
 | Restore Validation | 不正なdatabase export payloadでは既存状態を破壊しない |
+| Data Integrity Audit | record/event/schema/hash整合性を検査する |
+| Database Diagnostics | storage/schema/query/event/backup/auditをまとめて返す |
+| Write Policy | 書き込み制約と上限を返す |
+| Query Explain | index候補、full scan警告、hintを返す |
+| Import Validation | 外部データ投入前のdry-run検証を返す |
 
 Record metadata:
 
@@ -372,11 +394,14 @@ indexes: primary, collection, events, custom
 selected_database: sqlite
 compatibility_target: libsql
 runtime_execution: sqlite_persistent | in_memory
+dry_run: true
+rollback_plan: true
+history: list
 ```
 
 ## Realtime Database Data Model
 
-`v0.002`のRealtime Databaseは、次の実データ構造を扱う。
+`v0.003`のRealtime Databaseは、次の実データ構造を扱う。
 
 | Model | 意味 |
 |-------|------|
@@ -451,7 +476,7 @@ after: event id | null
 latest: event id | null
 ```
 
-`v0.002`の実データはSQLiteファイルへ永続化できる。in-memoryはfallbackとして維持する。libSQLはSQLite互換の将来拡張候補であり、現時点では接続しない。
+`v0.003`の実データはSQLiteファイルへ永続化できる。in-memoryはfallbackとして維持する。libSQLはSQLite互換の将来拡張候補であり、現時点では接続しない。
 
 SQLite tables:
 
@@ -518,9 +543,14 @@ accessRules()
 realtimeAdapter()
 storageStatus()
 operationalHealth()
+auditIntegrity()
+diagnostics()
+writePolicy()
+queryExplain(collection, options)
+importValidation(collection, records)
 ```
 
-これらはPublic APIではなく、Core内部の実データ操作である。`v0.002`ではテストとCore判定のためPHP上はpublic staticとして実装する。
+これらはPublic APIではなく、Core内部の実データ操作である。`v0.003`ではテストとCore判定のためPHP上はpublic staticとして実装する。
 
 ## Undefined Scope
 
@@ -580,12 +610,13 @@ docs/testing.md
 - Realtime Databaseのschema、metadata、query、subscription、transaction、snapshot export、index planned stateが機能する
 - Realtime Databaseのpatch、stats、migration plan、database export、snapshot restore、conflict detection、event replay、read model rebuild、access rule placeholder、realtime adapter boundaryが機能する
 - Realtime DatabaseのSQLite永続化、default collection永続化、transaction rollback、restore validation、operational healthが機能する
+- Realtime Databaseのintegrity audit、diagnostics、write policy、query explain、import validationが機能する
 - Applications境界が維持される
 - docs境界が維持され、テスト関連ドキュメントが`docs/testing.md`へ集約される
 
 ## Release Conditions
 
-`v0.002`のリリース条件は次の通り。
+`v0.003`のリリース条件は次の通り。
 
 - `php tests/debug.php`が成功する
 - Core readinessが成功する
