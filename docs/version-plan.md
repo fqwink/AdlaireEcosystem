@@ -16,7 +16,8 @@
 
 ### v0.004
 
-- 実装未開始のため、現時点のバグ修正なし。
+- Read Model Drift判定のrestore後の偽陽性を修正。
+- 複数record状態のsnapshot restore/rebuild件数不整合を修正。
 
 ## v0.004
 
@@ -26,7 +27,8 @@
 version: v0.004
 status: version_plan_approved
 scope: realtime_database_only
-implementation_status: not_started
+implementation_status: implemented
+implementation_approval: approved
 ```
 
 ### Approval
@@ -36,10 +38,10 @@ implementation_status: not_started
 ```text
 specification_confirmation: approved
 version_plan: approved
-implementation: not_approved
+implementation: approved
 ```
 
-実装は、別途、明示的な実装承認を得るまで開始しない。
+実装承認済み。実装は確定仕様と本バージョン計画に基づく。
 
 ### Axis
 

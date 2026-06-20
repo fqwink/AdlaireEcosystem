@@ -8,7 +8,7 @@ require_once __DIR__ . '/../Database/Database.php';
 final class AdlaireDeployment
 {
     public const NAME = 'Adlaire Ecosystem';
-    public const VERSION = 'v0.003';
+    public const VERSION = 'v0.004';
 
     public static function manifest(): array
     {
@@ -62,7 +62,7 @@ final class AdlaireDeployment
     public static function readiness(): array
     {
         $checks = [
-            'deployment_identity' => self::NAME === 'Adlaire Ecosystem' && self::VERSION === 'v0.003',
+            'deployment_identity' => self::NAME === 'Adlaire Ecosystem' && self::VERSION === 'v0.004',
             'state_blank' => self::state()['state'] === 'blank',
             'execution_none' => self::state()['execution'] === 'none',
             'release_not_ready' => self::state()['release_ready'] === false,

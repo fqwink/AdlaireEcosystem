@@ -1,10 +1,10 @@
 # Adlaire Ecosystem
 
-Adlaire Ecosystemは`v0.003`としてBaaS Projectの実運用土台を固めます。
+Adlaire Ecosystemは`v0.004`としてBaaS Projectの実運用土台を固めます。
 
-`v0.003`で計画する中核機能はDeployment SystemとRealtime Databaseです。
+`v0.004`で計画する中核機能はDeployment SystemとRealtime Databaseです。
 
-Realtime DatabaseのDatabaseはSQLiteを正選定し、SQLiteファイル永続化を実装します。
+Realtime DatabaseのDatabaseはSQLiteを正選定し、実運用耐性とRealtime Database機能を強化します。
 
 すべての仕様確定、設計、実装、リリース判定は`docs/ADLAIRE-ECOSYSTEM.md`の承認プロセスを正とします。提案案は草案であり、仕様確定承認を得るまで正本仕様ではありません。
 

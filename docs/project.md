@@ -1,16 +1,16 @@
 # Adlaire Ecosystem Boundary
 
-Adlaire Ecosystemは`v0.003`としてBaaS Projectの実運用土台を固めます。
+Adlaire Ecosystemは`v0.004`としてBaaS Projectの実運用土台を固めます。
 
-`v0.003`で計画する中核はDeployment SystemとRealtime Databaseです。
+`v0.004`で計画する中核はDeployment SystemとRealtime Databaseです。
 
 Project境界は作成せず、名称、version、manifest、readiness、release summaryはDeployment Systemへ統合します。
 
-Realtime DatabaseはSQLiteを正選定し、SQLiteファイル永続化の詳細仕様は正本へ集約します。
+Realtime DatabaseはSQLiteを正選定し、実運用耐性とRealtime Database機能の詳細仕様は正本へ集約します。
 
 Coreは3フォルダ、3〜5 PHPファイル原則で維持します。
 
-仕様確定、設計、実装、リリース判定は、正本の承認プロセスに従います。実装は確定仕様と承認済み設計に厳格に従い、仕様外実装は行いません。
+仕様確定、バージョン計画、実装、リリース判定は、正本の承認プロセスに従います。実装は確定仕様に厳格に従い、仕様外実装は行いません。
 
 Docker関連ファイルは`Docker/`へ集約します。
 

@@ -12,6 +12,7 @@ final class AdlaireDatabase
     private static int $recordSequence = 0;
     private static int $eventSequence = 0;
     private static int $transactionSequence = 0;
+    private static bool $maintenanceMode = false;
 
     public static function deployableUnit(): array
     {
@@ -55,10 +56,23 @@ final class AdlaireDatabase
             'integrity_audit' => true,
             'diagnostics' => true,
             'write_policy' => true,
+            'write_policy_enforcement' => true,
             'query_explain' => true,
             'import_validation' => true,
+            'operational_guard' => true,
+            'maintenance_mode' => true,
+            'startup_self_check' => true,
+            'backup_verification' => true,
+            'restore_dry_run' => true,
+            'recovery_check' => true,
+            'event_log_consistency_check' => true,
+            'cursor_safety' => true,
+            'read_model_drift_detection' => true,
+            'operational_metrics' => true,
+            'operational_report' => true,
             'sqlite' => true,
-            'libsql' => true,
+            'libsql' => false,
+            'libsql_runtime' => false,
             'collections' => array_keys(self::collections()),
             'channels' => ['system', 'application'],
             'event_stream' => 'internal',
@@ -85,6 +99,18 @@ final class AdlaireDatabase
             'diagnostics' => true,
             'write_policy' => true,
             'import_validation' => true,
+            'collection_lifecycle' => true,
+            'schema_versioning' => true,
+            'bulk_import_dry_run' => true,
+            'bulk_write' => true,
+            'record_restore' => true,
+            'snapshot_compare' => true,
+            'event_replay_range' => true,
+            'query_cursor_pagination' => true,
+            'collection_export_filter' => true,
+            'data_redaction_export' => true,
+            'record_ttl_plan' => true,
+            'subscriber_checkpoint_plan' => true,
             'access_rules' => 'undefined',
             'realtime_adapter' => 'none',
             'stream_mode' => 'pull_cursor',
@@ -161,7 +187,9 @@ final class AdlaireDatabase
     public static function create(string $collection, array $data): array
     {
         self::assertCollection($collection);
+        self::assertWritesAllowed();
         $data = self::normalizeDataForSchema($collection, $data, true);
+        self::enforceRecordSize($data);
         $id = 'rec_' . str_pad((string)++self::$recordSequence, 6, '0', STR_PAD_LEFT);
         $sequence = self::$eventSequence + 1;
         $record = [
@@ -283,6 +311,8 @@ final class AdlaireDatabase
 
     public static function patch(string $collection, string $id, array $operations, ?int $expectedVersion = null): array
     {
+        self::assertWritesAllowed();
+        self::enforcePatchOperations($operations);
         $record = self::get($collection, $id);
         if ($record === null) {
             throw new InvalidArgumentException('Record not found.');
@@ -323,6 +353,8 @@ final class AdlaireDatabase
     public static function update(string $collection, string $id, array $data, ?int $expectedVersion = null, bool $replace = false): array
     {
         self::assertCollection($collection);
+        self::assertWritesAllowed();
+        self::enforceRecordSize($data);
         if (!isset(self::$records[$collection][$id]) || self::isDeleted(self::$records[$collection][$id])) {
             throw new InvalidArgumentException('Record not found.');
         }
@@ -346,6 +378,7 @@ final class AdlaireDatabase
     public static function delete(string $collection, string $id): array
     {
         self::assertCollection($collection);
+        self::assertWritesAllowed();
         if (!isset(self::$records[$collection][$id]) || self::isDeleted(self::$records[$collection][$id])) {
             throw new InvalidArgumentException('Record not found.');
         }
@@ -579,6 +612,192 @@ final class AdlaireDatabase
         ];
     }
 
+    public static function collectionLifecycle(string $collection): array
+    {
+        self::assertCollection($collection);
+        $definition = self::collections()[$collection];
+        $stats = self::stats($collection);
+
+        return [
+            'collection' => $collection,
+            'state' => 'active',
+            'channel' => $definition['channel'],
+            'delete_mode' => $definition['delete_mode'],
+            'record_count' => $stats['record_count'],
+            'event_count' => $stats['event_count'],
+            'latest_cursor' => $stats['latest_cursor'],
+        ];
+    }
+
+    public static function schemaVersioning(string $collection): array
+    {
+        self::assertCollection($collection);
+        $definition = self::collections()[$collection];
+        $payload = [
+            'schema' => $definition['schema'],
+            'indexes' => $definition['indexes'],
+            'delete_mode' => $definition['delete_mode'],
+        ];
+
+        return [
+            'collection' => $collection,
+            'schema_version' => max(1, count(self::events(null, $collection))),
+            'schema_fingerprint' => hash('sha256', self::encodeJson($payload)),
+            'selected_database' => 'sqlite',
+        ];
+    }
+
+    public static function bulkImportDryRun(string $collection, array $records): array
+    {
+        return self::importValidation($collection, $records) + [
+            'operation' => 'bulk_import',
+            'will_write' => false,
+        ];
+    }
+
+    public static function bulkWrite(array $operations): array
+    {
+        return self::transaction($operations) + [
+            'operation' => 'bulk_write',
+            'applied' => true,
+        ];
+    }
+
+    public static function restoreRecord(string $collection, array $record): array
+    {
+        self::assertCollection($collection);
+        self::assertWritesAllowed();
+        if (!isset($record['id']) || !is_string($record['id']) || $record['id'] === '') {
+            throw new InvalidArgumentException('Record restore requires a record id.');
+        }
+        $data = self::normalizeDataForSchema($collection, $record['data'] ?? [], false);
+        self::enforceRecordSize($data);
+        $id = $record['id'];
+        $version = (int)($record['version'] ?? 1);
+        $sequence = self::$eventSequence + 1;
+        $restored = [
+            'id' => $id,
+            'collection' => $collection,
+            'channel' => self::collections()[$collection]['channel'],
+            'data' => self::stableData($data),
+            'meta' => [
+                'created_sequence' => (int)($record['meta']['created_sequence'] ?? $sequence),
+                'updated_sequence' => $sequence,
+                'deleted_sequence' => null,
+                'revision' => (int)($record['meta']['revision'] ?? $version),
+            ],
+            'version' => $version,
+        ];
+        self::$records[$collection][$id] = $restored;
+        self::persistRecord($restored);
+        self::recordEvent($collection, $id, 'restore', $version, $restored['data'], null);
+        self::syncSequences();
+
+        return $restored;
+    }
+
+    public static function snapshotCompare(array $left, array $right): array
+    {
+        $leftIds = self::snapshotRecordIds($left);
+        $rightIds = self::snapshotRecordIds($right);
+
+        return [
+            'same' => ($left['fingerprint'] ?? null) === ($right['fingerprint'] ?? null),
+            'left_fingerprint' => $left['fingerprint'] ?? null,
+            'right_fingerprint' => $right['fingerprint'] ?? null,
+            'added' => array_values(array_diff($rightIds, $leftIds)),
+            'removed' => array_values(array_diff($leftIds, $rightIds)),
+            'left_count' => count($leftIds),
+            'right_count' => count($rightIds),
+        ];
+    }
+
+    public static function eventReplayRange(string $collection, ?string $from = null, ?string $to = null): array
+    {
+        self::assertCollection($collection);
+        $range = [];
+        foreach (self::events(null, $collection) as $event) {
+            if ($from !== null && strcmp((string)$event['id'], $from) < 0) {
+                continue;
+            }
+            if ($to !== null && strcmp((string)$event['id'], $to) > 0) {
+                continue;
+            }
+            $range[] = $event;
+        }
+
+        return self::replay($collection, $range) + [
+            'from' => $from,
+            'to' => $to,
+            'event_count' => count($range),
+        ];
+    }
+
+    public static function queryCursor(string $collection, array $options = []): array
+    {
+        $limit = max(1, (int)($options['limit'] ?? 25));
+        $after = is_string($options['after'] ?? null) ? (string)$options['after'] : null;
+        $queryOptions = $options;
+        unset($queryOptions['limit'], $queryOptions['after']);
+        $records = self::query($collection, $queryOptions)['records'];
+        if ($after !== null) {
+            $found = false;
+            $records = array_values(array_filter($records, static function (array $record) use (&$found, $after): bool {
+                if ($found) {
+                    return true;
+                }
+                if (($record['id'] ?? null) === $after) {
+                    $found = true;
+                }
+                return false;
+            }));
+        }
+        $page = array_slice($records, 0, $limit);
+
+        return [
+            'collection' => $collection,
+            'records' => $page,
+            'count' => count($page),
+            'next_cursor' => count($records) > $limit ? (string)$page[array_key_last($page)]['id'] : null,
+            'has_more' => count($records) > $limit,
+        ];
+    }
+
+    public static function exportCollection(string $collection, array $options = []): array
+    {
+        self::assertCollection($collection);
+        $records = self::query($collection, ['where' => $options['where'] ?? null])['records'];
+        $redact = array_map('strval', $options['redact'] ?? []);
+        if ($redact !== []) {
+            $records = array_map(static function (array $record) use ($redact): array {
+                foreach ($redact as $field) {
+                    if (array_key_exists($field, $record['data'])) {
+                        $record['data'][$field] = '[redacted]';
+                    }
+                }
+                return $record;
+            }, $records);
+        }
+        $payload = [
+            'collection' => $collection,
+            'definition' => self::collections()[$collection],
+            'records' => $records,
+            'filter_applied' => isset($options['where']),
+            'redacted_fields' => $redact,
+            'cursor' => self::cursor()['latest'],
+            'selected_database' => 'sqlite',
+        ];
+
+        return $payload + [
+            'fingerprint' => hash('sha256', self::encodeJson($payload)),
+        ];
+    }
+
+    public static function dataRedactionExport(string $collection, array $fields): array
+    {
+        return self::exportCollection($collection, ['redact' => $fields]);
+    }
+
     public static function restoreSnapshot(string $collection, array $payload): array
     {
         self::assertCollectionName($collection);
@@ -706,6 +925,8 @@ final class AdlaireDatabase
 
     public static function transaction(array $operations): array
     {
+        self::assertWritesAllowed();
+        self::enforceTransactionOperations($operations);
         $before = self::cursor()['latest'];
         $recordsBefore = self::$records;
         $eventsBefore = self::$events;
@@ -777,6 +998,7 @@ final class AdlaireDatabase
         self::$recordSequence = 0;
         self::$eventSequence = 0;
         self::$transactionSequence = 0;
+        self::$maintenanceMode = false;
     }
 
     public static function storageStatus(): array
@@ -821,6 +1043,188 @@ final class AdlaireDatabase
             'latest_cursor' => self::cursor()['latest'],
             'migration' => self::migrationPlan(),
             'audit' => $audit,
+        ];
+    }
+
+    public static function setMaintenanceMode(bool $enabled): array
+    {
+        self::$maintenanceMode = $enabled;
+
+        return self::maintenanceMode();
+    }
+
+    public static function maintenanceMode(): array
+    {
+        return [
+            'enabled' => self::$maintenanceMode,
+            'write_allowed' => self::$maintenanceMode === false,
+            'mode' => self::$maintenanceMode ? 'maintenance' : 'normal',
+        ];
+    }
+
+    public static function operationalGuard(): array
+    {
+        $audit = self::auditIntegrity();
+        $maintenance = self::maintenanceMode();
+
+        return [
+            'ready' => $audit['valid'] === true && $maintenance['write_allowed'] === true,
+            'maintenance_mode' => $maintenance,
+            'write_policy_enforced' => true,
+            'write_policy' => self::writePolicy(),
+            'audit' => $audit,
+            'remote_sync' => 'not_adopted',
+            'external_dependency' => 'not_allowed',
+        ];
+    }
+
+    public static function startupSelfCheck(): array
+    {
+        $storage = self::storageStatus();
+        $audit = self::auditIntegrity();
+
+        return [
+            'ready' => $audit['valid'] === true,
+            'storage_ready' => $storage['enabled'] === false || $storage['integrity_check'] === 'ok',
+            'collections_ready' => self::collections() !== [],
+            'event_log_ready' => self::eventLogConsistencyCheck()['valid'],
+            'audit' => $audit,
+        ];
+    }
+
+    public static function backupVerification(array $payload): array
+    {
+        $validation = self::validateDatabaseExport($payload);
+
+        return [
+            'valid' => $validation['valid'],
+            'selected_database' => $payload['selected_database'] ?? null,
+            'fingerprint_present' => isset($payload['fingerprint']) && is_string($payload['fingerprint']),
+            'errors' => $validation['errors'],
+        ];
+    }
+
+    public static function restoreDryRun(array $payload): array
+    {
+        $validation = self::validateDatabaseExport($payload);
+
+        return [
+            'valid' => $validation['valid'],
+            'dry_run' => true,
+            'will_restore' => $validation['valid'],
+            'errors' => $validation['errors'],
+            'collection_count' => is_array($payload['collections'] ?? null) ? count($payload['collections']) : 0,
+        ];
+    }
+
+    public static function recoveryCheck(array $payload): array
+    {
+        $restore = self::restoreDryRun($payload);
+        $current = self::exportDatabase();
+
+        return [
+            'recoverable' => $restore['valid'],
+            'dry_run' => true,
+            'current_fingerprint' => $current['fingerprint'],
+            'backup_fingerprint' => $payload['fingerprint'] ?? null,
+            'restore' => $restore,
+        ];
+    }
+
+    public static function eventLogConsistencyCheck(): array
+    {
+        $errors = [];
+        $previous = 0;
+        $seen = [];
+        foreach (self::$events as $event) {
+            $id = (string)($event['id'] ?? '');
+            $sequence = (int)($event['sequence'] ?? 0);
+            if ($id === '' || isset($seen[$id])) {
+                $errors[] = ['type' => 'duplicate_or_missing_event_id', 'event' => $id];
+            }
+            $seen[$id] = true;
+            if ($sequence !== $previous + 1) {
+                $errors[] = ['type' => 'event_sequence_gap', 'event' => $id, 'expected' => $previous + 1, 'actual' => $sequence];
+            }
+            $previous = $sequence;
+        }
+
+        return [
+            'valid' => $errors === [],
+            'errors' => $errors,
+            'event_count' => count(self::$events),
+            'latest_cursor' => self::cursor()['latest'],
+        ];
+    }
+
+    public static function cursorSafety(?string $cursor = null): array
+    {
+        $ids = array_map(static fn(array $event): string => (string)$event['id'], self::$events);
+        $known = $cursor === null || in_array($cursor, $ids, true);
+
+        return [
+            'safe' => $known,
+            'cursor' => $cursor,
+            'latest' => self::cursor()['latest'],
+            'known' => $known,
+        ];
+    }
+
+    public static function readModelDriftDetection(string $collection): array
+    {
+        $snapshot = self::snapshot($collection);
+        $rebuilt = self::rebuildSnapshot($collection);
+        $snapshotHash = hash('sha256', self::encodeJson(self::readModelPayload($snapshot)));
+        $rebuiltHash = hash('sha256', self::encodeJson(self::readModelPayload($rebuilt)));
+
+        return [
+            'collection' => $collection,
+            'drift' => $snapshotHash !== $rebuiltHash,
+            'snapshot_fingerprint' => $snapshotHash,
+            'rebuilt_fingerprint' => $rebuiltHash,
+        ];
+    }
+
+    public static function operationalMetrics(): array
+    {
+        return [
+            'collection_count' => count(self::collections()),
+            'record_count' => array_sum(array_map('count', self::$records)),
+            'event_count' => count(self::$events),
+            'latest_cursor' => self::cursor()['latest'],
+            'maintenance_mode' => self::$maintenanceMode,
+            'storage' => self::storageStatus()['runtime_execution'],
+        ];
+    }
+
+    public static function operationalReport(): array
+    {
+        return [
+            'version' => AdlaireDeployment::VERSION,
+            'guard' => self::operationalGuard(),
+            'startup_self_check' => self::startupSelfCheck(),
+            'metrics' => self::operationalMetrics(),
+            'event_log' => self::eventLogConsistencyCheck(),
+            'ttl_plan' => self::recordTtlPlan(),
+            'subscriber_checkpoint_plan' => self::subscriberCheckpointPlan(),
+        ];
+    }
+
+    public static function recordTtlPlan(): array
+    {
+        return [
+            'planned' => true,
+            'runtime_enforced' => false,
+            'automatic_deletion' => false,
+        ];
+    }
+
+    public static function subscriberCheckpointPlan(): array
+    {
+        return [
+            'planned' => true,
+            'runtime_enforced' => false,
+            'checkpoint_source' => 'event_cursor',
         ];
     }
 
@@ -986,8 +1390,20 @@ final class AdlaireDatabase
             'integrity_audit' => $planned['integrity_audit'] === true,
             'diagnostics' => $planned['diagnostics'] === true,
             'write_policy' => $planned['write_policy'] === true,
+            'write_policy_enforcement' => $planned['write_policy_enforcement'] === true,
             'query_explain' => $planned['query_explain'] === true,
             'import_validation' => $planned['import_validation'] === true,
+            'operational_guard' => $planned['operational_guard'] === true,
+            'maintenance_mode' => $planned['maintenance_mode'] === true,
+            'startup_self_check' => $planned['startup_self_check'] === true,
+            'backup_verification' => $planned['backup_verification'] === true,
+            'restore_dry_run' => $planned['restore_dry_run'] === true,
+            'recovery_check' => $planned['recovery_check'] === true,
+            'event_log_consistency_check' => $planned['event_log_consistency_check'] === true,
+            'cursor_safety' => $planned['cursor_safety'] === true,
+            'read_model_drift_detection' => $planned['read_model_drift_detection'] === true,
+            'operational_metrics' => $planned['operational_metrics'] === true,
+            'operational_report' => $planned['operational_report'] === true,
             'collections_defined' => self::collections() !== [],
             'channels_defined' => $planned['channels'] !== [],
             'event_stream_internal' => $planned['event_stream'] === 'internal',
@@ -1009,6 +1425,18 @@ final class AdlaireDatabase
             'conflict_detection' => $planned['conflict_detection'] === true,
             'event_replay' => $planned['event_replay'] === true,
             'read_model_rebuild' => $planned['read_model_rebuild'] === true,
+            'collection_lifecycle' => $planned['collection_lifecycle'] === true,
+            'schema_versioning' => $planned['schema_versioning'] === true,
+            'bulk_import_dry_run' => $planned['bulk_import_dry_run'] === true,
+            'bulk_write' => $planned['bulk_write'] === true,
+            'record_restore' => $planned['record_restore'] === true,
+            'snapshot_compare' => $planned['snapshot_compare'] === true,
+            'event_replay_range' => $planned['event_replay_range'] === true,
+            'query_cursor_pagination' => $planned['query_cursor_pagination'] === true,
+            'collection_export_filter' => $planned['collection_export_filter'] === true,
+            'data_redaction_export' => $planned['data_redaction_export'] === true,
+            'record_ttl_plan' => $planned['record_ttl_plan'] === true,
+            'subscriber_checkpoint_plan' => $planned['subscriber_checkpoint_plan'] === true,
             'access_rules_undefined' => $planned['access_rules'] === 'undefined',
             'realtime_adapter_none' => $planned['realtime_adapter'] === 'none',
             'stream_mode_pull_cursor' => $planned['stream_mode'] === 'pull_cursor',
@@ -1461,6 +1889,70 @@ final class AdlaireDatabase
             'id' => $id,
             'current_version' => $currentVersion,
             'expected_version' => $expectedVersion,
+        ];
+    }
+
+    private static function assertWritesAllowed(): void
+    {
+        if (self::$maintenanceMode) {
+            throw new RuntimeException('Realtime Database is in maintenance mode.');
+        }
+    }
+
+    private static function enforceRecordSize(array $data): void
+    {
+        $size = strlen(self::encodeJson(self::stableData($data)));
+        if ($size > self::writePolicy()['max_record_size_bytes']) {
+            throw new InvalidArgumentException('Record exceeds write policy size.');
+        }
+    }
+
+    private static function enforcePatchOperations(array $operations): void
+    {
+        if (count($operations) > self::writePolicy()['max_patch_operations']) {
+            throw new InvalidArgumentException('Patch operations exceed write policy limit.');
+        }
+    }
+
+    private static function enforceTransactionOperations(array $operations): void
+    {
+        if (count($operations) > self::writePolicy()['max_transaction_operations']) {
+            throw new InvalidArgumentException('Transaction operations exceed write policy limit.');
+        }
+    }
+
+    private static function snapshotRecordIds(array $snapshot): array
+    {
+        $records = $snapshot['records'] ?? ($snapshot['snapshot']['records'] ?? []);
+        $ids = [];
+        foreach ($records as $record) {
+            if (is_array($record) && isset($record['id'])) {
+                $ids[] = (string)$record['id'];
+            }
+        }
+        sort($ids);
+
+        return $ids;
+    }
+
+    private static function readModelPayload(array $snapshot): array
+    {
+        $records = [];
+        foreach (($snapshot['records'] ?? []) as $record) {
+            if (!is_array($record) || !isset($record['id'])) {
+                continue;
+            }
+            $records[(string)$record['id']] = [
+                'id' => (string)$record['id'],
+                'data' => self::stableData($record['data'] ?? []),
+                'version' => (int)($record['version'] ?? 1),
+            ];
+        }
+        ksort($records);
+
+        return [
+            'collection' => (string)($snapshot['collection'] ?? ''),
+            'records' => array_values($records),
         ];
     }
 

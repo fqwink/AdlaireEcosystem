@@ -30,7 +30,7 @@ bugfix_until_zero: true
 
 将来的には`Docker/`配下に本番同等の環境を作成し、テスト、デバッグ、本番さながらの本番テストを行います。
 
-## v0.003 Test Scope
+## v0.004 Test Scope
 
 - 許可ディレクトリのみ存在すること
 - Coreが3フォルダ、3〜5 PHPファイル原則を満たすこと
@@ -42,6 +42,8 @@ bugfix_until_zero: true
 - Realtime Database readinessが成功すること
 - Realtime DatabaseのBaaS Core Feature機能が動作すること
 - Realtime DatabaseのSQLite永続化、WAL、integrity checkが動作すること
+- Realtime Databaseの実運用耐性機能が動作すること
+- Realtime Databaseのv0.004新機能が動作すること
 - SQLite有効化時にdefault collectionがSQLite対象として扱われること
 - 失敗したtransactionがrecord、event、SQLite書き込みを残さないこと
 - database export fingerprintが環境依存値に引っ張られないこと
