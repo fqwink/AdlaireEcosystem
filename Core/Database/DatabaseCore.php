@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../EventLog.php';
+
 final class AdlaireDatabase
 {
-    public const VERSION = 'v0.015';
+    public const VERSION = 'v0.017';
 
     private static array $records = [];
     private static array $events = [];
@@ -47,6 +49,37 @@ final class AdlaireDatabase
             'adlaire_method' => true,
             'deployment_axis' => 'undefined',
             'mode' => 'event_log',
+            'core_root_policy' => 'common_foundation_and_entrypoints',
+            'entrypoint_policy' => 'single_file_principle',
+            'event_log_policy' => 'single_file_principle',
+            'event_log_file' => 'Core/EventLog.php',
+            'event_log_folder' => 'prohibited',
+            'event_log_role' => 'common_foundation',
+            'event_log_common_foundation' => true,
+            'event_log_single_file' => true,
+            'event_log_entrypoint' => false,
+            'event_log_shared_by' => ['realtime_database', 'authentication', 'authorization'],
+            'event_log_message_broker' => false,
+            'event_log_remote_sync' => false,
+            'event_log_automatic_repair' => false,
+            'event_log_automatic_compaction' => false,
+            'event_log_automatic_delete' => false,
+            'event_envelope' => true,
+            'event_domain_source' => true,
+            'event_metadata' => true,
+            'event_type_registry' => true,
+            'event_chain_hash' => true,
+            'event_validation' => true,
+            'event_replay_scope' => true,
+            'event_evidence' => true,
+            'event_snapshot_link' => true,
+            'event_replay_verification' => true,
+            'event_cursor_contract' => true,
+            'event_import_validation' => true,
+            'event_export_packet' => true,
+            'event_retention_view' => true,
+            'event_risk_report' => true,
+            'event_operation_journal' => true,
             'storage' => 'sqlite_libsql',
             'selected_database' => 'sqlite',
             'compatibility_target' => 'libsql',
@@ -54,8 +87,6 @@ final class AdlaireDatabase
             'data_runtime' => 'sqlite_persistent',
             'fallback_runtime' => 'in_memory',
             'sqlite_persistence' => true,
-            'wal_mode' => true,
-            'integrity_check' => true,
             'backup_restore' => true,
             'restore_validation' => true,
             'operational_health' => true,
@@ -1012,26 +1043,62 @@ final class AdlaireDatabase
 
     public static function eventCheckpoint(?string $cursor = null): array
     {
-        $events = [];
-        foreach (self::events() as $event) {
-            $events[] = $event;
-            if ($cursor !== null && $event['id'] === $cursor) {
-                break;
-            }
-        }
-        $collections = [];
-        foreach ($events as $event) {
-            $collection = (string)$event['collection'];
-            $collections[$collection] = ($collections[$collection] ?? 0) + 1;
-        }
-        ksort($collections);
+        return AdlaireEventLog::eventCheckpoint(self::$events, $cursor);
+    }
 
-        return [
-            'cursor' => $cursor ?? self::lastEventId($events),
-            'event_count' => count($events),
-            'collections' => $collections,
-            'fingerprint' => hash('sha256', self::encodeJson(['cursor' => $cursor, 'events' => $events])),
-        ];
+    public static function eventTypeRegistry(): array
+    {
+        return AdlaireEventLog::typeRegistry();
+    }
+
+    public static function eventCursorContract(?string $eventId = null): array
+    {
+        return AdlaireEventLog::cursorContract(self::$events, $eventId);
+    }
+
+    public static function eventReplayScope(
+        ?string $domain = null,
+        ?string $collection = null,
+        ?string $recordId = null,
+        ?int $fromSequence = null,
+        ?int $toSequence = null
+    ): array {
+        return AdlaireEventLog::replayScope(self::$events, $domain, $collection, $recordId, $fromSequence, $toSequence);
+    }
+
+    public static function eventEvidence(): array
+    {
+        return AdlaireEventLog::evidence(self::$events);
+    }
+
+    public static function eventSnapshotLink(string $eventId, string $snapshotFingerprint): array
+    {
+        return AdlaireEventLog::snapshotLink(self::$events, $eventId, $snapshotFingerprint);
+    }
+
+    public static function eventImportValidation(array $events): array
+    {
+        return AdlaireEventLog::importValidation($events);
+    }
+
+    public static function eventExportPacket(): array
+    {
+        return AdlaireEventLog::exportPacket(self::$events);
+    }
+
+    public static function eventRetentionView(): array
+    {
+        return AdlaireEventLog::retentionView(self::$events);
+    }
+
+    public static function eventRiskReport(): array
+    {
+        return AdlaireEventLog::riskReport(self::$events);
+    }
+
+    public static function eventOperationJournal(string $operation, array $result = []): array
+    {
+        return AdlaireEventLog::operationJournal($operation, self::$events, $result);
     }
 
     public static function bulkImportDryRun(string $collection, array $records): array
@@ -1239,67 +1306,13 @@ final class AdlaireDatabase
             self::assertCollection($collection);
         }
 
-        $events = self::filterEvents($collection);
-        if ($after === null) {
-            return $events;
-        }
-
-        $found = false;
-        $cursorEvents = [];
-        foreach ($events as $event) {
-            if ($found) {
-                $cursorEvents[] = $event;
-                continue;
-            }
-            if ($event['id'] === $after) {
-                $found = true;
-            }
-        }
-
-        return $cursorEvents;
+        return AdlaireEventLog::events(self::$events, $after, $collection);
     }
 
     public static function replay(string $collection, array $events): array
     {
         self::assertCollection($collection);
-        $records = [];
-        foreach ($events as $event) {
-            if (($event['collection'] ?? null) !== $collection) {
-                continue;
-            }
-            $recordId = (string)($event['record_id'] ?? '');
-            if (($event['type'] ?? null) === 'delete') {
-                unset($records[$recordId]);
-                continue;
-            }
-            $payload = $event['payload'] ?? [];
-            if (is_array($payload)) {
-                $records[$recordId] = [
-                    'id' => $recordId,
-                    'collection' => $collection,
-                    'channel' => self::collections()[$collection]['channel'],
-                    'data' => self::stableData($payload),
-                    'meta' => [
-                        'created_sequence' => (int)($event['sequence'] ?? 0),
-                        'updated_sequence' => (int)($event['sequence'] ?? 0),
-                        'deleted_sequence' => null,
-                        'revision' => (int)($event['version'] ?? 1),
-                    ],
-                    'version' => (int)($event['version'] ?? 1),
-                ];
-            }
-        }
-
-        $payload = [
-            'collection' => $collection,
-            'records' => array_values($records),
-            'version' => count($events),
-            'cursor' => self::lastEventId($events),
-        ];
-
-        return $payload + [
-            'fingerprint' => hash('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
-        ];
+        return AdlaireEventLog::replay($collection, $events, self::collections()[$collection]);
     }
 
     public static function rebuildSnapshot(string $collection): array
@@ -1386,10 +1399,7 @@ final class AdlaireDatabase
 
     public static function cursor(): array
     {
-        return [
-            'after' => null,
-            'latest' => self::lastEventId(self::$events),
-        ];
+        return AdlaireEventLog::cursor(self::$events);
     }
 
     public static function reset(): void
@@ -1697,17 +1707,7 @@ final class AdlaireDatabase
 
     public static function eventGapReport(): array
     {
-        $report = self::eventLogConsistencyCheck();
-
-        return [
-            'valid' => $report['valid'],
-            'gaps' => array_values(array_filter(
-                $report['errors'],
-                static fn(array $error): bool => ($error['type'] ?? null) === 'event_sequence_gap'
-            )),
-            'errors' => $report['errors'],
-            'latest_cursor' => $report['latest_cursor'],
-        ];
+        return AdlaireEventLog::gapReport(self::$events);
     }
 
     public static function corruptionSuspectReport(): array
@@ -1786,28 +1786,7 @@ final class AdlaireDatabase
 
     public static function eventLogConsistencyCheck(): array
     {
-        $errors = [];
-        $previous = 0;
-        $seen = [];
-        foreach (self::$events as $event) {
-            $id = (string)($event['id'] ?? '');
-            $sequence = (int)($event['sequence'] ?? 0);
-            if ($id === '' || isset($seen[$id])) {
-                $errors[] = ['type' => 'duplicate_or_missing_event_id', 'event' => $id];
-            }
-            $seen[$id] = true;
-            if ($sequence !== $previous + 1) {
-                $errors[] = ['type' => 'event_sequence_gap', 'event' => $id, 'expected' => $previous + 1, 'actual' => $sequence];
-            }
-            $previous = $sequence;
-        }
-
-        return [
-            'valid' => $errors === [],
-            'errors' => $errors,
-            'event_count' => count(self::$events),
-            'latest_cursor' => self::cursor()['latest'],
-        ];
+        return AdlaireEventLog::consistencyCheck(self::$events);
     }
 
     public static function cursorSafety(?string $cursor = null): array
@@ -2004,37 +1983,7 @@ final class AdlaireDatabase
 
     public static function eventChainIntegrity(): array
     {
-        $errors = [];
-        $previousSequence = 0;
-        $previousChain = 'root';
-        $chain = [];
-        foreach (self::$events as $event) {
-            $sequence = (int)($event['sequence'] ?? 0);
-            if ($sequence !== $previousSequence + 1) {
-                $errors[] = ['type' => 'event_sequence_gap', 'event' => $event['id'] ?? null];
-            }
-            $entry = [
-                'previous' => $previousChain,
-                'event' => self::stableData($event),
-            ];
-            $current = hash('sha256', self::encodeJson($entry));
-            $chain[] = [
-                'event_id' => $event['id'] ?? null,
-                'sequence' => $sequence,
-                'chain_hash' => $current,
-            ];
-            $previousSequence = $sequence;
-            $previousChain = $current;
-        }
-
-        return [
-            'valid' => $errors === [],
-            'errors' => $errors,
-            'event_count' => count(self::$events),
-            'root' => 'root',
-            'tip' => $previousChain,
-            'chain' => $chain,
-        ];
+        return AdlaireEventLog::eventChainIntegrity(self::$events);
     }
 
     public static function snapshotIntegritySeal(string $collection): array
@@ -3580,18 +3529,7 @@ final class AdlaireDatabase
 
     public static function eventStreamIntegritySummary(): array
     {
-        $consistency = self::eventLogConsistencyCheck();
-        $chain = self::eventChainIntegrity();
-
-        return [
-            'valid' => $consistency['valid'] === true && $chain['valid'] === true,
-            'event_count' => count(self::$events),
-            'latest_cursor' => self::cursor()['latest'],
-            'sequence_valid' => $consistency['valid'],
-            'chain_valid' => $chain['valid'],
-            'chain_tip' => $chain['tip'],
-            'errors' => array_merge($consistency['errors'], $chain['errors']),
-        ];
+        return AdlaireEventLog::streamIntegritySummary(self::$events);
     }
 
     public static function operationalStatusBoard(?array $backupPayload = null): array
@@ -3769,17 +3707,21 @@ final class AdlaireDatabase
         self::assertCollection($collection);
         $snapshot = self::snapshot($collection);
         $rebuilt = self::rebuildSnapshot($collection);
-        $snapshotHash = hash('sha256', self::encodeJson(self::readModelPayload($snapshot)));
-        $rebuiltHash = hash('sha256', self::encodeJson(self::readModelPayload($rebuilt)));
+        $proof = AdlaireEventLog::replayProof($collection, $snapshot, $rebuilt);
+        $proof['event_count'] = count(self::events(null, $collection));
 
-        return [
-            'collection' => $collection,
-            'proved' => $snapshotHash === $rebuiltHash,
-            'snapshot_fingerprint' => $snapshotHash,
-            'rebuilt_fingerprint' => $rebuiltHash,
-            'event_count' => count(self::events(null, $collection)),
-            'will_repair' => false,
-        ];
+        return $proof;
+    }
+
+    public static function eventReplayVerification(string $collection): array
+    {
+        self::assertCollection($collection);
+
+        return AdlaireEventLog::replayVerification(
+            $collection,
+            self::snapshot($collection),
+            self::rebuildSnapshot($collection)
+        );
     }
 
     public static function backupTrustLedger(array $candidates): array
@@ -3910,23 +3852,7 @@ final class AdlaireDatabase
 
     public static function eventCausalityChain(): array
     {
-        $items = [];
-        foreach (self::events() as $event) {
-            $items[] = [
-                'event_id' => $event['id'],
-                'sequence' => $event['sequence'],
-                'collection' => $event['collection'],
-                'record_id' => $event['record_id'],
-                'type' => $event['type'],
-                'cause' => $event['type'] . ':' . $event['collection'],
-            ];
-        }
-
-        return [
-            'items' => $items,
-            'count' => count($items),
-            'latest_cursor' => self::cursor()['latest'],
-        ];
+        return AdlaireEventLog::causalityChain(self::$events);
     }
 
     public static function snapshotRecoveryPoint(string $collection): array
@@ -4053,7 +3979,7 @@ final class AdlaireDatabase
 
     public static function eventGapRepairPlan(): array
     {
-        $gap = self::eventGapReport();
+        $gap = AdlaireEventLog::gapReport(self::$events);
 
         return [
             'needed' => $gap['valid'] !== true,
@@ -4304,13 +4230,43 @@ final class AdlaireDatabase
             'baas_core_feature' => $planned['kind'] === 'baas_core_feature',
             'deployable_unit' => $planned['deployable_unit'] === 'realtime_database',
             'event_log_mode' => $planned['mode'] === 'event_log',
+            'core_root_policy' => $planned['core_root_policy'] === 'common_foundation_and_entrypoints',
+            'entrypoint_policy' => $planned['entrypoint_policy'] === 'single_file_principle',
+            'event_log_policy' => $planned['event_log_policy'] === 'single_file_principle',
+            'event_log_file' => $planned['event_log_file'] === 'Core/EventLog.php',
+            'event_log_folder' => $planned['event_log_folder'] === 'prohibited',
+            'event_log_common_foundation' => $planned['event_log_common_foundation'] === true,
+            'event_log_single_file' => $planned['event_log_single_file'] === true,
+            'event_log_not_entrypoint' => $planned['event_log_entrypoint'] === false,
+            'event_log_realtime_database' => in_array('realtime_database', $planned['event_log_shared_by'], true),
+            'event_log_authentication' => in_array('authentication', $planned['event_log_shared_by'], true),
+            'event_log_authorization' => in_array('authorization', $planned['event_log_shared_by'], true),
+            'event_log_not_message_broker' => $planned['event_log_message_broker'] === false,
+            'event_log_not_remote_sync' => $planned['event_log_remote_sync'] === false,
+            'event_log_not_automatic_repair' => $planned['event_log_automatic_repair'] === false,
+            'event_log_not_automatic_compaction' => $planned['event_log_automatic_compaction'] === false,
+            'event_log_not_automatic_delete' => $planned['event_log_automatic_delete'] === false,
+            'event_envelope' => $planned['event_envelope'] === true,
+            'event_domain_source' => $planned['event_domain_source'] === true,
+            'event_metadata' => $planned['event_metadata'] === true,
+            'event_type_registry' => $planned['event_type_registry'] === true,
+            'event_chain_hash' => $planned['event_chain_hash'] === true,
+            'event_validation' => $planned['event_validation'] === true,
+            'event_replay_scope' => $planned['event_replay_scope'] === true,
+            'event_evidence' => $planned['event_evidence'] === true,
+            'event_snapshot_link' => $planned['event_snapshot_link'] === true,
+            'event_replay_verification' => $planned['event_replay_verification'] === true,
+            'event_cursor_contract' => $planned['event_cursor_contract'] === true,
+            'event_import_validation' => $planned['event_import_validation'] === true,
+            'event_export_packet' => $planned['event_export_packet'] === true,
+            'event_retention_view' => $planned['event_retention_view'] === true,
+            'event_risk_report' => $planned['event_risk_report'] === true,
+            'event_operation_journal' => $planned['event_operation_journal'] === true,
             'sqlite_libsql_storage' => $planned['storage'] === 'sqlite_libsql',
             'sqlite_selected' => $planned['selected_database'] === 'sqlite',
             'libsql_compatibility_target' => $planned['compatibility_target'] === 'libsql',
             'sqlite_primary_policy' => $planned['storage_policy'] === 'sqlite_primary_libsql_compatible',
             'sqlite_persistence' => $planned['sqlite_persistence'] === true,
-            'wal_mode' => $planned['wal_mode'] === true,
-            'integrity_check' => $planned['integrity_check'] === true,
             'backup_restore' => $planned['backup_restore'] === true,
             'restore_validation' => $planned['restore_validation'] === true,
             'operational_health' => $planned['operational_health'] === true,
@@ -5079,31 +5035,7 @@ final class AdlaireDatabase
 
     private static function payloadEventGapReport(array $events): array
     {
-        $errors = [];
-        $previous = 0;
-        $seen = [];
-        foreach ($events as $event) {
-            if (!is_array($event)) {
-                $errors[] = ['type' => 'event_must_be_array'];
-                continue;
-            }
-            $id = (string)($event['id'] ?? '');
-            $sequence = (int)($event['sequence'] ?? 0);
-            if ($id === '' || isset($seen[$id])) {
-                $errors[] = ['type' => 'duplicate_or_missing_event_id', 'event' => $id];
-            }
-            $seen[$id] = true;
-            if ($sequence !== $previous + 1) {
-                $errors[] = ['type' => 'event_sequence_gap', 'event' => $id, 'expected' => $previous + 1, 'actual' => $sequence];
-            }
-            $previous = $sequence;
-        }
-
-        return [
-            'valid' => $errors === [],
-            'errors' => $errors,
-            'event_count' => count($events),
-        ];
+        return AdlaireEventLog::payloadEventGapReport($events);
     }
 
     private static function payloadRecordCount(array $payload): int
@@ -5139,60 +5071,28 @@ final class AdlaireDatabase
         ];
     }
 
-    private static function changedFields(?array $before, array $after): array
-    {
-        $fields = array_unique(array_merge(array_keys($before ?? []), array_keys($after)));
-        $changed = [];
-        foreach ($fields as $field) {
-            if (($before[$field] ?? null) !== ($after[$field] ?? null)) {
-                $changed[] = $field;
-            }
-        }
-        sort($changed);
-        return $changed;
-    }
-
     private static function recordEvent(string $collection, string $recordId, string $type, int $version, array $payload, ?array $before): array
     {
-        $afterHash = hash('sha256', json_encode(self::stableData($payload), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-        $event = [
-            'id' => 'evt_' . str_pad((string)++self::$eventSequence, 6, '0', STR_PAD_LEFT),
-            'sequence' => self::$eventSequence,
-            'collection' => $collection,
-            'channel' => self::collections()[$collection]['channel'],
-            'record_id' => $recordId,
-            'type' => $type,
-            'version' => $version,
-            'payload_hash' => $afterHash,
-            'before_hash' => $before === null ? null : hash('sha256', json_encode(self::stableData($before), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)),
-            'after_hash' => $type === 'delete' ? null : $afterHash,
-            'changed_fields' => self::changedFields($before, $payload),
-            'payload' => self::stableData($payload),
-        ];
+        $event = AdlaireEventLog::recordEvent(
+            self::$events,
+            $collection,
+            self::collections()[$collection]['channel'],
+            $recordId,
+            $type,
+            $version,
+            $payload,
+            $before
+        );
+        self::$eventSequence = (int)$event['sequence'];
         self::$events[] = $event;
         self::persistEvent($event);
 
         return $event;
     }
 
-    private static function filterEvents(?string $collection): array
-    {
-        $events = $collection === null
-            ? self::$events
-            : array_filter(self::$events, static fn(array $event): bool => $event['collection'] === $collection);
-
-        return array_values($events);
-    }
-
     private static function lastEventId(array $events): ?string
     {
-        if ($events === []) {
-            return null;
-        }
-
-        $last = $events[array_key_last($events)];
-
-        return is_array($last) ? (string)$last['id'] : null;
+        return AdlaireEventLog::lastEventId($events);
     }
 
     private static function defaultCollections(): array

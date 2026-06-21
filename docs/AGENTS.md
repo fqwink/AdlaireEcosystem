@@ -62,14 +62,14 @@
 
 ## 現行方針
 
-- 現行バージョンは`v0.015`。
+- 現行バージョンは`v0.017`。
 - 名称はAdlaire Ecosystemを継承する。
 - Adlaire EcosystemはBaaS Projectとしてゼロベースで再スタートする。
 - 必須動作要件は`docs/ADLAIRE-ECOSYSTEM.md`を正とする。
-- `v0.015`で維持する中核機能はRealtime Databaseのみ。
+- `v0.017`で維持する中核機能はRealtime Databaseのみ。
 - Deployment Systemは基本方針からやり直すため、現行仕様とソースコードを破棄済みとして扱う。
 - Authentication、Authorization、その他BaaS機能は未定義とし、Adlaire独自方式を確定するまで実装しない。
-- Realtime DatabaseのDatabaseはSQLiteを正選定し、libSQLはSQLite互換の将来拡張として決定済みとする。ただし`v0.015`ではlibSQLを実装しない。
+- Realtime DatabaseのDatabaseはSQLiteを正選定し、libSQLはSQLite互換の将来拡張として決定済みとする。ただし`v0.017`ではlibSQLを実装しない。
 
 ## 許可ディレクトリ
 
@@ -85,10 +85,13 @@
 
 ## Core構成
 
-`Core/`直下のPHPファイルはエントリポイントのみとし、単一ファイル原則で扱う。
+`Core/`直下は共通基盤機能とエントリポイントの2機能で扱う。エントリポイントは単一ファイル原則で扱う。Event Logも単一ファイル原則で扱う。
 
 - `Core/Runtime.php`
 - `Core/Database.php`
+- `Core/EventLog.php`
+
+`Core/EventLog.php`はRealtime Database、Authentication、Authorizationに共通するCore横断履歴基盤であり、エントリポイントではない。Event Log用フォルダは作成しない。
 
 Core直下に置く境界フォルダは次の3つとする。
 

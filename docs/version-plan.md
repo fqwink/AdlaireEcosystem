@@ -8,6 +8,58 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.017
+
+- `version: v0.017`
+- `status: version_plan_approved`
+- `scope: event_log_core_trust_foundation`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: event_log_validation_chain_replay_evidence`
+- `purpose: Event LogをCore横断の信頼履歴基盤として強化`
+- `implementation_targets: Event Envelope, Domain Source, Event Metadata, Event Type Registry, Event Chain Hash, Event Validation, Event Replay Scope, Event Evidence, Snapshot Link, Replay Verification, Cursor Contract, Import Validation, Export Packet, Retention View, Risk Report, Operation Journal`
+- `database_usage: Realtime Databaseは強化後のCore/EventLog.phpを利用する`
+- `authentication_authorization: Event Logの対象domainとして扱うが認証・認可本体は実装しない`
+- `external_dependency: prohibited`
+- `remote_sync: not_adopted`
+- `message_broker: prohibited`
+- `automatic_repair_compaction_delete: prohibited`
+- `public_database_api: preserved`
+- `constraints: no_external_dependency, no_remote_sync, no_message_broker, no_auto_repair, no_auto_compaction, no_auto_delete, preserve_AdlaireDatabase_API, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
+## v0.016
+
+- `version: v0.016`
+- `status: version_plan_approved`
+- `scope: core_event_log_common_foundation`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: event_log_core_common_foundation`
+- `purpose: Event LogをRealtime Database、Authentication、Authorizationに共通するCore横断履歴基盤へ昇格`
+- `core_root_policy: common_foundation_and_entrypoints`
+- `entrypoint_policy: single_file_principle`
+- `event_log_policy: single_file_principle`
+- `event_log_file: Core/EventLog.php`
+- `event_log_folder: prohibited`
+- `event_log_role: common_foundation`
+- `database_usage: Realtime DatabaseはCore/EventLog.phpを利用する`
+- `public_database_api: preserved`
+- `external_dependency: prohibited`
+- `remote_sync: not_adopted`
+- `message_broker: prohibited`
+- `websocket_sse_push: prohibited`
+- `automatic_repair_compaction_delete: prohibited`
+- `implementation_targets: Core/EventLog.php追加, Event Log処理の単一ファイル化, DatabaseCoreからEvent Log処理を委譲, 既存AdlaireDatabase API維持, Core方針ドキュメント更新`
+- `constraints: no_eventlog_folder, no_multi_file_eventlog, no_database_api_regression, no_external_dependency, strict_confirmed_spec`
+- `bugfix_summary: Event Replay Proofのevent_count補正, WAL/integrity checkの要件化記載削除`
+
 ## v0.015
 
 - `version: v0.015`

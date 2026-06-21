@@ -28,11 +28,13 @@ bugfix_until_zero: true
 
 バグ修正は承認工程に含めません。実装後にバグがある場合は、追加承認を待たずにバグ修正ゼロになるまで必ず修正します。
 
-## v0.015 Test Scope
+## v0.017 Test Scope
 
 - 許可ディレクトリのみ存在すること
 - 必須動作要件、承認済み文言、外部依存禁止が仕様へ明記されていること
-- Core直下のPHPファイルがエントリポイントのみであること
+- Core直下が共通基盤機能とエントリポイントの2機能であること
+- `Core/EventLog.php`がEvent Log単一ファイルであること
+- Event Log用フォルダが存在しないこと
 - Core直下の内部フォルダにエントリポイントを置かないこと
 - 内部フォルダ内PHPファイルが内部実装のみであること
 - Project境界を作成しないこと
@@ -49,8 +51,9 @@ bugfix_until_zero: true
 - Realtime Databaseのv0.006実運用耐性機能が動作すること
 - Realtime Databaseのv0.007実運用強化機能が動作すること
 - Realtime Databaseのv0.008実運用耐性強化機能が動作すること
-- Realtime Databaseのv0.015実運用耐性強化と実運用強化機能が動作すること
-- Realtime Databaseのv0.015新機能、実運用強化、実運用耐性強化が動作すること
+- Event LogのEnvelope、Domain Source、Metadata、Type Registryが動作すること
+- Event LogのChain Hash、Validation、Cursor Contract、Replay Scope、Evidenceが動作すること
+- Event LogのSnapshot Link、Replay Verification、Import Validation、Export Packet、Retention View、Risk Report、Operation Journalが動作すること
 - SQLite有効化時にdefault collectionがSQLite対象として扱われること
 - 失敗したtransactionがrecord、event、SQLite書き込みを残さないこと
 - database export fingerprintが環境依存値に引っ張られないこと
