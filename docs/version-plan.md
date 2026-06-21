@@ -1,11 +1,60 @@
 # Version Plan
 
-- このファイルは、全てのバージョン計画承認を集約する単一のバージョン計画ファイルである。
+- このファイルは、バージョン計画承認とバグ修正要約を集約する正本である。
+- 全てのバージョン計画承認は、この単一ファイルへ集約する。
 - 記載順は最新バージョンを上にする。
 - 記載形式はリスト形式に統一する。
 - 記載内容は要点のみを簡潔に明記する。
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
+
+## v0.014
+
+- `version: v0.014`
+- `status: version_plan_approved`
+- `scope: mandatory_runtime_requirement_strictness`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: strict_mandatory_runtime_requirement_wording`
+- `purpose: prohibit_ambiguous_required_but_not_mandatory_expression`
+- `absolute_principle: 必要だが必須ではないという表現を禁止`
+- `mandatory_runtime_scope: 必須動作要件に基づく範囲内はすべて必須要件`
+- `system_runtime_source: 必須動作要件はシステム動作要件の正本`
+- `strict_compliance: 仕様・実装・テスト・ドキュメントは承認済み文言に厳格準拠`
+- `runtime_requirements: PHP 8.3 recommended, json, PDO, pdo_sqlite, Docker/deployment CLI only, development CLI required, SQLite, no external dependency`
+- `external_dependency_addition: prohibited`
+- `database_exception: separate approval_process_required`
+- `deployment_system: discarded`
+- `deployment_folder: boundary_only`
+- `testing_decisions: preserved`
+- `implementation_targets: document strict mandatory runtime wording, align docs/tests with approved wording`
+- `constraints: no_ambiguous_required_wording, no_extra_runtime_requirement, no_external_dependency, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
+## v0.013
+
+- `version: v0.013`
+- `status: version_plan_approved`
+- `scope: mandatory_runtime_requirements`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: minimum_system_runtime_requirements`
+- `purpose: define_required_runtime_conditions`
+- `php: 8.3_recommended`
+- `required_extensions: json, PDO, pdo_sqlite`
+- `cli: docker_environment_and_deployment_only`
+- `development_cli: required`
+- `database: sqlite`
+- `external_dependency: prohibited`
+- `implementation_targets: document mandatory runtime requirements`
+- `constraints: minimum_requirements_only, no_extra_runtime_requirement, no_external_dependency, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
 
 ## v0.012
 

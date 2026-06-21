@@ -80,6 +80,14 @@ function test_directory_policy(): void
     assert_true(is_dir(__DIR__ . '/../tests'), 'tests directory should exist');
 }
 
+function test_runtime_requirements(): void
+{
+    assert_same(true, extension_loaded('json'), 'json extension should be available');
+    assert_same(true, extension_loaded('PDO'), 'PDO extension should be available');
+    assert_same(true, extension_loaded('pdo_sqlite'), 'pdo_sqlite extension should be available');
+    assert_same(true, class_exists(PDO::class), 'PDO class should be available');
+}
+
 function test_deployment_blank_reset(): void
 {
     assert_same(false, class_exists('AdlaireDeployment', false), 'AdlaireDeployment class should be discarded');
@@ -100,7 +108,7 @@ function test_core_capabilities(): void
     assert_same('sqlite', $database['planned_state']['selected_database'], 'database should select SQLite');
     assert_same('libsql', $database['planned_state']['compatibility_target'], 'database should keep libSQL as compatibility target');
     assert_same('sqlite_primary_libsql_compatible', $database['planned_state']['storage_policy'], 'database should use SQLite primary libSQL compatible policy');
-    assert_same('sqlite_persistent', $database['planned_state']['runtime_execution'], 'database runtime should be SQLite persistent in v0.012');
+    assert_same('sqlite_persistent', $database['planned_state']['runtime_execution'], 'database runtime should be SQLite persistent in v0.014');
     assert_same('in_memory', $database['planned_state']['fallback_runtime'], 'database should keep in-memory fallback');
     assert_same(true, $database['planned_state']['sqlite_persistence'], 'database should support SQLite persistence');
     assert_same(true, $database['planned_state']['wal_mode'], 'database should support WAL mode');
@@ -159,7 +167,7 @@ function test_core_capabilities(): void
     assert_same(true, $database['planned_state']['data_redaction_export'], 'database should support data redaction export');
     assert_same(true, $database['planned_state']['record_ttl_plan'], 'database should expose record TTL plan');
     assert_same(true, $database['planned_state']['subscriber_checkpoint_plan'], 'database should expose subscriber checkpoint plan');
-    assert_same(false, $database['planned_state']['libsql_runtime'], 'database should not implement libSQL runtime in v0.012');
+    assert_same(false, $database['planned_state']['libsql_runtime'], 'database should not implement libSQL runtime in v0.014');
     assert_same(true, $database['planned_state']['change_feed_filter'], 'database should support change feed filter');
     assert_same(true, $database['planned_state']['record_version_history'], 'database should support record version history');
     assert_same(true, $database['planned_state']['record_diff'], 'database should support record diff');
@@ -373,7 +381,7 @@ function test_realtime_database_data(): void
 
     $migration = AdlaireDatabase::migrationPlan();
     assert_same('planned', $migration['persistence_status'], 'migration plan should be planned');
-    assert_same(2, $migration['schema_version'], 'migration plan should expose v0.012 schema version');
+    assert_same(2, $migration['schema_version'], 'migration plan should expose v0.014 schema version');
     assert_same(['collections', 'records', 'events', 'schema_versions', 'database_meta'], $migration['tables'], 'migration plan should include SQLite tables');
     assert_same(true, $migration['dry_run'], 'migration plan should support dry-run');
     assert_same(true, $migration['rollback_plan'], 'migration plan should expose rollback plan');
@@ -479,7 +487,7 @@ function test_realtime_database_data(): void
     assert_same(true, AdlaireDatabase::degradedMode()['critical_operations_allowed'], 'degraded mode should allow critical operations after disabled');
     assert_same('continue_observation', AdlaireDatabase::operationalRunbookReport()['action'], 'operational runbook should observe healthy state');
     $evidence = AdlaireDatabase::operationalEvidenceBundle($databaseExport);
-    assert_same('v0.012', $evidence['version'], 'operational evidence bundle should expose v0.012');
+    assert_same('v0.014', $evidence['version'], 'operational evidence bundle should expose v0.014');
     assert_true(is_string($evidence['fingerprint']) && $evidence['fingerprint'] !== '', 'operational evidence bundle should expose fingerprint');
     assert_same(true, AdlaireDatabase::preWriteRiskEvaluation('tasks', ['title' => 'Risk', 'score' => 1])['allowed'], 'pre-write risk evaluation should allow healthy writes');
     $twoStep = AdlaireDatabase::criticalWriteTwoStepGuard('record_restore', 'tasks');
@@ -516,7 +524,7 @@ function test_realtime_database_data(): void
     $handoff = AdlaireDatabase::operationalHandoffReport($currentExport);
     assert_same('met', $handoff['current_status'], 'operational handoff should include SLO status');
     assert_same('continue_observation', $handoff['next_action'], 'operational handoff should keep observation for healthy state');
-    assert_same('v0.012', AdlaireDatabase::operationalBaselineSnapshot($currentExport)['version'], 'operational baseline snapshot should expose v0.012');
+    assert_same('v0.014', AdlaireDatabase::operationalBaselineSnapshot($currentExport)['version'], 'operational baseline snapshot should expose v0.014');
     assert_same('normal', AdlaireDatabase::writeAnomalyDetector()['status'], 'write anomaly detector should be normal for healthy state');
     assert_same(100, AdlaireDatabase::dataConsistencyScore($currentExport)['score'], 'data consistency score should be perfect for current export');
     assert_same('ready', AdlaireDatabase::productionReadinessGate($currentExport)['status'], 'production readiness gate should be ready for healthy state');
@@ -592,8 +600,8 @@ function test_realtime_database_data(): void
     assert_same(true, AdlaireDatabase::cursorSafety(AdlaireDatabase::cursor()['latest'])['safe'], 'cursor safety should accept known cursor');
     assert_same(false, AdlaireDatabase::readModelDriftDetection('tasks')['drift'], 'read model drift detection should pass');
     assert_true(AdlaireDatabase::operationalMetrics()['event_count'] > 0, 'operational metrics should expose event count');
-    assert_same('v0.012', AdlaireDatabase::operationalReport()['version'], 'operational report should expose v0.012');
-    assert_same('v0.012', AdlaireDatabase::operationalIncidentReport()['version'], 'operational incident report should expose v0.012');
+    assert_same('v0.014', AdlaireDatabase::operationalReport()['version'], 'operational report should expose v0.014');
+    assert_same('v0.014', AdlaireDatabase::operationalIncidentReport()['version'], 'operational incident report should expose v0.014');
     assert_true(AdlaireDatabase::incidentTimeline()['count'] > 0, 'incident timeline should include runtime items');
     assert_same(false, AdlaireDatabase::recordTtlPlan()['runtime_enforced'], 'TTL plan should remain plan only');
     assert_same('event_cursor', AdlaireDatabase::subscriberCheckpointPlan()['checkpoint_source'], 'subscriber checkpoint plan should use event cursor');
@@ -707,7 +715,7 @@ function test_sqlite_persistence(): void
 
 function test_release_conditions(): void
 {
-    assert_same('v0.012', AdlaireDatabase::plannedState()['version'], 'database version should be v0.012 without deployment dependency');
+    assert_same('v0.014', AdlaireDatabase::plannedState()['version'], 'database version should be v0.014 without deployment dependency');
     assert_same(false, method_exists('AdlaireDatabase', 'release'), 'Realtime Database should not provide a deployment release gate');
 }
 
@@ -720,7 +728,7 @@ function test_documents(): void
     $testingDoc = file_get_contents(__DIR__ . '/../docs/testing.md');
     $versionPlan = file_get_contents(__DIR__ . '/../docs/version-plan.md');
 
-    assert_true(is_string($spec) && str_contains($spec, 'v0.012'), 'spec should describe v0.012');
+    assert_true(is_string($spec) && str_contains($spec, 'v0.014'), 'spec should describe v0.014');
     assert_true(is_string($spec) && str_contains($spec, 'Selected database | SQLite'), 'spec should select SQLite');
     assert_true(is_string($spec) && str_contains($spec, 'libSQLはSQLite互換の将来拡張として決定済み'), 'spec should define libSQL as decided future SQLite-compatible extension');
     assert_true(is_string($spec) && str_contains($spec, 'Realtime Database BaaS Contract'), 'spec should define the realtime database BaaS contract');
@@ -733,18 +741,39 @@ function test_documents(): void
     assert_true(is_string($spec) && str_contains($spec, 'Integrity audit'), 'spec should define integrity audit');
     assert_true(is_string($spec) && str_contains($spec, 'Query explain'), 'spec should define query explain');
     assert_true(is_string($spec) && str_contains($spec, 'Import validation'), 'spec should define import validation');
-    assert_true(is_string($readme) && str_contains($readme, 'BaaS Project'), 'README should describe the BaaS Project');
+    assert_true(is_string($readme) && str_contains($readme, 'Adlaire Ecosystem'), 'README should name the project');
+    assert_true(is_string($readme) && str_contains($readme, 'BaaS Project'), 'README should briefly describe the project');
+    assert_true(is_string($readme) && !str_contains($readme, 'ドキュメント役割'), 'README should not carry document role details');
+    assert_true(is_string($agents) && str_contains($agents, '## ドキュメント役割'), 'AGENTS should define document roles');
+    assert_true(is_string($agents) && str_contains($agents, '| File | Role | 禁止 |'), 'AGENTS should define document role constraints');
+    assert_true(is_string($agents) && str_contains($agents, '外部向けの簡潔なプロジェクト説明'), 'AGENTS should state that README is external-facing');
+    assert_true(is_string($agents) && str_contains($agents, '内部入口、詳細仕様、作業ルール'), 'AGENTS should prohibit internal README roles');
     assert_true(is_string($agents) && str_contains($agents, '仕様確定案'), 'AGENTS should define the development order');
+    assert_true(is_string($agents) && str_contains($agents, '最高準拠ドキュメントの入口'), 'AGENTS should be the top-level compliance document entrypoint');
     assert_true(is_string($projectDoc) && str_contains($projectDoc, 'docs/ADLAIRE-ECOSYSTEM.md'), 'project doc should delegate details to the spec');
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'php tests/debug.php'), 'testing doc should describe the official test entrypoint');
-    assert_true(is_string($testingDoc) && str_contains($testingDoc, 'v0.012 Test Scope'), 'testing doc should describe v0.012 test scope');
-    assert_true(is_string($testingDoc) && str_contains($testingDoc, 'php_source_code_based'), 'testing doc should define PHP source-code based tests');
+    assert_true(is_string($testingDoc) && str_contains($testingDoc, 'v0.014 Test Scope'), 'testing doc should describe v0.014 test scope');
+    assert_true(is_string($testingDoc) && str_contains($testingDoc, 'docker_environment_cli_php_tests_debug'), 'testing doc should define Docker CLI verification');
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'docker_production_like_environment'), 'testing doc should define future Docker production-like tests');
+    assert_true(is_string($spec) && str_contains($spec, '必須動作要件はシステム動作要件の正本'), 'spec should define mandatory runtime requirements as source of truth');
+    assert_true(is_string($spec) && str_contains($spec, '必須動作要件に基づく範囲内はすべて必須要件'), 'spec should define mandatory runtime scope');
+    assert_true(is_string($spec) && str_contains($spec, '「必要だが必須ではない」という表現を禁止'), 'spec should prohibit ambiguous required wording');
+    assert_true(is_string($spec) && str_contains($spec, '承認済み文言に厳格準拠'), 'spec should require strict approved wording compliance');
+    assert_true(is_string($spec) && str_contains($spec, 'PHP: `8.3`推奨'), 'spec should define PHP 8.3 as recommended');
+    assert_true(is_string($spec) && str_contains($spec, '必須拡張: `json`, `PDO`, `pdo_sqlite`'), 'spec should define required extensions');
+    assert_true(is_string($spec) && str_contains($spec, 'CLI: Docker環境、デプロイメント限定'), 'spec should limit CLI usage');
+    assert_true(is_string($spec) && str_contains($spec, '開発におけるCLIは必須'), 'spec should require development CLI');
+    assert_true(is_string($spec) && str_contains($spec, 'SQLite使用'), 'spec should require SQLite');
+    assert_true(is_string($spec) && str_contains($spec, '外部依存禁止'), 'spec should prohibit external dependencies');
     assert_true(is_string($spec) && str_contains($spec, 'docker_test_mode: future_production_like_environment'), 'spec should define future Docker test mode');
     assert_true(is_string($spec) && str_contains($spec, 'docs/testing.md'), 'spec should assign testing documents to docs/testing.md');
     assert_true(is_string($spec) && str_contains($spec, 'docs/version-plan.md'), 'spec should assign version plan documents to docs/version-plan.md');
     assert_true(is_string($spec) && str_contains($spec, 'すべてのドキュメントは`docs/`へ集約する'), 'spec should centralize all documents under docs');
-    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'version: v0.012'), 'version plan should describe v0.012');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'version: v0.014'), 'version plan should describe v0.014');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'absolute_principle: 必要だが必須ではないという表現を禁止'), 'version plan should record the absolute principle');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'mandatory_runtime_scope: 必須動作要件に基づく範囲内はすべて必須要件'), 'version plan should record mandatory runtime scope');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'required_extensions: json, PDO, pdo_sqlite'), 'version plan should describe required extensions');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'development_cli: required'), 'version plan should require development CLI');
     assert_true(is_string($versionPlan) && str_contains($versionPlan, 'status: version_plan_approved'), 'version plan should be approved');
     assert_true(is_string($versionPlan) && str_contains($versionPlan, 'implementation: approved'), 'version plan should approve implementation');
     assert_true(is_string($versionPlan) && str_contains($versionPlan, 'remote_sync: not_adopted'), 'version plan should reject remote sync');
@@ -754,6 +783,7 @@ function test_documents(): void
 
 $tests = [
     'directory_policy' => test_directory_policy(...),
+    'runtime_requirements' => test_runtime_requirements(...),
     'deployment_blank_reset' => test_deployment_blank_reset(...),
     'core_capabilities' => test_core_capabilities(...),
     'realtime_database_data' => test_realtime_database_data(...),

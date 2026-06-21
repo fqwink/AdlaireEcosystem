@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 final class AdlaireDatabase
 {
-    public const VERSION = 'v0.012';
+    public const VERSION = 'v0.014';
 
     private static array $records = [];
     private static array $events = [];
