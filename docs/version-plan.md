@@ -8,6 +8,28 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.015
+
+- `version: v0.015`
+- `status: version_plan_approved`
+- `scope: realtime_database_only`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: realtime_database_new_features_operations_resilience`
+- `purpose: Realtime Databaseの新機能、実運用強化、実運用耐性強化`
+- `external_dependency: prohibited`
+- `remote_sync: not_adopted`
+- `deployment_system: discarded`
+- `libsql_runtime: out_of_scope`
+- `sdk_api_gateway_websocket: out_of_scope`
+- `authentication_authorization: undefined`
+- `implementation_targets: state digest, write readiness, restore inspection, event integrity, operational board, maintenance decision, backup rotation view, mutation risk, rebuild safety, incident recovery packet, operation journal, recovery confidence, blast radius, schema drift, replay proof, backup trust, freeze reason, critical path, data loss exposure, handoff note, write contract, causality chain, recovery point, restore conflict, consistency window, backup completeness, mode matrix, approval evidence, retention view, gap repair plan, schema compatibility, write pressure, recovery timeline, incident containment, production readiness ledger`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_deployment_system, no_libsql_runtime, no_sdk_api_gateway_websocket, no_authentication_authorization, no_automatic_restore, no_automatic_repair, no_automatic_backup_delete, no_automatic_scheduling, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
 ## v0.014
 
 - `version: v0.014`

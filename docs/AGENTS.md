@@ -62,14 +62,14 @@
 
 ## 現行方針
 
-- 現行バージョンは`v0.014`。
+- 現行バージョンは`v0.015`。
 - 名称はAdlaire Ecosystemを継承する。
 - Adlaire EcosystemはBaaS Projectとしてゼロベースで再スタートする。
 - 必須動作要件は`docs/ADLAIRE-ECOSYSTEM.md`を正とする。
-- `v0.014`で維持する中核機能はRealtime Databaseのみ。
+- `v0.015`で維持する中核機能はRealtime Databaseのみ。
 - Deployment Systemは基本方針からやり直すため、現行仕様とソースコードを破棄済みとして扱う。
 - Authentication、Authorization、その他BaaS機能は未定義とし、Adlaire独自方式を確定するまで実装しない。
-- Realtime DatabaseのDatabaseはSQLiteを正選定し、libSQLはSQLite互換の将来拡張として決定済みとする。ただし`v0.014`ではlibSQLを実装しない。
+- Realtime DatabaseのDatabaseはSQLiteを正選定し、libSQLはSQLite互換の将来拡張として決定済みとする。ただし`v0.015`ではlibSQLを実装しない。
 
 ## 許可ディレクトリ
 
