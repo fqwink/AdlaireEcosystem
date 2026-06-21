@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 final class AdlaireDatabase
 {
+    public const VERSION = 'v0.012';
+
     private static array $records = [];
     private static array $events = [];
     private static array $collections = [];
@@ -24,7 +26,7 @@ final class AdlaireDatabase
             'unit' => 'realtime_database',
             'feature' => 'Realtime Database',
             'kind' => 'baas_core_feature',
-            'version' => AdlaireDeployment::VERSION,
+            'version' => self::VERSION,
             'deployment_axis' => 'undefined',
             'runtime_execution' => 'sqlite_persistent',
             'selected_database' => 'sqlite',
@@ -38,7 +40,7 @@ final class AdlaireDatabase
     {
         return [
             'feature' => 'realtime_database',
-            'version' => AdlaireDeployment::VERSION,
+            'version' => self::VERSION,
             'state' => 'planned',
             'kind' => 'baas_core_feature',
             'deployable_unit' => 'realtime_database',
@@ -163,6 +165,66 @@ final class AdlaireDatabase
             'operation_freeze_policy' => true,
             'data_durability_report' => true,
             'release_safety_evidence' => true,
+            'operational_slo_report' => true,
+            'write_failure_classification' => true,
+            'backup_freshness_report' => true,
+            'restore_candidate_ranking' => true,
+            'read_model_confidence_report' => true,
+            'operational_window_policy' => true,
+            'recovery_drill_report' => true,
+            'incident_evidence_digest' => true,
+            'data_lifecycle_guard' => true,
+            'operational_handoff_report' => true,
+            'operational_baseline_snapshot' => true,
+            'write_anomaly_detector' => true,
+            'recovery_priority_report' => true,
+            'operational_risk_timeline' => true,
+            'data_consistency_score' => true,
+            'backup_candidate_validation_matrix' => true,
+            'write_safety_threshold_policy' => true,
+            'incident_replay_summary' => true,
+            'production_readiness_gate' => true,
+            'operator_action_checklist' => true,
+            'operational_drift_budget' => true,
+            'write_blast_radius_report' => true,
+            'recovery_path_comparison' => true,
+            'data_integrity_attestation' => true,
+            'incident_containment_policy' => true,
+            'operational_regression_guard' => true,
+            'backup_rotation_policy_report' => true,
+            'state_transition_audit' => true,
+            'critical_collection_profile' => true,
+            'production_incident_packet' => true,
+            'operational_health_trend' => true,
+            'write_quarantine_recommendation' => true,
+            'read_model_rebuild_safety_report' => true,
+            'backup_trust_score' => true,
+            'event_gap_detection' => true,
+            'operational_saturation_report' => true,
+            'safe_maintenance_window_report' => true,
+            'data_recovery_confidence' => true,
+            'incident_root_cause_hints' => true,
+            'production_operation_summary' => true,
+            'operation_readiness_ledger' => true,
+            'write_admission_control_report' => true,
+            'critical_record_watchlist' => true,
+            'schema_stability_report' => true,
+            'event_replay_feasibility_report' => true,
+            'restore_dry_run_evidence' => true,
+            'sqlite_operational_limits_report' => true,
+            'incident_communication_summary' => true,
+            'release_regression_evidence' => true,
+            'production_safety_board' => true,
+            'operational_control_tower' => true,
+            'write_pressure_report' => true,
+            'failure_recurrence_detector' => true,
+            'restore_decision_checklist' => true,
+            'event_chain_trust_report' => true,
+            'read_consistency_verification' => true,
+            'operational_evidence_timeline' => true,
+            'degraded_mode_exit_criteria' => true,
+            'backup_exposure_report' => true,
+            'production_operations_packet' => true,
             'access_rules' => 'undefined',
             'realtime_adapter' => 'none',
             'stream_mode' => 'pull_cursor',
@@ -1758,7 +1820,7 @@ final class AdlaireDatabase
     public static function operationalReport(): array
     {
         return [
-            'version' => AdlaireDeployment::VERSION,
+            'version' => self::VERSION,
             'guard' => self::operationalGuard(),
             'startup_self_check' => self::startupSelfCheck(),
             'metrics' => self::operationalMetrics(),
@@ -1772,13 +1834,15 @@ final class AdlaireDatabase
             'degradation_reason' => self::operationalDegradationReason(),
             'freeze_policy' => self::operationFreezePolicy(),
             'durability' => self::dataDurabilityReport(),
+            'slo' => self::operationalSloReport(),
+            'handoff' => self::operationalHandoffReport(),
         ];
     }
 
     public static function operationalIncidentReport(): array
     {
         return [
-            'version' => AdlaireDeployment::VERSION,
+            'version' => self::VERSION,
             'audit' => self::auditIntegrity(),
             'event_log' => self::eventLogConsistencyCheck(),
             'cursor' => self::cursor(),
@@ -2024,7 +2088,7 @@ final class AdlaireDatabase
         $backupPayload ??= self::exportDatabase();
 
         return [
-            'version' => AdlaireDeployment::VERSION,
+            'version' => self::VERSION,
             'baseline' => self::healthBaseline(),
             'risk' => self::operationalRiskScore(),
             'event_gap' => self::eventGapReport(),
@@ -2303,7 +2367,7 @@ final class AdlaireDatabase
 
         return [
             'safe' => self::all($checks),
-            'version' => AdlaireDeployment::VERSION,
+            'version' => self::VERSION,
             'checks' => $checks,
             'readiness' => $readiness,
             'risk' => $risk,
@@ -2312,11 +2376,1108 @@ final class AdlaireDatabase
             'durability' => $durability,
             'runbook' => $runbook,
             'fingerprint' => hash('sha256', self::encodeJson([
-                'version' => AdlaireDeployment::VERSION,
+                'version' => self::VERSION,
                 'checks' => $checks,
                 'cursor' => self::cursor()['latest'],
                 'backup' => $backupPayload['fingerprint'] ?? null,
             ])),
+        ];
+    }
+
+    public static function operationalSloReport(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $items = [
+            'readiness' => self::readiness()['ready'] === true,
+            'event_chain' => self::eventChainIntegrity()['valid'] === true,
+            'write_safety' => self::operationFreezePolicy()['normal_write_allowed'] === true,
+            'durability' => self::dataDurabilityReport($backupPayload)['durable'] === true,
+            'backup_consistency' => self::backupConsistencyReport($backupPayload)['consistent'] === true,
+        ];
+        $failed = array_keys(array_filter($items, static fn(bool $passed): bool => $passed === false));
+        $status = $failed === [] ? 'met' : (count($failed) <= 1 ? 'warning' : 'breach');
+
+        return [
+            'status' => $status,
+            'items' => $items,
+            'failed' => $failed,
+        ];
+    }
+
+    public static function writeFailureClassification(Throwable|string $failure): array
+    {
+        $message = $failure instanceof Throwable ? $failure->getMessage() : $failure;
+        $normalized = strtolower($message);
+        $classification = 'unknown';
+        if (str_contains($normalized, 'schema')) {
+            $classification = 'schema_error';
+        } elseif (str_contains($normalized, 'locked')) {
+            $classification = 'locked';
+        } elseif (str_contains($normalized, 'safe mode')) {
+            $classification = 'safe_mode';
+        } elseif (str_contains($normalized, 'maintenance')) {
+            $classification = 'policy_violation';
+        } elseif (str_contains($normalized, 'critical operation')) {
+            $classification = 'critical_guard';
+        } elseif (str_contains($normalized, 'policy') || str_contains($normalized, 'limit') || str_contains($normalized, 'exceed')) {
+            $classification = 'policy_violation';
+        }
+
+        return [
+            'classification' => $classification,
+            'message' => $message,
+            'retryable' => in_array($classification, ['locked', 'safe_mode', 'critical_guard'], true),
+        ];
+    }
+
+    public static function backupFreshnessReport(array $payload): array
+    {
+        $validation = self::validateDatabaseExport($payload);
+        if ($validation['valid'] !== true) {
+            return [
+                'status' => 'invalid',
+                'valid' => false,
+                'errors' => $validation['errors'],
+            ];
+        }
+        $current = self::exportDatabase();
+        $backupEventCount = is_array($payload['events'] ?? null) ? count($payload['events']) : 0;
+        $currentEventCount = count($current['events']);
+        $fresh = ($payload['cursor'] ?? null) === $current['cursor']
+            && $backupEventCount === $currentEventCount
+            && ($payload['fingerprint'] ?? null) === $current['fingerprint'];
+
+        return [
+            'status' => $fresh ? 'fresh' : 'stale',
+            'valid' => true,
+            'backup_cursor' => $payload['cursor'] ?? null,
+            'current_cursor' => $current['cursor'],
+            'backup_event_count' => $backupEventCount,
+            'current_event_count' => $currentEventCount,
+            'fingerprint_match' => ($payload['fingerprint'] ?? null) === $current['fingerprint'],
+        ];
+    }
+
+    public static function restoreCandidateRanking(array $candidates): array
+    {
+        $ranked = [];
+        foreach ($candidates as $index => $candidate) {
+            if (!is_array($candidate)) {
+                $ranked[] = ['index' => $index, 'score' => -100, 'valid' => false, 'status' => 'invalid'];
+                continue;
+            }
+            $freshness = self::backupFreshnessReport($candidate);
+            $compatibility = self::backupRestoreCompatibilityCheck($candidate);
+            $impact = self::restoreImpactReport($candidate);
+            $score = 0;
+            $score += ($freshness['valid'] ?? false) === true ? 40 : -40;
+            $score += ($freshness['status'] ?? null) === 'fresh' ? 30 : 0;
+            $score += $compatibility['compatible'] === true ? 20 : -20;
+            $score -= array_sum(array_map('intval', $impact['totals'] ?? []));
+            $ranked[] = [
+                'index' => $index,
+                'score' => $score,
+                'valid' => ($freshness['valid'] ?? false) === true,
+                'status' => $freshness['status'] ?? 'invalid',
+                'freshness' => $freshness,
+                'compatibility' => $compatibility,
+                'impact' => $impact,
+            ];
+        }
+        usort($ranked, static fn(array $a, array $b): int => ($b['score'] <=> $a['score']) ?: ($a['index'] <=> $b['index']));
+
+        return [
+            'candidates' => $ranked,
+            'best' => $ranked[0] ?? null,
+            'automatic_restore' => false,
+        ];
+    }
+
+    public static function readModelConfidenceReport(string $collection): array
+    {
+        self::assertCollection($collection);
+        $drift = self::readModelDriftDetection($collection);
+        $seal = self::snapshotIntegritySeal($collection);
+        $verification = self::snapshotSealVerification($collection, $seal);
+        $chain = self::eventChainIntegrity();
+        $confidence = 'high';
+        if ($drift['drift'] === true || $verification['valid'] !== true) {
+            $confidence = 'low';
+        } elseif ($chain['valid'] !== true) {
+            $confidence = 'medium';
+        }
+
+        return [
+            'collection' => $collection,
+            'confidence' => $confidence,
+            'drift' => $drift,
+            'snapshot_seal' => $seal,
+            'seal_verification' => $verification,
+            'event_chain' => $chain,
+        ];
+    }
+
+    public static function operationalWindowPolicy(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $severity = self::incidentSeverityClassification();
+        $freeze = self::operationFreezePolicy();
+        $backupFreshness = self::backupFreshnessReport($backupPayload);
+        $normalWriteAllowed = $freeze['normal_write_allowed'] === true && in_array($severity['severity'], ['low', 'medium'], true);
+        $criticalAllowed = $freeze['critical_write_allowed'] === true && $severity['severity'] === 'low';
+
+        return [
+            'normal_write_allowed' => $normalWriteAllowed,
+            'critical_operation_allowed' => $criticalAllowed,
+            'restore_allowed' => $criticalAllowed && $backupFreshness['status'] !== 'invalid',
+            'backup_verification_allowed' => true,
+            'severity' => $severity,
+            'freeze_policy' => $freeze,
+            'backup_freshness' => $backupFreshness,
+        ];
+    }
+
+    public static function recoveryDrillReport(array $payload): array
+    {
+        return [
+            'drill' => true,
+            'will_restore' => false,
+            'restore_safety' => self::restoreSafetyGate($payload),
+            'simulation' => self::recoverySimulation($payload),
+            'impact' => self::restoreImpactReport($payload),
+            'compatibility' => self::backupRestoreCompatibilityCheck($payload),
+            'readiness' => self::recoveryReadinessReport($payload),
+        ];
+    }
+
+    public static function incidentEvidenceDigest(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $durability = self::dataDurabilityReport($backupPayload);
+
+        return [
+            'severity' => self::incidentSeverityClassification()['severity'],
+            'risk' => self::operationalRiskScore(),
+            'latest_cursor' => self::cursor()['latest'],
+            'event_chain_tip' => self::eventChainIntegrity()['tip'],
+            'durable' => $durability['durable'],
+            'freeze_policy' => self::operationFreezePolicy(),
+        ];
+    }
+
+    public static function dataLifecycleGuard(string $operation, ?string $collection = null): array
+    {
+        $critical = in_array($operation, self::criticalOperations(), true);
+        $guard = self::criticalOperationGuard($operation, $collection);
+        $freeze = self::operationFreezePolicy();
+        $checks = $guard['checks'] + [
+            'lifecycle_operation' => $critical,
+            'freeze_allows_critical' => !$critical || $freeze['critical_write_allowed'] === true,
+        ];
+
+        return [
+            'allowed' => self::all($checks),
+            'operation' => $operation,
+            'collection' => $collection,
+            'checks' => $checks,
+            'ttl_runtime_enforced' => false,
+            'automatic_delete' => false,
+            'guard' => $guard,
+            'freeze_policy' => $freeze,
+        ];
+    }
+
+    public static function operationalHandoffReport(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $severity = self::incidentSeverityClassification();
+        $runbook = self::operationalRunbookReport();
+        $readiness = self::recoveryReadinessReport($backupPayload);
+        $freeze = self::operationFreezePolicy();
+        $nextAction = $runbook['action'];
+        if ($severity['severity'] === 'critical') {
+            $nextAction = 'escalate_and_freeze';
+        } elseif ($readiness['status'] !== 'ready') {
+            $nextAction = 'manual_recovery_review';
+        }
+
+        return [
+            'current_status' => self::operationalSloReport($backupPayload)['status'],
+            'severity' => $severity,
+            'freeze_policy' => $freeze,
+            'runbook' => $runbook,
+            'recovery_readiness' => $readiness,
+            'next_action' => $nextAction,
+        ];
+    }
+
+    public static function operationalBaselineSnapshot(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'version' => self::VERSION,
+            'baseline' => self::healthBaseline(),
+            'event_chain' => self::eventChainIntegrity(),
+            'snapshot_seals' => self::snapshotSeals(),
+            'slo' => self::operationalSloReport($backupPayload),
+            'freeze_policy' => self::operationFreezePolicy(),
+            'fingerprint' => hash('sha256', self::encodeJson([
+                'baseline' => self::healthBaseline()['fingerprint'],
+                'event_chain' => self::eventChainIntegrity()['tip'],
+                'slo' => self::operationalSloReport($backupPayload)['status'],
+            ])),
+        ];
+    }
+
+    public static function writeAnomalyDetector(): array
+    {
+        $intents = self::writeIntentLog()['intents'];
+        $critical = 0;
+        $byOperation = [];
+        $byCollection = [];
+        foreach ($intents as $intent) {
+            $operation = (string)($intent['operation'] ?? 'unknown');
+            $collection = (string)($intent['collection'] ?? 'none');
+            $byOperation[$operation] = ($byOperation[$operation] ?? 0) + 1;
+            $byCollection[$collection] = ($byCollection[$collection] ?? 0) + 1;
+            if (($intent['critical'] ?? false) === true) {
+                $critical++;
+            }
+        }
+        $failures = array_values(array_filter($intents, static fn(array $intent): bool => ($intent['committed'] ?? true) === false));
+        $anomalies = [];
+        if (count($failures) > 0) {
+            $anomalies[] = 'write_failure_present';
+        }
+        if ($critical >= 10) {
+            $anomalies[] = 'critical_write_pressure';
+        }
+        if (count($intents) >= 50) {
+            $anomalies[] = 'high_write_volume';
+        }
+
+        return [
+            'status' => $anomalies === [] ? 'normal' : 'watch',
+            'anomalies' => $anomalies,
+            'intent_count' => count($intents),
+            'failure_count' => count($failures),
+            'critical_count' => $critical,
+            'by_operation' => $byOperation,
+            'by_collection' => $byCollection,
+            'automatic_repair' => false,
+        ];
+    }
+
+    public static function recoveryPriorityReport(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $items = [];
+        foreach (array_keys(self::collections()) as $collection) {
+            $profile = self::criticalCollectionProfile($collection);
+            $items[] = [
+                'collection' => $collection,
+                'priority' => $profile['priority'],
+                'priority_score' => $profile['priority_score'],
+                'risk' => $profile['risk'],
+                'record_count' => $profile['record_count'],
+                'restore_impact' => $profile['restore_impact'],
+            ];
+        }
+        usort($items, static fn(array $a, array $b): int => ($b['priority_score'] ?? 0) <=> ($a['priority_score'] ?? 0));
+
+        return [
+            'items' => $items,
+            'backup_freshness' => self::backupFreshnessReport($backupPayload),
+            'automatic_restore' => false,
+        ];
+    }
+
+    public static function operationalRiskTimeline(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $items = self::incidentTimeline()['items'];
+        $items[] = ['kind' => 'slo', 'sequence' => count($items) + 1, 'status' => self::operationalSloReport($backupPayload)['status']];
+        $items[] = ['kind' => 'freeze_policy', 'sequence' => count($items) + 1, 'critical_write_allowed' => self::operationFreezePolicy()['critical_write_allowed']];
+        $items[] = ['kind' => 'backup_freshness', 'sequence' => count($items) + 1, 'status' => self::backupFreshnessReport($backupPayload)['status']];
+
+        return [
+            'items' => $items,
+            'count' => count($items),
+            'latest_cursor' => self::cursor()['latest'],
+        ];
+    }
+
+    public static function dataConsistencyScore(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $checks = [
+            'audit' => self::auditIntegrity()['valid'] === true,
+            'event_chain' => self::eventChainIntegrity()['valid'] === true,
+            'event_gap' => self::eventGapReport()['valid'] === true,
+            'backup_fresh' => self::backupFreshnessReport($backupPayload)['status'] === 'fresh',
+            'durable' => self::dataDurabilityReport($backupPayload)['durable'] === true,
+        ];
+        $score = 0;
+        foreach ($checks as $passed) {
+            $score += $passed ? 20 : 0;
+        }
+
+        return [
+            'score' => $score,
+            'status' => $score >= 90 ? 'strong' : ($score >= 70 ? 'caution' : 'weak'),
+            'checks' => $checks,
+        ];
+    }
+
+    public static function backupCandidateValidationMatrix(array $candidates): array
+    {
+        $rows = [];
+        foreach ($candidates as $index => $candidate) {
+            if (!is_array($candidate)) {
+                $rows[] = ['index' => $index, 'valid' => false, 'status' => 'invalid'];
+                continue;
+            }
+            $freshness = self::backupFreshnessReport($candidate);
+            $compatibility = self::backupRestoreCompatibilityCheck($candidate);
+            $trust = self::backupTrustScore($candidate);
+            $rows[] = [
+                'index' => $index,
+                'valid' => ($freshness['valid'] ?? false) === true,
+                'freshness' => $freshness['status'] ?? 'invalid',
+                'compatible' => $compatibility['compatible'],
+                'trust_score' => $trust['score'],
+                'status' => $trust['status'],
+            ];
+        }
+
+        return [
+            'matrix' => $rows,
+            'ranking' => self::restoreCandidateRanking($candidates),
+            'automatic_selection' => false,
+        ];
+    }
+
+    public static function writeSafetyThresholdPolicy(): array
+    {
+        $anomaly = self::writeAnomalyDetector();
+        $risk = self::operationalRiskScore();
+        $checks = [
+            'risk_below_high' => $risk['level'] !== 'high',
+            'failure_count_below_threshold' => $anomaly['failure_count'] < 3,
+            'critical_count_below_threshold' => $anomaly['critical_count'] < 10,
+            'safe_mode_off' => self::$safeMode === false,
+        ];
+
+        return [
+            'status' => self::all($checks) ? 'within_threshold' : 'threshold_exceeded',
+            'checks' => $checks,
+            'risk' => $risk,
+            'anomaly' => $anomaly,
+            'freeze_recommended' => !self::all($checks),
+        ];
+    }
+
+    public static function incidentReplaySummary(): array
+    {
+        return [
+            'summary_only' => true,
+            'will_replay' => false,
+            'event_count' => count(self::$events),
+            'latest_cursor' => self::cursor()['latest'],
+            'timeline' => self::incidentTimeline(),
+            'event_gap' => self::eventGapReport(),
+        ];
+    }
+
+    public static function productionReadinessGate(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $checks = [
+            'readiness' => self::readiness()['ready'] === true,
+            'slo_met' => self::operationalSloReport($backupPayload)['status'] === 'met',
+            'durable' => self::dataDurabilityReport($backupPayload)['durable'] === true,
+            'backup_fresh' => self::backupFreshnessReport($backupPayload)['status'] === 'fresh',
+            'release_safe' => self::releaseSafetyEvidence($backupPayload)['safe'] === true,
+            'lifecycle_guard' => self::dataLifecycleGuard('record_restore', null)['allowed'] === true,
+        ];
+        $failed = array_keys(array_filter($checks, static fn(bool $passed): bool => !$passed));
+        $status = $failed === [] ? 'ready' : (count($failed) <= 1 ? 'caution' : 'blocked');
+
+        return [
+            'status' => $status,
+            'checks' => $checks,
+            'failed' => $failed,
+            'automatic_release' => false,
+        ];
+    }
+
+    public static function operatorActionChecklist(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $gate = self::productionReadinessGate($backupPayload);
+        $actions = ['review_safety_board'];
+        if ($gate['status'] !== 'ready') {
+            $actions[] = 'review_failed_readiness_checks';
+        }
+        if (self::operationFreezePolicy()['critical_write_allowed'] !== true) {
+            $actions[] = 'keep_critical_operations_paused';
+        }
+        if (self::backupFreshnessReport($backupPayload)['status'] !== 'fresh') {
+            $actions[] = 'verify_backup_candidate';
+        }
+        if ($actions === ['review_safety_board']) {
+            $actions[] = 'continue_observation';
+        }
+
+        return [
+            'actions' => array_values(array_unique($actions)),
+            'gate' => $gate,
+            'automatic_execution' => false,
+        ];
+    }
+
+    public static function operationalDriftBudget(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $driftCount = 0;
+        foreach (array_keys(self::collections()) as $collection) {
+            if (self::readModelDriftDetection($collection)['drift'] === true) {
+                $driftCount++;
+            }
+        }
+        $signals = [
+            'read_model_drift' => $driftCount,
+            'backup_stale' => self::backupFreshnessReport($backupPayload)['status'] === 'stale' ? 1 : 0,
+            'slo_warning' => self::operationalSloReport($backupPayload)['status'] === 'warning' ? 1 : 0,
+            'write_anomaly' => self::writeAnomalyDetector()['status'] === 'watch' ? 1 : 0,
+        ];
+        $used = array_sum($signals);
+
+        return [
+            'status' => $used === 0 ? 'within_budget' : ($used <= 2 ? 'near_limit' : 'exceeded'),
+            'used' => $used,
+            'limit' => 2,
+            'signals' => $signals,
+        ];
+    }
+
+    public static function writeBlastRadiusReport(string $collection, ?string $recordId = null): array
+    {
+        self::assertCollection($collection);
+
+        return [
+            'collection' => $collection,
+            'record_id' => $recordId,
+            'affected_collection' => $collection,
+            'affected_record' => $recordId,
+            'event_count' => count(self::events(null, $collection)),
+            'snapshot' => self::snapshot($collection)['fingerprint'],
+            'read_model_confidence' => self::readModelConfidenceReport($collection)['confidence'],
+        ];
+    }
+
+    public static function recoveryPathComparison(array $payload): array
+    {
+        return [
+            'paths' => [
+                'backup_restore' => self::recoveryReadinessReport($payload)['status'],
+                'snapshot_rebuild' => self::eventReplayFeasibilityReport()['status'],
+                'read_model_rebuild' => self::readModelRebuildSafetyReport(array_key_first(self::collections()))['status'],
+                'manual_verification' => 'available',
+            ],
+            'recommended' => self::dataRecoveryConfidence($payload)['confidence'] === 'high' ? 'manual_verified_restore_candidate' : 'manual_review',
+            'automatic_execution' => false,
+        ];
+    }
+
+    public static function dataIntegrityAttestation(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'valid' => self::dataConsistencyScore($backupPayload)['score'] >= 90,
+            'event_chain' => self::eventChainIntegrity(),
+            'snapshot_seals' => self::snapshotSeals(),
+            'backup_fingerprint' => $backupPayload['fingerprint'] ?? null,
+            'schema_state' => self::migrationPlan(),
+            'fingerprint' => hash('sha256', self::encodeJson([
+                self::eventChainIntegrity()['tip'],
+                $backupPayload['fingerprint'] ?? null,
+                self::snapshotSeals(),
+            ])),
+        ];
+    }
+
+    public static function incidentContainmentPolicy(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $severity = self::incidentSeverityClassification()['severity'];
+        $freeze = self::operationFreezePolicy();
+        $policy = 'observe';
+        if (in_array($severity, ['high', 'critical'], true) || $freeze['critical_write_allowed'] !== true) {
+            $policy = 'contain_writes';
+        } elseif (self::backupFreshnessReport($backupPayload)['status'] !== 'fresh') {
+            $policy = 'verify_backup_before_critical_write';
+        }
+
+        return [
+            'policy' => $policy,
+            'severity' => $severity,
+            'freeze_policy' => $freeze,
+            'automatic_freeze' => false,
+        ];
+    }
+
+    public static function operationalRegressionGuard(?array $baseline = null): array
+    {
+        $baseline ??= self::healthBaseline();
+        $drift = self::driftBaselineCompare($baseline);
+        $checks = [
+            'readiness_ready' => self::readiness()['ready'] === true,
+            'durability_ok' => self::dataDurabilityReport()['durable'] === true,
+            'release_evidence_safe' => self::releaseSafetyEvidence()['safe'] === true,
+            'baseline_not_degraded' => $drift['drift'] === false,
+        ];
+
+        return [
+            'regressed' => !self::all($checks),
+            'checks' => $checks,
+            'drift' => $drift,
+        ];
+    }
+
+    public static function backupRotationPolicyReport(array $candidates): array
+    {
+        $matrix = self::backupCandidateValidationMatrix($candidates);
+        $freshCount = count(array_filter($matrix['matrix'], static fn(array $row): bool => ($row['freshness'] ?? null) === 'fresh'));
+
+        return [
+            'candidate_count' => count($candidates),
+            'fresh_count' => $freshCount,
+            'status' => $freshCount > 0 ? 'covered' : 'needs_backup_review',
+            'matrix' => $matrix,
+            'automatic_delete' => false,
+        ];
+    }
+
+    public static function stateTransitionAudit(): array
+    {
+        $state = 'normal';
+        $reason = 'healthy';
+        if (self::$safeMode) {
+            $state = 'frozen';
+            $reason = 'safe_mode_enabled';
+        } elseif (self::$degradedMode) {
+            $state = 'degraded';
+            $reason = 'degraded_mode_enabled';
+        } elseif (self::operationalRiskScore()['level'] !== 'low') {
+            $state = 'recovery_required';
+            $reason = 'risk_not_low';
+        }
+
+        return [
+            'state' => $state,
+            'reason' => $reason,
+            'automatic_transition' => false,
+        ];
+    }
+
+    public static function criticalCollectionProfile(string $collection): array
+    {
+        self::assertCollection($collection);
+        $stats = self::stats($collection);
+        $riskScore = self::operationalRiskScore()['score'] + min(30, $stats['event_count']);
+
+        return [
+            'collection' => $collection,
+            'priority' => $riskScore >= 50 ? 'high' : ($riskScore >= 20 ? 'medium' : 'low'),
+            'priority_score' => $riskScore,
+            'risk' => self::operationalRiskScore(),
+            'record_count' => $stats['record_count'],
+            'event_count' => $stats['event_count'],
+            'restore_impact' => self::restoreImpactReport(self::exportDatabase())['totals'],
+            'read_model_confidence' => self::readModelConfidenceReport($collection)['confidence'],
+        ];
+    }
+
+    public static function productionIncidentPacket(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'severity' => self::incidentSeverityClassification(),
+            'risk_timeline' => self::operationalRiskTimeline($backupPayload),
+            'evidence_digest' => self::incidentEvidenceDigest($backupPayload),
+            'restore_candidate_ranking' => self::restoreCandidateRanking([$backupPayload]),
+            'operator_checklist' => self::operatorActionChecklist($backupPayload),
+            'external_send' => false,
+        ];
+    }
+
+    public static function operationalHealthTrend(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $signals = [
+            'slo' => self::operationalSloReport($backupPayload)['status'],
+            'write_anomaly' => self::writeAnomalyDetector()['status'],
+            'backup_freshness' => self::backupFreshnessReport($backupPayload)['status'],
+            'drift_budget' => self::operationalDriftBudget($backupPayload)['status'],
+            'freeze_recommended' => self::writeSafetyThresholdPolicy()['freeze_recommended'],
+        ];
+
+        return [
+            'trend' => in_array('exceeded', $signals, true) || $signals['freeze_recommended'] === true ? 'worsening' : 'stable',
+            'signals' => $signals,
+        ];
+    }
+
+    public static function writeQuarantineRecommendation(): array
+    {
+        $recommendations = [];
+        foreach (array_keys(self::collections()) as $collection) {
+            $profile = self::criticalCollectionProfile($collection);
+            if ($profile['priority'] !== 'low') {
+                $recommendations[] = ['collection' => $collection, 'reason' => 'elevated_priority'];
+            }
+        }
+
+        return [
+            'recommended' => $recommendations !== [],
+            'targets' => $recommendations,
+            'automatic_quarantine' => false,
+        ];
+    }
+
+    public static function readModelRebuildSafetyReport(string $collection): array
+    {
+        self::assertCollection($collection);
+        $checks = [
+            'event_chain_valid' => self::eventChainIntegrity()['valid'] === true,
+            'schema_compatible' => self::schemaVersioning($collection)['compatibility'] === 'compatible',
+            'snapshot_seal_valid' => self::snapshotSealVerification($collection, self::snapshotIntegritySeal($collection))['valid'] === true,
+            'no_drift' => self::readModelDriftDetection($collection)['drift'] === false,
+        ];
+
+        return [
+            'collection' => $collection,
+            'status' => self::all($checks) ? 'safe' : (self::eventChainIntegrity()['valid'] ? 'caution' : 'blocked'),
+            'checks' => $checks,
+            'will_rebuild' => false,
+        ];
+    }
+
+    public static function backupTrustScore(array $payload): array
+    {
+        $freshness = self::backupFreshnessReport($payload);
+        $compatibility = self::backupRestoreCompatibilityCheck($payload);
+        $score = 0;
+        $score += ($freshness['valid'] ?? false) === true ? 30 : 0;
+        $score += ($freshness['status'] ?? null) === 'fresh' ? 30 : 0;
+        $score += $compatibility['compatible'] === true ? 25 : 0;
+        $score += self::backupConsistencyReport($payload)['consistent'] === true ? 15 : 0;
+
+        return [
+            'score' => $score,
+            'status' => $score >= 90 ? 'trusted' : ($score >= 60 ? 'review' : 'untrusted'),
+            'freshness' => $freshness,
+            'compatibility' => $compatibility,
+        ];
+    }
+
+    public static function eventGapDetection(): array
+    {
+        return self::eventGapReport() + [
+            'duplicate_detection' => self::eventLogConsistencyCheck()['valid'] === false,
+            'automatic_repair' => false,
+        ];
+    }
+
+    public static function operationalSaturationReport(): array
+    {
+        $metrics = self::operationalMetrics();
+        $score = 0;
+        $score += $metrics['record_count'] >= 10000 ? 40 : 0;
+        $score += $metrics['event_count'] >= 50000 ? 40 : 0;
+        $score += self::writeAnomalyDetector()['intent_count'] >= 100 ? 20 : 0;
+
+        return [
+            'status' => $score >= 70 ? 'high' : ($score >= 30 ? 'medium' : 'low'),
+            'score' => $score,
+            'metrics' => $metrics,
+        ];
+    }
+
+    public static function safeMaintenanceWindowReport(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $checks = [
+            'slo_met' => self::operationalSloReport($backupPayload)['status'] === 'met',
+            'risk_low' => self::operationalRiskScore()['level'] === 'low',
+            'backup_fresh' => self::backupFreshnessReport($backupPayload)['status'] === 'fresh',
+        ];
+
+        return [
+            'status' => self::all($checks) ? 'safe' : 'caution',
+            'checks' => $checks,
+            'automatic_scheduling' => false,
+        ];
+    }
+
+    public static function dataRecoveryConfidence(array $payload): array
+    {
+        $readiness = self::recoveryReadinessReport($payload);
+        $trust = self::backupTrustScore($payload);
+        $confidence = 'blocked';
+        if ($readiness['status'] === 'ready' && $trust['score'] >= 90) {
+            $confidence = 'high';
+        } elseif ($readiness['status'] !== 'blocked' && $trust['score'] >= 60) {
+            $confidence = 'medium';
+        } elseif ($trust['score'] > 0) {
+            $confidence = 'low';
+        }
+
+        return [
+            'confidence' => $confidence,
+            'readiness' => $readiness,
+            'backup_trust' => $trust,
+        ];
+    }
+
+    public static function incidentRootCauseHints(): array
+    {
+        $hints = [];
+        if (self::eventGapReport()['valid'] !== true) {
+            $hints[] = 'event_gap';
+        }
+        if (self::auditIntegrity()['valid'] !== true) {
+            $hints[] = 'integrity_audit';
+        }
+        if (self::writeAnomalyDetector()['status'] !== 'normal') {
+            $hints[] = 'write_anomaly';
+        }
+
+        return [
+            'hints' => $hints === [] ? ['no_current_root_cause_hint'] : $hints,
+            'diagnostic_only' => true,
+        ];
+    }
+
+    public static function productionOperationSummary(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'health_trend' => self::operationalHealthTrend($backupPayload),
+            'risk' => self::operationalRiskScore(),
+            'slo' => self::operationalSloReport($backupPayload),
+            'backup_trust' => self::backupTrustScore($backupPayload),
+            'recovery_confidence' => self::dataRecoveryConfidence($backupPayload),
+            'operator_checklist' => self::operatorActionChecklist($backupPayload),
+        ];
+    }
+
+    public static function operationReadinessLedger(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'entries' => [
+                'readiness' => self::readiness()['ready'],
+                'slo' => self::operationalSloReport($backupPayload)['status'],
+                'backup_freshness' => self::backupFreshnessReport($backupPayload)['status'],
+                'event_integrity' => self::eventChainIntegrity()['valid'],
+                'freeze_recommended' => self::writeSafetyThresholdPolicy()['freeze_recommended'],
+                'release_evidence' => self::releaseSafetyEvidence($backupPayload)['safe'],
+            ],
+            'fingerprint' => self::operationalBaselineSnapshot($backupPayload)['fingerprint'],
+        ];
+    }
+
+    public static function writeAdmissionControlReport(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $threshold = self::writeSafetyThresholdPolicy();
+        $gate = self::productionReadinessGate($backupPayload);
+        $decision = 'admit';
+        if ($threshold['status'] === 'threshold_exceeded' || $gate['status'] === 'blocked') {
+            $decision = 'reject_recommended';
+        } elseif ($gate['status'] === 'caution') {
+            $decision = 'caution';
+        }
+
+        return [
+            'decision' => $decision,
+            'threshold' => $threshold,
+            'production_gate' => $gate,
+            'enforced' => false,
+        ];
+    }
+
+    public static function criticalRecordWatchlist(): array
+    {
+        $items = [];
+        foreach (self::$records as $collection => $records) {
+            foreach ($records as $record) {
+                if ((int)($record['version'] ?? 1) > 1) {
+                    $items[] = [
+                        'collection' => $collection,
+                        'record_id' => $record['id'] ?? null,
+                        'revision' => $record['version'] ?? 1,
+                    ];
+                }
+            }
+        }
+
+        return [
+            'items' => $items,
+            'count' => count($items),
+        ];
+    }
+
+    public static function schemaStabilityReport(): array
+    {
+        $collections = [];
+        foreach (array_keys(self::collections()) as $collection) {
+            $collections[$collection] = self::schemaVersioning($collection);
+        }
+
+        return [
+            'status' => self::auditIntegrity()['valid'] ? 'stable' : 'unstable',
+            'migration' => self::migrationPlan(),
+            'collections' => $collections,
+            'write_failures' => self::writeAnomalyDetector()['failure_count'],
+        ];
+    }
+
+    public static function eventReplayFeasibilityReport(): array
+    {
+        $chain = self::eventChainIntegrity();
+
+        return [
+            'status' => $chain['valid'] === true ? 'safe' : 'blocked',
+            'event_count' => count(self::$events),
+            'latest_cursor' => self::cursor()['latest'],
+            'will_replay' => false,
+            'event_chain' => $chain,
+        ];
+    }
+
+    public static function restoreDryRunEvidence(array $payload): array
+    {
+        return [
+            'restore_simulation' => self::recoverySimulation($payload),
+            'compatibility' => self::backupRestoreCompatibilityCheck($payload),
+            'impact' => self::restoreImpactReport($payload),
+            'candidate_ranking' => self::restoreCandidateRanking([$payload]),
+            'recovery_confidence' => self::dataRecoveryConfidence($payload),
+            'will_restore' => false,
+        ];
+    }
+
+    public static function sqliteOperationalLimitsReport(): array
+    {
+        $metrics = self::operationalMetrics();
+        $warnings = [];
+        if ($metrics['record_count'] >= 10000) {
+            $warnings[] = 'record_count_high';
+        }
+        if ($metrics['event_count'] >= 50000) {
+            $warnings[] = 'event_count_high';
+        }
+
+        return [
+            'status' => $warnings === [] ? 'within_limits' : 'review_limits',
+            'warnings' => $warnings,
+            'metrics' => $metrics,
+            'sqlite_runtime' => self::storageStatus()['runtime_execution'],
+        ];
+    }
+
+    public static function incidentCommunicationSummary(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'severity' => self::incidentSeverityClassification()['severity'],
+            'impact' => self::restoreImpactReport($backupPayload)['totals'],
+            'containment' => self::incidentContainmentPolicy($backupPayload)['policy'],
+            'next_action' => self::operatorActionChecklist($backupPayload)['actions'][0],
+            'external_send' => false,
+        ];
+    }
+
+    public static function releaseRegressionEvidence(?array $baseline = null): array
+    {
+        return self::operationalRegressionGuard($baseline);
+    }
+
+    public static function productionSafetyBoard(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'readiness' => self::readiness()['ready'],
+            'slo' => self::operationalSloReport($backupPayload)['status'],
+            'integrity' => self::dataIntegrityAttestation($backupPayload)['valid'],
+            'durability' => self::dataDurabilityReport($backupPayload)['durable'],
+            'recovery_confidence' => self::dataRecoveryConfidence($backupPayload)['confidence'],
+            'admission_control' => self::writeAdmissionControlReport($backupPayload)['decision'],
+        ];
+    }
+
+    public static function operationalControlTower(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'readiness' => self::readiness()['ready'],
+            'slo' => self::operationalSloReport($backupPayload)['status'],
+            'drift_budget' => self::operationalDriftBudget($backupPayload)['status'],
+            'saturation' => self::operationalSaturationReport()['status'],
+            'backup_trust' => self::backupTrustScore($backupPayload)['status'],
+            'recovery_confidence' => self::dataRecoveryConfidence($backupPayload)['confidence'],
+        ];
+    }
+
+    public static function writePressureReport(): array
+    {
+        $anomaly = self::writeAnomalyDetector();
+        $intentCount = max(1, $anomaly['intent_count']);
+
+        return [
+            'status' => $anomaly['intent_count'] >= 50 || $anomaly['failure_count'] > 0 ? 'watch' : 'normal',
+            'intent_count' => $anomaly['intent_count'],
+            'failure_rate' => $anomaly['failure_count'] / $intentCount,
+            'critical_rate' => $anomaly['critical_count'] / $intentCount,
+            'by_operation' => $anomaly['by_operation'],
+        ];
+    }
+
+    public static function failureRecurrenceDetector(): array
+    {
+        $recurrence = [];
+        foreach (self::writeIntentLog()['intents'] as $intent) {
+            if (($intent['committed'] ?? true) === true) {
+                continue;
+            }
+            $key = ($intent['operation'] ?? 'unknown') . ':' . ($intent['collection'] ?? 'none');
+            $recurrence[$key] = ($recurrence[$key] ?? 0) + 1;
+        }
+
+        return [
+            'recurrent' => array_filter($recurrence, static fn(int $count): bool => $count > 1),
+            'automatic_fix' => false,
+        ];
+    }
+
+    public static function restoreDecisionChecklist(array $payload): array
+    {
+        return [
+            'items' => [
+                'verify_backup_trust' => self::backupTrustScore($payload)['status'],
+                'review_restore_impact' => self::restoreImpactReport($payload)['valid'],
+                'confirm_freshness' => self::backupFreshnessReport($payload)['status'],
+                'confirm_compatibility' => self::backupRestoreCompatibilityCheck($payload)['compatible'],
+                'confirm_recovery_confidence' => self::dataRecoveryConfidence($payload)['confidence'],
+            ],
+            'will_restore' => false,
+        ];
+    }
+
+    public static function eventChainTrustReport(): array
+    {
+        $chain = self::eventChainIntegrity();
+
+        return [
+            'trusted' => $chain['valid'] === true,
+            'event_count' => $chain['event_count'],
+            'latest_cursor' => self::cursor()['latest'],
+            'tip' => $chain['tip'],
+            'errors' => $chain['errors'],
+        ];
+    }
+
+    public static function readConsistencyVerification(): array
+    {
+        $collections = [];
+        $valid = true;
+        foreach (array_keys(self::collections()) as $collection) {
+            $snapshot = self::snapshot($collection);
+            $rebuilt = self::rebuildSnapshot($collection);
+            $snapshotHash = hash('sha256', self::encodeJson(self::readModelPayload($snapshot)));
+            $rebuiltHash = hash('sha256', self::encodeJson(self::readModelPayload($rebuilt)));
+            $same = $snapshotHash === $rebuiltHash;
+            $valid = $valid && $same;
+            $collections[$collection] = [
+                'consistent' => $same,
+                'snapshot_fingerprint' => $snapshotHash,
+                'rebuilt_fingerprint' => $rebuiltHash,
+            ];
+        }
+
+        return [
+            'consistent' => $valid,
+            'collections' => $collections,
+            'automatic_repair' => false,
+        ];
+    }
+
+    public static function operationalEvidenceTimeline(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'items' => [
+                ['kind' => 'release_evidence', 'safe' => self::releaseSafetyEvidence($backupPayload)['safe']],
+                ['kind' => 'incident_digest', 'severity' => self::incidentEvidenceDigest($backupPayload)['severity']],
+                ['kind' => 'backup_validation', 'status' => self::backupFreshnessReport($backupPayload)['status']],
+                ['kind' => 'slo', 'status' => self::operationalSloReport($backupPayload)['status']],
+            ],
+        ];
+    }
+
+    public static function degradedModeExitCriteria(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+        $checks = [
+            'risk_low' => self::operationalRiskScore()['level'] === 'low',
+            'slo_met' => self::operationalSloReport($backupPayload)['status'] === 'met',
+            'event_chain_valid' => self::eventChainIntegrity()['valid'] === true,
+            'backup_fresh' => self::backupFreshnessReport($backupPayload)['status'] === 'fresh',
+        ];
+
+        return [
+            'can_exit' => self::all($checks),
+            'checks' => $checks,
+            'automatic_transition' => false,
+        ];
+    }
+
+    public static function backupExposureReport(array $payload): array
+    {
+        $freshness = self::backupFreshnessReport($payload);
+        $currentEvents = count(self::$events);
+        $backupEvents = is_array($payload['events'] ?? null) ? count($payload['events']) : 0;
+
+        return [
+            'status' => $freshness['status'] === 'fresh' ? 'covered' : 'exposed',
+            'possible_event_loss' => max(0, $currentEvents - $backupEvents),
+            'freshness' => $freshness,
+        ];
+    }
+
+    public static function productionOperationsPacket(?array $backupPayload = null): array
+    {
+        $backupPayload ??= self::exportDatabase();
+
+        return [
+            'control_tower' => self::operationalControlTower($backupPayload),
+            'write_pressure' => self::writePressureReport(),
+            'event_trust' => self::eventChainTrustReport(),
+            'read_consistency' => self::readConsistencyVerification(),
+            'restore_checklist' => self::restoreDecisionChecklist($backupPayload),
+            'degraded_exit_criteria' => self::degradedModeExitCriteria($backupPayload),
         ];
     }
 
@@ -2598,6 +3759,66 @@ final class AdlaireDatabase
             'operation_freeze_policy' => $planned['operation_freeze_policy'] === true,
             'data_durability_report' => $planned['data_durability_report'] === true,
             'release_safety_evidence' => $planned['release_safety_evidence'] === true,
+            'operational_slo_report' => $planned['operational_slo_report'] === true,
+            'write_failure_classification' => $planned['write_failure_classification'] === true,
+            'backup_freshness_report' => $planned['backup_freshness_report'] === true,
+            'restore_candidate_ranking' => $planned['restore_candidate_ranking'] === true,
+            'read_model_confidence_report' => $planned['read_model_confidence_report'] === true,
+            'operational_window_policy' => $planned['operational_window_policy'] === true,
+            'recovery_drill_report' => $planned['recovery_drill_report'] === true,
+            'incident_evidence_digest' => $planned['incident_evidence_digest'] === true,
+            'data_lifecycle_guard' => $planned['data_lifecycle_guard'] === true,
+            'operational_handoff_report' => $planned['operational_handoff_report'] === true,
+            'operational_baseline_snapshot' => $planned['operational_baseline_snapshot'] === true,
+            'write_anomaly_detector' => $planned['write_anomaly_detector'] === true,
+            'recovery_priority_report' => $planned['recovery_priority_report'] === true,
+            'operational_risk_timeline' => $planned['operational_risk_timeline'] === true,
+            'data_consistency_score' => $planned['data_consistency_score'] === true,
+            'backup_candidate_validation_matrix' => $planned['backup_candidate_validation_matrix'] === true,
+            'write_safety_threshold_policy' => $planned['write_safety_threshold_policy'] === true,
+            'incident_replay_summary' => $planned['incident_replay_summary'] === true,
+            'production_readiness_gate' => $planned['production_readiness_gate'] === true,
+            'operator_action_checklist' => $planned['operator_action_checklist'] === true,
+            'operational_drift_budget' => $planned['operational_drift_budget'] === true,
+            'write_blast_radius_report' => $planned['write_blast_radius_report'] === true,
+            'recovery_path_comparison' => $planned['recovery_path_comparison'] === true,
+            'data_integrity_attestation' => $planned['data_integrity_attestation'] === true,
+            'incident_containment_policy' => $planned['incident_containment_policy'] === true,
+            'operational_regression_guard' => $planned['operational_regression_guard'] === true,
+            'backup_rotation_policy_report' => $planned['backup_rotation_policy_report'] === true,
+            'state_transition_audit' => $planned['state_transition_audit'] === true,
+            'critical_collection_profile' => $planned['critical_collection_profile'] === true,
+            'production_incident_packet' => $planned['production_incident_packet'] === true,
+            'operational_health_trend' => $planned['operational_health_trend'] === true,
+            'write_quarantine_recommendation' => $planned['write_quarantine_recommendation'] === true,
+            'read_model_rebuild_safety_report' => $planned['read_model_rebuild_safety_report'] === true,
+            'backup_trust_score' => $planned['backup_trust_score'] === true,
+            'event_gap_detection' => $planned['event_gap_detection'] === true,
+            'operational_saturation_report' => $planned['operational_saturation_report'] === true,
+            'safe_maintenance_window_report' => $planned['safe_maintenance_window_report'] === true,
+            'data_recovery_confidence' => $planned['data_recovery_confidence'] === true,
+            'incident_root_cause_hints' => $planned['incident_root_cause_hints'] === true,
+            'production_operation_summary' => $planned['production_operation_summary'] === true,
+            'operation_readiness_ledger' => $planned['operation_readiness_ledger'] === true,
+            'write_admission_control_report' => $planned['write_admission_control_report'] === true,
+            'critical_record_watchlist' => $planned['critical_record_watchlist'] === true,
+            'schema_stability_report' => $planned['schema_stability_report'] === true,
+            'event_replay_feasibility_report' => $planned['event_replay_feasibility_report'] === true,
+            'restore_dry_run_evidence' => $planned['restore_dry_run_evidence'] === true,
+            'sqlite_operational_limits_report' => $planned['sqlite_operational_limits_report'] === true,
+            'incident_communication_summary' => $planned['incident_communication_summary'] === true,
+            'release_regression_evidence' => $planned['release_regression_evidence'] === true,
+            'production_safety_board' => $planned['production_safety_board'] === true,
+            'operational_control_tower' => $planned['operational_control_tower'] === true,
+            'write_pressure_report' => $planned['write_pressure_report'] === true,
+            'failure_recurrence_detector' => $planned['failure_recurrence_detector'] === true,
+            'restore_decision_checklist' => $planned['restore_decision_checklist'] === true,
+            'event_chain_trust_report' => $planned['event_chain_trust_report'] === true,
+            'read_consistency_verification' => $planned['read_consistency_verification'] === true,
+            'operational_evidence_timeline' => $planned['operational_evidence_timeline'] === true,
+            'degraded_mode_exit_criteria' => $planned['degraded_mode_exit_criteria'] === true,
+            'backup_exposure_report' => $planned['backup_exposure_report'] === true,
+            'production_operations_packet' => $planned['production_operations_packet'] === true,
             'access_rules_undefined' => $planned['access_rules'] === 'undefined',
             'realtime_adapter_none' => $planned['realtime_adapter'] === 'none',
             'stream_mode_pull_cursor' => $planned['stream_mode'] === 'pull_cursor',
@@ -2883,6 +4104,16 @@ final class AdlaireDatabase
         }
 
         return true;
+    }
+
+    private static function snapshotSeals(): array
+    {
+        $seals = [];
+        foreach (array_keys(self::collections()) as $collection) {
+            $seals[$collection] = self::snapshotIntegritySeal($collection);
+        }
+
+        return $seals;
     }
 
     private static function assertCollection(string $collection): void

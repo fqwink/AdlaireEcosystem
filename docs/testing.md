@@ -28,15 +28,17 @@ bugfix_until_zero: true
 
 バグ修正は承認工程に含めません。実装後にバグがある場合は、追加承認を待たずにバグ修正ゼロになるまで必ず修正します。
 
-## v0.008 Test Scope
+## v0.012 Test Scope
 
 - 許可ディレクトリのみ存在すること
-- Coreが3フォルダ、3〜5 PHPファイル原則を満たすこと
-- Project境界を作成せずDeployment Systemへ統合していること
+- Core直下のPHPファイルがエントリポイントのみであること
+- Core直下の内部フォルダにエントリポイントを置かないこと
+- 内部フォルダ内PHPファイルが内部実装のみであること
+- Project境界を作成しないこと
 - Docker関連境界として`Docker/`が存在すること
 - 現行テストがPHPソースコードベースであること
 - Docker本番相当環境テストが将来計画として整理されていること
-- Deployment Systemが白紙状態であること
+- Deployment Systemの現行仕様とソースコードが破棄されていること
 - Realtime Database readinessが成功すること
 - Realtime DatabaseのBaaS Core Feature機能が動作すること
 - Realtime DatabaseのSQLite永続化、WAL、integrity checkが動作すること
@@ -46,6 +48,7 @@ bugfix_until_zero: true
 - Realtime Databaseのv0.006実運用耐性機能が動作すること
 - Realtime Databaseのv0.007実運用強化機能が動作すること
 - Realtime Databaseのv0.008実運用耐性強化機能が動作すること
+- Realtime Databaseのv0.012実運用耐性強化と実運用強化機能が動作すること
 - SQLite有効化時にdefault collectionがSQLite対象として扱われること
 - 失敗したtransactionがrecord、event、SQLite書き込みを残さないこと
 - database export fingerprintが環境依存値に引っ張られないこと

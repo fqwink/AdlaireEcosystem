@@ -52,13 +52,13 @@
 
 ## 現行方針
 
-- 現行バージョンは`v0.008`。
+- 現行バージョンは`v0.012`。
 - 名称はAdlaire Ecosystemを継承する。
 - Adlaire EcosystemはBaaS Projectとしてゼロベースで再スタートする。
-- `v0.008`で計画する中核機能はDeployment System、Realtime Databaseのみ。
-- Deployment Systemは基本方針からやり直すため、現時点では白紙状態として扱う。
+- `v0.012`で維持する中核機能はRealtime Databaseのみ。
+- Deployment Systemは基本方針からやり直すため、現行仕様とソースコードを破棄済みとして扱う。
 - Authentication、Authorization、その他BaaS機能は未定義とし、Adlaire独自方式を確定するまで実装しない。
-- Realtime DatabaseのDatabaseはSQLiteを正選定し、libSQLはSQLite互換の将来拡張として決定済みとする。ただし`v0.008`ではlibSQLを実装しない。
+- Realtime DatabaseのDatabaseはSQLiteを正選定し、libSQLはSQLite互換の将来拡張として決定済みとする。ただし`v0.012`ではlibSQLを実装しない。
 
 ## 許可ディレクトリ
 
@@ -74,11 +74,10 @@
 
 ## Core構成
 
-`Core/`は3フォルダ、3〜5 PHPファイル原則で構成する。
+`Core/`直下のPHPファイルはエントリポイントのみとし、単一ファイル原則で扱う。
 
-- `Core/Runtime/Runtime.php`
-- `Core/Deployment/Deployment.php`
-- `Core/Database/Database.php`
+- `Core/Runtime.php`
+- `Core/Database.php`
 
 Core直下に置く境界フォルダは次の3つとする。
 
@@ -86,7 +85,9 @@ Core直下に置く境界フォルダは次の3つとする。
 - `Deployment/`
 - `Database/`
 
-Project境界は作成しない。名称、version、manifest、readiness、release summaryはDeployment Systemへ統合する。
+内部フォルダにはエントリポイントを置かない。内部フォルダ内のPHPファイルは内部実装のみとし、外部から直接参照しない。`Core/Deployment/`は境界フォルダのみとし、PHPファイルを置かない。
+
+Project境界は作成しない。名称、version、manifest、readiness、release summaryはDeployment Systemへ統合しない。
 
 ## Docker
 

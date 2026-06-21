@@ -7,6 +7,106 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.012
+
+- `version: v0.012`
+- `status: version_plan_approved`
+- `scope: deployment_system_blank_reset`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: deployment_system_discard`
+- `purpose: discard_existing_deployment_system_specification_and_source_code_for_zero_base_redesign`
+- `deployment_system_specification: discarded`
+- `deployment_system_source_code: discarded`
+- `deployment_system_replacement: prohibited`
+- `new_deployment_specification: prohibited`
+- `deployment_folder: keep_as_boundary_only`
+- `realtime_database: preserved`
+- `realtime_database_deployment_dependency: removed`
+- `external_dependency: not_allowed`
+- `remote_sync: not_adopted`
+- `libsql_implementation: out_of_scope`
+- `implementation_targets: discard AdlaireDeployment class, remove Core/Deployment entrypoint and internal implementation, keep Core/Deployment boundary, remove deployment manifest/readiness/release/state/releaseGate assumptions, remove Realtime Database dependency on deployment version`
+- `constraints: no_deployment_replacement, no_new_deployment_spec, no_realtime_database_regression, no_external_dependency, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
+## v0.011
+
+- `version: v0.011`
+- `status: version_plan_approved`
+- `scope: core_structure_refactor`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: core_entrypoint_and_internal_file_policy`
+- `purpose: source_code_growth_control_and_core_structure_stabilization`
+- `core_root_php_files: entrypoints_only`
+- `core_root_single_file_principle: true`
+- `external_entrypoints: Core/Database.php, Core/Deployment.php, Core/Runtime.php`
+- `internal_folders: Core/Database, Core/Deployment, Core/Runtime`
+- `internal_folder_entrypoint: prohibited`
+- `internal_php_files: internal_implementation_only`
+- `internal_php_file_limit: 3_to_5_per_internal_folder`
+- `public_api: preserved`
+- `feature_removal: prohibited`
+- `external_dependency: not_allowed`
+- `remote_sync: not_adopted`
+- `libsql_implementation: out_of_scope`
+- `implementation_targets: Core root entrypoint files, internal implementation folders, direct internal file reference prohibition, existing public API preservation, source code growth control`
+- `constraints: no_feature_regression, no_external_dependency, entrypoint_only_core_root, no_entrypoint_inside_internal_folder, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
+## v0.010
+
+- `version: v0.010`
+- `status: version_plan_approved`
+- `scope: realtime_database_only`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: realtime_database`
+- `purpose: realtime_database_production_operations_and_resilience_hardening`
+- `deployment_system: blank`
+- `authentication: undefined`
+- `authorization: undefined`
+- `external_dependency: not_allowed`
+- `remote_sync: not_adopted`
+- `libsql_implementation: out_of_scope`
+- `implementation_targets: operational baseline, anomaly detection, recovery prioritization, risk timeline, consistency scoring, backup validation, write safety threshold, incident summary, production readiness, operator checklist, drift budget, blast radius, recovery path comparison, integrity attestation, containment policy, regression guard, rotation policy, state transition audit, critical collection profile, production packets, health trend, quarantine recommendation, rebuild safety, backup trust, event gap detection, saturation report, maintenance window, recovery confidence, root cause hints, readiness ledger, admission control, watchlist, schema stability, replay feasibility, restore dry-run evidence, SQLite limits, communication summary, release regression, safety board, control tower, write pressure, recurrence detection, restore checklist, event trust, read consistency, evidence timeline, degraded exit criteria, backup exposure`
+- `out_of_scope: automatic_repair, automatic_restore, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation, record_ttl_runtime_enforcement, automatic_delete, automatic_scheduling, automatic_notification`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, no_automatic_restore, no_automatic_repair, strict_confirmed_spec`
+- `bugfix_summary: Write Anomaly Detectorの正常系critical write判定とRead Consistency Verificationの比較粒度を修正`
+
+## v0.009
+
+- `version: v0.009`
+- `status: version_plan_approved`
+- `scope: realtime_database_only`
+- `implementation_status: implemented`
+- `implementation_approval: approved`
+- `specification_confirmation: approved`
+- `version_plan: approved`
+- `implementation: approved`
+- `primary_axis: realtime_database`
+- `purpose: realtime_database_operational_resilience_and_operations_hardening`
+- `deployment_system: blank`
+- `authentication: undefined`
+- `authorization: undefined`
+- `external_dependency: not_allowed`
+- `remote_sync: not_adopted`
+- `libsql_implementation: out_of_scope`
+- `implementation_targets: Operational SLO Report, Write Failure Classification, Backup Freshness Report, Restore Candidate Ranking, Read Model Confidence Report, Operational Window Policy, Recovery Drill Report, Incident Evidence Digest, Data Lifecycle Guard, Operational Handoff Report`
+- `out_of_scope: automatic_repair, automatic_restore, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation, record_ttl_runtime_enforcement, automatic_delete`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, no_automatic_restore, no_automatic_repair, strict_confirmed_spec`
+- `bugfix_summary: backup鮮度テストのcurrent export参照とData Lifecycle Guardの未実装項目判定を修正`
+
 ## v0.008
 
 - `version: v0.008`
