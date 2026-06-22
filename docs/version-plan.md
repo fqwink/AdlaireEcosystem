@@ -7,6 +7,55 @@
 - 記載内容は要点のみを簡潔に明記する。
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
+- 過去バージョンの旧名称は承認履歴として保持する。現行仕様の正本は`docs/ADLAIRE-ECOSYSTEM.md`とする。
+
+## v0.038
+
+- `version: v0.038`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: adlaire_architecture_core_database_auth_restructure`
+- `purpose: Adlaire独自アーキテクチャ方針を反映し、Core、Database、Auth、Admin、docsを再構成し、承認後の実装継続ルールを明記する`
+- `targets: Core, Admin/index.php, docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/testing.md, docs/version-plan.md, Docker/verification/production-operation-report.md`
+- `bugfix_summary: Docker実運用想定検証の旧Core参照を新Core構成へ復旧し、追加コードバグなし`
+
+## v0.037
+
+- `version: v0.037`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: adlaire_event_log_boundary`
+- `purpose: Adlaire Event Logを現行Event Logとは別に定義・開発する専用境界として追加する`
+- `targets: AdlaireEventLog/.gitkeep, docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
+## v0.036
+
+- `version: v0.036`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: repository_evaluation_issues_1_to_4_and_admin_dashboard_full_implementation`
+- `purpose: 評価課題1〜4を対象に、BaaS Admin Dashboardを仕様に基づき実装し、関連ドキュメントを整理する`
+- `targets: Admin/index.php, docs/AGENTS.md, docs/testing.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md, Docker/verification/production-operation-report.md`
+- `bugfix_summary: docs/AGENTS.mdの現行仕様バージョン表記をv0.036へ修正`
+
+## v0.035
+
+- `version: v0.035`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: admin_boundary_and_document_consistency`
+- `purpose: Admin境界をBaaS Admin Dashboard専用として実体化し、BaaS/Admin/Applications文言と現行仕様表記を整理する`
+- `targets: Admin/.gitkeep, docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/README.md, Docker/verification/production-operation-report.md, docs/version-plan.md`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
 
 ## v0.034
 
@@ -204,8 +253,8 @@
 - `implementation: approved`
 - `scope: runtime_removal_auth_authorization_core_feature`
 - `purpose: Runtime廃止、Auth Core追加、Event Log証跡基盤強化`
-- `core_entrypoints: Core/Database.php, Core/EventLog.php, Core/Auth.php`
-- `core_folders: Core/Database, Core/Auth, Core/Deployment`
+- `core_entrypoints: Core/Database/Database.php, Core/EventLog.php, Core/Auth/Auth.php`
+- `core_folders: Core/Database, Core/Auth, `
 - `database_file_count: 3`
 - `auth_file_count: 3`
 - `event_log_file: Core/EventLog.php`

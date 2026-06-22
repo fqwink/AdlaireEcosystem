@@ -123,17 +123,17 @@ Docker実運用想定検証レポートは検証継続中に20分ごとに更新
 
 - 許可ディレクトリのみ存在すること
 - 必須動作要件、承認済み文言、外部依存禁止が仕様へ明記されていること
-- Core直下が共通基盤機能とエントリポイントの2機能であること
+- CoreがBaaS共通基盤の中核として整理されていること
 - `Core/EventLog.php`がEvent Log単一ファイルであること
-- `Core/Auth.php`がAuthentication / Authorizationの単一エントリポイントであること
-- Event Log用フォルダが存在しないこと
+- 現行`Core/EventLog.php`用フォルダが存在しないこと
+- `AdlaireEventLog/`がAdlaire Event Log専用境界として存在すること
 - `Core/Database/`が3 PHPファイルで構成されること
-- `Core/Database/DatabaseCore.php`、`Core/Database/DatabaseStorage.php`、`Core/Database/DatabaseOperations.php`が存在すること
+- `Core/Database/Database.php`、`Core/Database/Storage.php`、`Core/Database/Evidence.php`が存在すること
 - `Core/Auth/`が3 PHPファイルで構成されること
-- `Core/Auth/AuthCore.php`、`Core/Auth/AuthStorage.php`、`Core/Auth/AuthOperations.php`が存在すること
+- `Core/Auth/Auth.php`、`Core/Auth/Storage.php`、`Core/Auth/Evidence.php`が存在すること
 - `Core/Runtime.php`と`Core/Runtime/`が存在しないこと
-- Core直下の内部フォルダにエントリポイントを置かないこと
-- 内部フォルダ内PHPファイルが内部実装のみであること
+- `Core/Deployment/`が存在しないこと
+- Core内部フォルダ内PHPファイルがBaaS共通基盤の責務ファイルとして整理されていること
 - Project境界を作成しないこと
 - Docker関連境界として`Docker/`が存在すること
 - Docker検証が実運用想定のリポジトリ全体検証として定義されていること
@@ -142,7 +142,7 @@ Docker実運用想定検証レポートは検証継続中に20分ごとに更新
 - BaaS機能がRealtime Database、Authentication / Authorization、BaaS Admin Dashboardに整理されていること
 - Event LogがBaaS機能ではなく内部Core基盤として整理されていること
 - Applications ModulesがCMS、Wikiなどのアプリケーション群として整理されていること
-- BaaS管理画面がApplications Modulesに含まれないこと
+- BaaS Admin DashboardがApplications Modulesに含まれないこと
 - Deployment Systemの現行仕様とソースコードが破棄されていること
 - Realtime Database readinessが成功すること
 - Realtime DatabaseのBaaS Core Feature機能が動作すること

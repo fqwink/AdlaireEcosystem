@@ -15,7 +15,7 @@ echo "extensions ok\n";
 '
 
 php -r '
-require "/app/Core/Database.php";
+require "/app/Core/Database/Database.php";
 $path = getenv("ADLAIRE_SQLITE_PATH") ?: "/data/adlaire-check.sqlite";
 @unlink($path);
 AdlaireDatabase::reset();

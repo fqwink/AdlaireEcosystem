@@ -26,7 +26,7 @@ $payload = [
 ];
 
 if (!str_starts_with($uri, '/health')) {
-    require_once '/app/Core/Database.php';
+    require_once '/app/Core/Database/Database.php';
     AdlaireDatabase::reset();
     $storage = AdlaireDatabase::enableSQLite($path);
     $payload['database_ready'] = AdlaireDatabase::readiness()['ready'];

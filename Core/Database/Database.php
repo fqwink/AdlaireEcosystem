@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../EventLog.php';
-require_once __DIR__ . '/DatabaseStorage.php';
-require_once __DIR__ . '/DatabaseOperations.php';
+require_once __DIR__ . '/Storage.php';
+require_once __DIR__ . '/Evidence.php';
 
 final class AdlaireDatabase
 {
@@ -25,7 +25,7 @@ final class AdlaireDatabase
     private static array $writeIntents = [];
 
     use AdlaireDatabaseStorage;
-    use AdlaireDatabaseOperations;
+    use AdlaireDatabaseEvidence;
 
     public static function deployableUnit(): array
     {
@@ -54,10 +54,10 @@ final class AdlaireDatabase
             'adlaire_method' => true,
             'deployment_axis' => 'undefined',
             'mode' => 'event_log',
-            'core_root_policy' => 'common_foundation_and_entrypoints',
-            'entrypoint_policy' => 'single_file_principle',
-            'core_entrypoints' => ['Core/Database.php', 'Core/EventLog.php', 'Core/Auth.php'],
-            'core_folders' => ['Core/Database', 'Core/Auth', 'Core/Deployment'],
+            'core_root_policy' => 'baas_common_foundation',
+            'adlaire_architecture_policy' => 'preparation',
+            'core_files' => ['Core/EventLog.php'],
+            'core_folders' => ['Core/Database', 'Core/Auth'],
             'runtime_removed' => true,
             'runtime_replacement_category' => 'prohibited',
             'event_log_policy' => 'single_file_principle',
@@ -66,7 +66,7 @@ final class AdlaireDatabase
             'event_log_role' => 'common_foundation',
             'event_log_common_foundation' => true,
             'event_log_single_file' => true,
-            'event_log_entrypoint' => false,
+            'event_log_independent_file' => true,
             'event_log_shared_by' => ['realtime_database', 'authentication', 'authorization'],
             'event_log_message_broker' => false,
             'event_log_remote_sync' => false,
@@ -90,12 +90,12 @@ final class AdlaireDatabase
             'event_risk_report' => true,
             'event_operation_journal' => true,
             'database_three_file_split' => true,
-            'database_files' => ['DatabaseCore.php', 'DatabaseStorage.php', 'DatabaseOperations.php'],
+            'database_files' => ['Database.php', 'Storage.php', 'Evidence.php'],
             'database_file_count' => 3,
             'auth_core_feature' => true,
-            'auth_entrypoint' => 'Core/Auth.php',
+            'auth_file' => 'Core/Auth/Auth.php',
             'auth_folder' => 'Core/Auth',
-            'auth_files' => ['AuthCore.php', 'AuthStorage.php', 'AuthOperations.php'],
+            'auth_files' => ['Auth.php', 'Storage.php', 'Evidence.php'],
             'auth_file_count' => 3,
             'authentication' => true,
             'authorization' => true,
@@ -771,14 +771,11 @@ final class AdlaireDatabase
             'baas_core_feature' => $planned['kind'] === 'baas_core_feature',
             'deployable_unit' => $planned['deployable_unit'] === 'realtime_database',
             'event_log_mode' => $planned['mode'] === 'event_log',
-            'core_root_policy' => $planned['core_root_policy'] === 'common_foundation_and_entrypoints',
-            'entrypoint_policy' => $planned['entrypoint_policy'] === 'single_file_principle',
-            'core_database_entrypoint' => in_array('Core/Database.php', $planned['core_entrypoints'], true),
-            'core_event_log_entrypoint_record' => in_array('Core/EventLog.php', $planned['core_entrypoints'], true),
-            'core_auth_entrypoint' => in_array('Core/Auth.php', $planned['core_entrypoints'], true),
+            'core_root_policy' => $planned['core_root_policy'] === 'baas_common_foundation',
+            'adlaire_architecture_policy' => $planned['adlaire_architecture_policy'] === 'preparation',
+            'core_event_log_file' => in_array('Core/EventLog.php', $planned['core_files'], true),
             'core_database_folder' => in_array('Core/Database', $planned['core_folders'], true),
             'core_auth_folder' => in_array('Core/Auth', $planned['core_folders'], true),
-            'core_deployment_folder' => in_array('Core/Deployment', $planned['core_folders'], true),
             'runtime_removed' => $planned['runtime_removed'] === true,
             'runtime_replacement_category_prohibited' => $planned['runtime_replacement_category'] === 'prohibited',
             'event_log_policy' => $planned['event_log_policy'] === 'single_file_principle',
@@ -786,7 +783,7 @@ final class AdlaireDatabase
             'event_log_folder' => $planned['event_log_folder'] === 'prohibited',
             'event_log_common_foundation' => $planned['event_log_common_foundation'] === true,
             'event_log_single_file' => $planned['event_log_single_file'] === true,
-            'event_log_not_entrypoint' => $planned['event_log_entrypoint'] === false,
+            'event_log_independent_file' => $planned['event_log_independent_file'] === true,
             'event_log_realtime_database' => in_array('realtime_database', $planned['event_log_shared_by'], true),
             'event_log_authentication' => in_array('authentication', $planned['event_log_shared_by'], true),
             'event_log_authorization' => in_array('authorization', $planned['event_log_shared_by'], true),
@@ -813,16 +810,16 @@ final class AdlaireDatabase
             'event_operation_journal' => $planned['event_operation_journal'] === true,
             'database_three_file_split' => $planned['database_three_file_split'] === true,
             'database_file_count' => $planned['database_file_count'] === 3,
-            'database_core_file' => in_array('DatabaseCore.php', $planned['database_files'], true),
-            'database_storage_file' => in_array('DatabaseStorage.php', $planned['database_files'], true),
-            'database_operations_file' => in_array('DatabaseOperations.php', $planned['database_files'], true),
+            'database_core_file' => in_array('Database.php', $planned['database_files'], true),
+            'database_storage_file' => in_array('Storage.php', $planned['database_files'], true),
+            'database_operations_file' => in_array('Evidence.php', $planned['database_files'], true),
             'auth_core_feature' => $planned['auth_core_feature'] === true,
-            'auth_entrypoint' => $planned['auth_entrypoint'] === 'Core/Auth.php',
+            'auth_file' => $planned['auth_file'] === 'Core/Auth/Auth.php',
             'auth_folder' => $planned['auth_folder'] === 'Core/Auth',
             'auth_file_count' => $planned['auth_file_count'] === 3,
-            'auth_core_file' => in_array('AuthCore.php', $planned['auth_files'], true),
-            'auth_storage_file' => in_array('AuthStorage.php', $planned['auth_files'], true),
-            'auth_operations_file' => in_array('AuthOperations.php', $planned['auth_files'], true),
+            'auth_core_file' => in_array('Auth.php', $planned['auth_files'], true),
+            'auth_storage_file' => in_array('Storage.php', $planned['auth_files'], true),
+            'auth_operations_file' => in_array('Evidence.php', $planned['auth_files'], true),
             'authentication' => $planned['authentication'] === true,
             'authorization' => $planned['authorization'] === true,
             'deployment_system_completely_blank' => $planned['deployment_system'] === 'completely_blank',

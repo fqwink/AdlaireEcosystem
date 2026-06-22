@@ -76,6 +76,8 @@
 
 承認範囲外の追加実装、先行実装、ついで実装は禁止する。仕様外実装、仕様未記載の拡張、確定仕様から逸脱した実装は禁止する。
 
+仕様確定承認、バージョン計画承認、実装承認が揃うまでは実装しない。承認が揃った後は途中で止めず、仕様に基づいて実装まで進める。実装後はバグ修正ゼロまで行い、Docker開発検証を実行し、Docker実運用想定検証レポートを更新する。
+
 個別指示であっても、承認プロセス対象の変更は即時実行してはならない。仕様、バージョン計画、実装、修正、削除、追加、構成変更、ドキュメント変更に該当する場合は、必ず承認プロセスを踏む。
 
 承認プロセスを踏んでいない場合、本来は実行プロセスを停止する。個別指示は承認プロセスを省略する理由にならない。例外は、ユーザーが明示的に「今回のみ個別指示として承認プロセスを省略して実行」と指定した場合のみとする。
@@ -88,7 +90,7 @@
 
 ## 現行方針
 
-- 現行バージョンは`v0.021`。
+- 現行仕様は`v0.038`までの承認済み内容を反映する。
 - 名称はAdlaire Ecosystemを継承する。
 - Adlaire EcosystemはBaaS Projectとしてゼロベースで再スタートする。
 - 必須動作要件は`docs/ADLAIRE-ECOSYSTEM.md`を正とする。
@@ -104,6 +106,7 @@
 作成・維持できるディレクトリは次のみ。
 
 - `Core/`
+- `AdlaireEventLog/`
 - `Admin/`
 - `Applications/`
 - `Docker/`
@@ -111,43 +114,46 @@
 
 現行構成は上記ディレクトリに集約する。
 
+`AdlaireEventLog/`は、Adlaire Event Logの定義、一般Event Logとの差分整理、エントリポイント概念禁止との整合整理、状態・制約・変更履歴モデルの検討、Realtime Database、Authentication / Authorization、BaaS Admin Dashboardへの適用検討、仕様化、開発を行う専用境界である。
+
+現行`Core/EventLog.php`は暫定維持する。Adlaire Event Log成立後、現行Event Logからの移行対象として扱う。
+
 ## Core構成
 
-`Core/`直下は共通基盤機能とエントリポイントの2機能で扱う。エントリポイントは単一ファイル原則で扱う。Event Logも単一ファイル原則で扱う。
+CoreはBaaS共通基盤の中核として扱う。v0.038では、Adlaire独自アーキテクチャ方針を反映し、エントリポイント概念禁止に向けた準備として、Core直下の旧入口的PHPファイルとDeployment境界を削除する。
 
-- `Core/Database.php`
+Core直下のPHPファイルは次のみ。
+
 - `Core/EventLog.php`
-- `Core/Auth.php`
 
-`Core/EventLog.php`はRealtime Database、Authentication、Authorizationに共通するCore横断履歴基盤であり、エントリポイントではない。Event Log用フォルダは作成しない。
+`Core/EventLog.php`はRealtime Database、Authentication、Authorizationに共通するCore横断履歴基盤として暫定維持する。Event Log用フォルダは作成しない。
 
-Core直下に置く境界フォルダは次の3つとする。
+Core直下に置く境界フォルダは次の2つとする。
 
 - `Database/`
 - `Auth/`
-- `Deployment/`
 
-内部フォルダにはエントリポイントを置かない。内部フォルダ内のPHPファイルは内部実装のみとし、外部から直接参照しない。`Core/Deployment/`は境界フォルダのみとし、PHPファイルを置かない。
+内部フォルダ内のPHPファイルは、BaaS共通基盤を構成する責務ファイルとして扱う。
 
 `Core/Database/`内のPHPファイルは次の3ファイルのみとする。
 
-- `DatabaseCore.php`
-- `DatabaseStorage.php`
-- `DatabaseOperations.php`
+- `Database.php`
+- `Storage.php`
+- `Evidence.php`
 
 `Core/Auth/`内のPHPファイルは次の3ファイルのみとする。
 
-- `AuthCore.php`
-- `AuthStorage.php`
-- `AuthOperations.php`
+- `Auth.php`
+- `Storage.php`
+- `Evidence.php`
 
-Project境界は作成しない。名称、version、manifest、readiness、release summaryはDeployment Systemへ統合しない。
+Project境界、Runtime境界、Deployment境界は作成しない。名称、version、manifest、readiness、release summaryはDeployment Systemへ統合しない。
 
 ## Admin
 
-- `Admin/`はBaaS Admin Console専用の境界として扱う。
-- BaaS Admin ConsoleはBaaS Admin Dashboardとして扱い、BaaS Coreを管理、確認、運用するための管理領域である。
-- BaaS Admin ConsoleはApplications Modulesに含めない。
+- `Admin/`はBaaS Admin Dashboard専用の境界として扱う。
+- BaaS Admin DashboardはBaaS Coreを管理、確認、運用するための管理領域である。
+- BaaS Admin DashboardはApplications Modulesに含めない。
 - BaaS Admin DashboardはBaaS機能に含める。
 - 管理対象はRealtime Database、Authentication / Authorization、Event Logに限定する。
 - Docker検証レポートのDashboard管理対象化は禁止する。
@@ -155,14 +161,14 @@ Project境界は作成しない。名称、version、manifest、readiness、rele
 - 実運用機能はOperations Command Center、Severity Model、Incident Lifecycle、Manual Acknowledgement、Evidence Integrity Viewを初期対象とする。
 - 破壊的操作、自動修復、自動圧縮、自動削除は扱わない。
 - 管理操作、重要確認、運用判断、incident状態変更、manual acknowledgementはEvent Logへ記録する。
-- BaaS Admin Console自体もAuthentication / Authorizationの管理対象とする。
+- BaaS Admin Dashboard自体もAuthentication / Authorizationの管理対象とする。
 - 外部依存、外部CDN、外部UIライブラリ、外部認証、外部監視、外部通知は使わない。
 
 ## Docker
 
 - `Docker/`はDocker関連ファイルの境界として維持する。
 - 今後のDockerfile、compose、Docker用スクリプト、Docker用設定は`Docker/`へ格納する。
-- 初期状態では`Docker/.gitkeep`のみを置く。
+- Docker関連ファイルをCore、Applications、docs直下へ分散させない。
 
 ## Docker検証
 
@@ -197,7 +203,7 @@ CLI公式テストは完全廃止する。PHP 8.3 CLI公式テストも完全廃
 - `Applications/`はApplication Modulesの境界として維持する。
 - Application ModulesはCMS、Wikiなど、Core BaaSを利用して動作するアプリケーション群として扱う。
 - Application ModulesはBaaS機能に含めない。
-- BaaS管理画面はApplication Modulesに含めない。BaaS管理画面はBaaS Coreを管理、確認、運用するための管理領域として別枠で扱う。
+- BaaS Admin DashboardはApplication Modulesに含めない。
 - Deployment SystemをApplication Moduleとして扱うかは未定義の検討候補とする。
 - 初期状態では`Applications/.gitkeep`のみを置く。
 

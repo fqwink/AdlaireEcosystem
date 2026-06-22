@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-trait AdlaireAuthOperations
+trait AdlaireAuthEvidence
 {
     public static function passwordPolicy(): array
     {

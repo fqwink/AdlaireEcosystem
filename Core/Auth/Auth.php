@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/AuthStorage.php';
-require_once __DIR__ . '/AuthOperations.php';
+require_once __DIR__ . '/Storage.php';
+require_once __DIR__ . '/Evidence.php';
 
 final class AdlaireAuth
 {
@@ -26,7 +26,7 @@ final class AdlaireAuth
     private static int $decisionSequence = 0;
 
     use AdlaireAuthStorage;
-    use AdlaireAuthOperations;
+    use AdlaireAuthEvidence;
 
     public static function reset(): void
     {
@@ -54,9 +54,9 @@ final class AdlaireAuth
             'version' => self::VERSION,
             'state' => 'planned',
             'kind' => 'baas_core_feature',
-            'core_entrypoint' => 'Core/Auth.php',
+            'auth_file' => 'Core/Auth/Auth.php',
             'core_folder' => 'Core/Auth',
-            'auth_files' => ['AuthCore.php', 'AuthStorage.php', 'AuthOperations.php'],
+            'auth_files' => ['Auth.php', 'Storage.php', 'Evidence.php'],
             'auth_file_count' => 3,
             'authentication' => true,
             'authorization' => true,
@@ -155,7 +155,7 @@ final class AdlaireAuth
         $checks = [
             'state_planned' => $planned['state'] === 'planned',
             'baas_core_feature' => $planned['kind'] === 'baas_core_feature',
-            'auth_entrypoint' => $planned['core_entrypoint'] === 'Core/Auth.php',
+            'auth_file' => $planned['auth_file'] === 'Core/Auth/Auth.php',
             'auth_folder' => $planned['core_folder'] === 'Core/Auth',
             'auth_file_count' => $planned['auth_file_count'] === 3,
             'authentication' => $planned['authentication'] === true,

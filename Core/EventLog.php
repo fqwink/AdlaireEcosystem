@@ -59,7 +59,6 @@ final class AdlaireEventLog
             'role' => 'common_foundation',
             'single_file' => true,
             'folder' => 'prohibited',
-            'entrypoint' => false,
             'shared_by' => ['realtime_database', 'authentication', 'authorization'],
             'trust_foundation' => true,
             'auto_mutation' => false,

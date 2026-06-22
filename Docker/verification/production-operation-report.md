@@ -6,8 +6,8 @@
 - status: 進行中
 - target_duration: 72時間以上
 - started_at_utc: 2026-06-22T14:38:52Z
-- last_updated_at_utc: 2026-06-22T15:45:12Z
-- elapsed_at_last_update: 約1時間06分20秒
+- last_updated_at_utc: 2026-06-22T19:00:24Z
+- elapsed_at_last_update: 約4時間21分32秒
 - repository_report: Docker/verification/production-operation-report.md
 - runtime_log: Docker volume内の`/data/adlaire-production-operation-verification.log`
 - stop_policy: ユーザーの停止指示まで継続
@@ -15,8 +15,8 @@
 ## Running Containers
 
 ```text
-adlaire-production-operation-verification Up
-docker-web-1 Up
+adlaire-production-operation-verification Up 4 hours
+docker-web-1 Up 4 hours
 ```
 
 ## Current Log
@@ -37,6 +37,31 @@ verification=production_operation status=ok checked_at=2026-06-22T15:28:53Z
 verification=production_operation status=ok checked_at=2026-06-22T15:33:53Z
 verification=production_operation status=ok checked_at=2026-06-22T15:38:53Z
 verification=production_operation status=ok checked_at=2026-06-22T15:43:53Z
+verification=production_operation status=ok checked_at=2026-06-22T15:48:53Z
+verification=production_operation status=ok checked_at=2026-06-22T15:53:53Z
+verification=production_operation status=ok checked_at=2026-06-22T15:58:53Z
+verification=production_operation status=ok checked_at=2026-06-22T16:03:53Z
+verification=production_operation status=ok checked_at=2026-06-22T16:08:53Z
+verification=production_operation status=ok checked_at=2026-06-22T16:13:53Z
+verification=production_operation status=ok checked_at=2026-06-22T16:18:53Z
+verification=production_operation status=ok checked_at=2026-06-22T16:23:53Z
+verification=production_operation status=ok checked_at=2026-06-22T16:28:54Z
+verification=production_operation status=ok checked_at=2026-06-22T16:33:54Z
+verification=production_operation status=ok checked_at=2026-06-22T16:38:54Z
+verification=production_operation status=ok checked_at=2026-06-22T16:43:54Z
+verification=production_operation status=ok checked_at=2026-06-22T16:48:54Z
+verification=production_operation status=ok checked_at=2026-06-22T16:53:54Z
+verification=production_operation status=ok checked_at=2026-06-22T16:58:54Z
+verification=production_operation status=ok checked_at=2026-06-22T17:03:54Z
+verification=production_operation status=ok checked_at=2026-06-22T17:08:54Z
+verification=production_operation status=ok checked_at=2026-06-22T18:23:55Z
+verification=production_operation status=ok checked_at=2026-06-22T18:28:55Z
+verification=production_operation status=ok checked_at=2026-06-22T18:33:55Z
+verification=production_operation status=ok checked_at=2026-06-22T18:38:55Z
+verification=production_operation status=ok checked_at=2026-06-22T18:43:55Z
+verification=production_operation status=ok checked_at=2026-06-22T18:48:55Z
+verification=production_operation status=ok checked_at=2026-06-22T18:53:55Z
+verification=production_operation status=ok checked_at=2026-06-22T18:58:55Z
 ```
 
 ## Periodic Updates
@@ -52,6 +77,9 @@ verification=production_operation status=ok checked_at=2026-06-22T15:43:53Z
 | 2026-06-22T15:29:02Z | 約50分10秒 | 進行中 | 2026-06-22T15:28:53Z ok | なし | 検証範囲拡大検討前の定期更新 |
 | 2026-06-22T15:41:22Z | 約1時間02分30秒 | 進行中 | 2026-06-22T15:38:53Z ok | なし | v0.033実装後確認成功 |
 | 2026-06-22T15:45:12Z | 約1時間06分20秒 | 進行中 | 2026-06-22T15:43:53Z ok | なし | v0.034実装後確認成功 |
+| 2026-06-22T16:54:28Z | 約2時間15分36秒 | 進行中 | 2026-06-22T16:53:54Z ok | なし | v0.035実装後確認成功 |
+| 2026-06-22T17:10:09Z | 約2時間31分17秒 | 進行中 | 2026-06-22T17:08:54Z ok | なし | v0.036実装後確認成功 |
+| 2026-06-22T19:00:24Z | 約4時間21分32秒 | 進行中 | 2026-06-22T18:58:55Z ok | なし | v0.037実装後確認成功 |
 
 ## Verification Scope
 
@@ -191,9 +219,71 @@ scenario=repository_boundaries ok
 scenario=document_policy ok
 ```
 
+v0.035実装後に実施したDocker開発検証。
+
+```text
+scenario=runtime_extensions ok
+scenario=health_endpoint ok
+scenario=web_database_readiness ok
+scenario=sqlite_persistence_multi_record ok
+scenario=eventlog_core_available ok
+scenario=auth_core_available ok
+scenario=repository_boundaries ok
+scenario=document_policy ok
+```
+
+v0.036実装後に実施したDocker開発検証。
+
+```text
+scenario=runtime_extensions ok
+scenario=admin_php_syntax ok
+scenario=health_endpoint ok
+scenario=web_database_readiness ok
+scenario=admin_dashboard_render ok
+scenario=sqlite_persistence_multi_record ok
+scenario=core_available ok
+scenario=repository_boundaries ok
+scenario=document_policy ok
+```
+
+v0.037実装後に実施したDocker開発検証。
+
+```text
+scenario=runtime_extensions ok
+scenario=adlaire_event_log_boundary ok
+scenario=allowed_top_level_boundaries ok
+scenario=health_endpoint ok
+scenario=web_database_readiness ok
+scenario=adlaire_event_log_documents ok
+scenario=core_eventlog_unchanged_available ok
+scenario=repository_boundaries ok
+```
+
+v0.038実装後に実施したDocker開発検証。
+
+```text
+scenario=php_syntax ok
+scenario=required_extensions ok
+scenario=core_readiness ok
+scenario=sqlite_persistence_multi_record ok
+scenario=http_runtime ok
+scenario=admin_dashboard_render ok
+scenario=repository_boundaries ok
+scenario=document_consistency ok
+```
+
+v0.038実装後に実施した標準Docker開発検証。
+
+```text
+extensions ok
+sqlite persistence ok
+http health ok
+web database ok
+```
+
 ## Bugs
 
-- 現時点で記録対象のバグなし。
+- v0.038: Docker実運用想定検証コンテナが旧`Core/Database.php`参照で停止した。新`Core/Database/Database.php`参照へ復旧し、再開後の初回チェック成功を確認した。
 
 ## Debug
 
@@ -213,6 +303,12 @@ scenario=document_policy ok
 - v0.033実装時点で、BaaS機能をRealtime Database、Authentication / Authorization、BaaS Admin Dashboardへ更新し、BaaS機能全体とCore基盤をDocker実運用想定検証範囲へ追加した。
 - v0.033実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
 - v0.034実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
+- v0.035実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
+- v0.036実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
+- v0.037実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
+- v0.038実装時にCore再構成で`Core/Database.php`を削除したため、旧スクリプトで稼働していたDocker実運用想定検証コンテナが旧Core参照で停止した。
+- v0.038バグ修正としてDocker実運用想定検証を新Core構成へ復旧し、`2026-06-22T19:24:37Z`に同名コンテナで再開した。再開後の初回チェックは成功した。
+- v0.038実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は新Core構成で継続中。
 
 ## Completion
 

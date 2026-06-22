@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-trait AdlaireDatabaseOperations
+trait AdlaireDatabaseEvidence
 {
 public static function defineCollection(
         string $collection,
