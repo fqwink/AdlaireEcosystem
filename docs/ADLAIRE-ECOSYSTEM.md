@@ -1069,6 +1069,10 @@ Docker検証は、短時間のDocker開発検証と、72時間以上を基準と
 
 Docker検証の結果には、Docker開発検証またはDocker実運用想定検証の検証種別を明記する。Docker実運用想定検証を実施していない場合は、未実施として明記する。
 
+Docker実運用想定検証のログ、バグ、デバッグ情報は、`Docker/verification/`へレポート方式で集約する。
+
+Docker実運用想定検証レポートは、継続状態、最新ログ、経過時間、バグ、デバッグ、追加検証結果、停止時の最終結果を定期的に更新する。
+
 現行方針:
 
 ```text
@@ -1078,6 +1082,8 @@ test_environment: docker_production_equivalent
 development_verification: short_duration
 production_operation_verification: 72_hours_or_more
 result_label_required: true
+production_operation_report: Docker/verification/production-operation-report.md
+production_operation_report_update: periodic
 ```
 
 Docker検証は`Docker/`配下のDockerfile、compose、Docker用設定を使い、実運用想定で検証を行う。Docker検証は環境起動確認のみではない。バグ確認、デバッグ、修正後確認、運用前確認を含む。

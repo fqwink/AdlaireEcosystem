@@ -8,6 +8,30 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.028
+
+- `version: v0.028`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: docker_production_operation_report_periodic_update`
+- `purpose: Docker実運用想定検証レポートを定期的に更新し、継続状態、最新ログ、経過時間、バグ、デバッグ、追加検証結果を集約する`
+- `targets: Docker/verification/README.md, Docker/verification/production-operation-report.md, docs/AGENTS.md, docs/testing.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md`
+- `bugfix_summary: 未記載`
+
+## v0.027
+
+- `version: v0.027`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: docker_production_operation_verification_report_repository`
+- `purpose: Docker実運用想定検証のログ、バグ、デバッグ情報をリポジトリ内のレポート方式で集約する`
+- `targets: Docker/verification/README.md, Docker/verification/production-operation-report.md, docs/AGENTS.md, docs/testing.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
 ## v0.026
 
 - `version: v0.026`
