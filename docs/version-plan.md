@@ -8,26 +8,65 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.020
+
+- `version: v0.020`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: documentation_governance_cleanup`
+- `purpose: ドキュメント全体の役割、最高準拠、承認プロセス、テスト集約、バージョン計画簡潔化を整理`
+- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/testing.md, docs/version-plan.md, tests/debug.php`
+- `read_only_scope: docs/README.md, Core, Applications, Docker`
+- `constraints: no_source_code_change, no_readme_change, no_project_doc_restore, no_split_policy, no_feature_change, no_test_scope_expansion`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
+## v0.019
+
+- `version: v0.019`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: runtime_removal_auth_authorization_core_feature`
+- `purpose: Runtime廃止、Auth Core追加、Event Log証跡基盤強化`
+- `core_entrypoints: Core/Database.php, Core/EventLog.php, Core/Auth.php`
+- `core_folders: Core/Database, Core/Auth, Core/Deployment`
+- `database_file_count: 3`
+- `auth_file_count: 3`
+- `event_log_file: Core/EventLog.php`
+- `deployment_system: completely_blank`
+- `database: sqlite`
+- `constraints: no_external_dependency, no_remote_sync, no_message_broker, no_runtime, no_runtime_replacement_category, no_plain_password, no_auto_repair, no_auto_recovery, no_auto_delete, no_auto_rotation, undefined_policy_deny, preserve_AdlaireDatabase_API, strict_confirmed_spec`
+- `bugfix_summary: 仕様書のv0.019 Realtime Database 3ファイル分割表現を公式テストに合わせて修正`
+
+## v0.018
+
+- `version: v0.018`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: database_three_file_split_deployment_blank_event_log_operations_resilience`
+- `purpose: Realtime Database 3ファイル化、Deployment System完全白紙、Event Log運用耐性強化`
+- `database_file_count: 3`
+- `event_log_file: Core/EventLog.php`
+- `deployment_system: completely_blank`
+- `constraints: no_external_dependency, no_remote_sync, no_message_broker, no_auto_repair, no_auto_compaction, no_auto_delete, preserve_AdlaireDatabase_API, strict_confirmed_spec`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
 ## v0.017
 
 - `version: v0.017`
 - `status: version_plan_approved`
-- `scope: event_log_core_trust_foundation`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: event_log_validation_chain_replay_evidence`
+- `scope: event_log_core_trust_foundation`
 - `purpose: Event LogをCore横断の信頼履歴基盤として強化`
-- `implementation_targets: Event Envelope, Domain Source, Event Metadata, Event Type Registry, Event Chain Hash, Event Validation, Event Replay Scope, Event Evidence, Snapshot Link, Replay Verification, Cursor Contract, Import Validation, Export Packet, Retention View, Risk Report, Operation Journal`
-- `database_usage: Realtime Databaseは強化後のCore/EventLog.phpを利用する`
-- `authentication_authorization: Event Logの対象domainとして扱うが認証・認可本体は実装しない`
-- `external_dependency: prohibited`
+- `targets: Event Envelope, Chain Hash, Replay, Evidence, Cursor Contract, Import/Export`
 - `remote_sync: not_adopted`
-- `message_broker: prohibited`
-- `automatic_repair_compaction_delete: prohibited`
-- `public_database_api: preserved`
 - `constraints: no_external_dependency, no_remote_sync, no_message_broker, no_auto_repair, no_auto_compaction, no_auto_delete, preserve_AdlaireDatabase_API, strict_confirmed_spec`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
 
@@ -35,76 +74,42 @@
 
 - `version: v0.016`
 - `status: version_plan_approved`
-- `scope: core_event_log_common_foundation`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: event_log_core_common_foundation`
-- `purpose: Event LogをRealtime Database、Authentication、Authorizationに共通するCore横断履歴基盤へ昇格`
-- `core_root_policy: common_foundation_and_entrypoints`
-- `entrypoint_policy: single_file_principle`
-- `event_log_policy: single_file_principle`
+- `scope: core_event_log_common_foundation`
+- `purpose: Event LogをCore横断共通基盤へ昇格`
 - `event_log_file: Core/EventLog.php`
 - `event_log_folder: prohibited`
-- `event_log_role: common_foundation`
-- `database_usage: Realtime DatabaseはCore/EventLog.phpを利用する`
-- `public_database_api: preserved`
-- `external_dependency: prohibited`
 - `remote_sync: not_adopted`
-- `message_broker: prohibited`
-- `websocket_sse_push: prohibited`
-- `automatic_repair_compaction_delete: prohibited`
-- `implementation_targets: Core/EventLog.php追加, Event Log処理の単一ファイル化, DatabaseCoreからEvent Log処理を委譲, 既存AdlaireDatabase API維持, Core方針ドキュメント更新`
 - `constraints: no_eventlog_folder, no_multi_file_eventlog, no_database_api_regression, no_external_dependency, strict_confirmed_spec`
-- `bugfix_summary: Event Replay Proofのevent_count補正, WAL/integrity checkの要件化記載削除`
+- `bugfix_summary: Event Replay Proofのevent_count補正、WAL/integrity checkの要件化記載削除`
 
 ## v0.015
 
 - `version: v0.015`
 - `status: version_plan_approved`
-- `scope: realtime_database_only`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: realtime_database_new_features_operations_resilience`
+- `scope: realtime_database_only`
 - `purpose: Realtime Databaseの新機能、実運用強化、実運用耐性強化`
-- `external_dependency: prohibited`
+- `targets: state digest, write readiness, restore inspection, operational board, recovery evidence, production readiness ledger`
 - `remote_sync: not_adopted`
-- `deployment_system: discarded`
-- `libsql_runtime: out_of_scope`
-- `sdk_api_gateway_websocket: out_of_scope`
-- `authentication_authorization: undefined`
-- `implementation_targets: state digest, write readiness, restore inspection, event integrity, operational board, maintenance decision, backup rotation view, mutation risk, rebuild safety, incident recovery packet, operation journal, recovery confidence, blast radius, schema drift, replay proof, backup trust, freeze reason, critical path, data loss exposure, handoff note, write contract, causality chain, recovery point, restore conflict, consistency window, backup completeness, mode matrix, approval evidence, retention view, gap repair plan, schema compatibility, write pressure, recovery timeline, incident containment, production readiness ledger`
-- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_deployment_system, no_libsql_runtime, no_sdk_api_gateway_websocket, no_authentication_authorization, no_automatic_restore, no_automatic_repair, no_automatic_backup_delete, no_automatic_scheduling, strict_confirmed_spec`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_deployment_system, no_libsql_runtime, no_sdk_api_gateway_websocket, no_authentication_authorization, no_auto_repair, strict_confirmed_spec`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
 
 ## v0.014
 
 - `version: v0.014`
 - `status: version_plan_approved`
-- `scope: mandatory_runtime_requirement_strictness`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: strict_mandatory_runtime_requirement_wording`
-- `purpose: prohibit_ambiguous_required_but_not_mandatory_expression`
+- `scope: mandatory_runtime_requirement_strictness`
+- `purpose: 必須動作要件の文言を厳格化`
 - `absolute_principle: 必要だが必須ではないという表現を禁止`
 - `mandatory_runtime_scope: 必須動作要件に基づく範囲内はすべて必須要件`
-- `system_runtime_source: 必須動作要件はシステム動作要件の正本`
-- `strict_compliance: 仕様・実装・テスト・ドキュメントは承認済み文言に厳格準拠`
-- `runtime_requirements: PHP 8.3 recommended, json, PDO, pdo_sqlite, Docker/deployment CLI only, development CLI required, SQLite, no external dependency`
-- `external_dependency_addition: prohibited`
-- `database_exception: separate approval_process_required`
-- `deployment_system: discarded`
-- `deployment_folder: boundary_only`
-- `testing_decisions: preserved`
-- `implementation_targets: document strict mandatory runtime wording, align docs/tests with approved wording`
 - `constraints: no_ambiguous_required_wording, no_extra_runtime_requirement, no_external_dependency, strict_confirmed_spec`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
 
@@ -112,21 +117,16 @@
 
 - `version: v0.013`
 - `status: version_plan_approved`
-- `scope: mandatory_runtime_requirements`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: minimum_system_runtime_requirements`
-- `purpose: define_required_runtime_conditions`
+- `scope: mandatory_runtime_requirements`
+- `purpose: 必須動作要件を定義`
 - `php: 8.3_recommended`
 - `required_extensions: json, PDO, pdo_sqlite`
-- `cli: docker_environment_and_deployment_only`
 - `development_cli: required`
 - `database: sqlite`
 - `external_dependency: prohibited`
-- `implementation_targets: document mandatory runtime requirements`
 - `constraints: minimum_requirements_only, no_extra_runtime_requirement, no_external_dependency, strict_confirmed_spec`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
 
@@ -134,25 +134,14 @@
 
 - `version: v0.012`
 - `status: version_plan_approved`
-- `scope: deployment_system_blank_reset`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: deployment_system_discard`
-- `purpose: discard_existing_deployment_system_specification_and_source_code_for_zero_base_redesign`
-- `deployment_system_specification: discarded`
-- `deployment_system_source_code: discarded`
-- `deployment_system_replacement: prohibited`
-- `new_deployment_specification: prohibited`
-- `deployment_folder: keep_as_boundary_only`
-- `realtime_database: preserved`
-- `realtime_database_deployment_dependency: removed`
-- `external_dependency: not_allowed`
+- `scope: deployment_system_blank_reset`
+- `purpose: Deployment Systemの既存仕様とソースコードを白紙化`
+- `deployment_system: discarded`
+- `deployment_folder: boundary_only`
 - `remote_sync: not_adopted`
-- `libsql_implementation: out_of_scope`
-- `implementation_targets: discard AdlaireDeployment class, remove Core/Deployment entrypoint and internal implementation, keep Core/Deployment boundary, remove deployment manifest/readiness/release/state/releaseGate assumptions, remove Realtime Database dependency on deployment version`
 - `constraints: no_deployment_replacement, no_new_deployment_spec, no_realtime_database_regression, no_external_dependency, strict_confirmed_spec`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
 
@@ -160,27 +149,14 @@
 
 - `version: v0.011`
 - `status: version_plan_approved`
-- `scope: core_structure_refactor`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: core_entrypoint_and_internal_file_policy`
-- `purpose: source_code_growth_control_and_core_structure_stabilization`
+- `scope: core_structure_refactor`
+- `purpose: Core直下エントリポイントと内部フォルダ方針を整理`
 - `core_root_php_files: entrypoints_only`
-- `core_root_single_file_principle: true`
-- `external_entrypoints: Core/Database.php, Core/Deployment.php, Core/Runtime.php`
-- `internal_folders: Core/Database, Core/Deployment, Core/Runtime`
-- `internal_folder_entrypoint: prohibited`
-- `internal_php_files: internal_implementation_only`
 - `internal_php_file_limit: 3_to_5_per_internal_folder`
-- `public_api: preserved`
-- `feature_removal: prohibited`
-- `external_dependency: not_allowed`
 - `remote_sync: not_adopted`
-- `libsql_implementation: out_of_scope`
-- `implementation_targets: Core root entrypoint files, internal implementation folders, direct internal file reference prohibition, existing public API preservation, source code growth control`
 - `constraints: no_feature_regression, no_external_dependency, entrypoint_only_core_root, no_entrypoint_inside_internal_folder, strict_confirmed_spec`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
 
@@ -188,68 +164,41 @@
 
 - `version: v0.010`
 - `status: version_plan_approved`
-- `scope: realtime_database_only`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: realtime_database`
-- `purpose: realtime_database_production_operations_and_resilience_hardening`
-- `deployment_system: blank`
-- `authentication: undefined`
-- `authorization: undefined`
-- `external_dependency: not_allowed`
+- `scope: realtime_database_only`
+- `purpose: Realtime Databaseの実運用・耐性を強化`
+- `targets: operational baseline, recovery priority, production readiness, safety board, control tower`
 - `remote_sync: not_adopted`
-- `libsql_implementation: out_of_scope`
-- `implementation_targets: operational baseline, anomaly detection, recovery prioritization, risk timeline, consistency scoring, backup validation, write safety threshold, incident summary, production readiness, operator checklist, drift budget, blast radius, recovery path comparison, integrity attestation, containment policy, regression guard, rotation policy, state transition audit, critical collection profile, production packets, health trend, quarantine recommendation, rebuild safety, backup trust, event gap detection, saturation report, maintenance window, recovery confidence, root cause hints, readiness ledger, admission control, watchlist, schema stability, replay feasibility, restore dry-run evidence, SQLite limits, communication summary, release regression, safety board, control tower, write pressure, recurrence detection, restore checklist, event trust, read consistency, evidence timeline, degraded exit criteria, backup exposure`
-- `out_of_scope: automatic_repair, automatic_restore, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation, record_ttl_runtime_enforcement, automatic_delete, automatic_scheduling, automatic_notification`
-- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, no_automatic_restore, no_automatic_repair, strict_confirmed_spec`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, no_auto_restore, no_auto_repair, strict_confirmed_spec`
 - `bugfix_summary: Write Anomaly Detectorの正常系critical write判定とRead Consistency Verificationの比較粒度を修正`
 
 ## v0.009
 
 - `version: v0.009`
 - `status: version_plan_approved`
-- `scope: realtime_database_only`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: realtime_database`
-- `purpose: realtime_database_operational_resilience_and_operations_hardening`
-- `deployment_system: blank`
-- `authentication: undefined`
-- `authorization: undefined`
-- `external_dependency: not_allowed`
+- `scope: realtime_database_only`
+- `purpose: Realtime Databaseの運用耐性と運用機能を強化`
+- `targets: SLO, failure classification, backup freshness, restore ranking, recovery drill, handoff`
 - `remote_sync: not_adopted`
-- `libsql_implementation: out_of_scope`
-- `implementation_targets: Operational SLO Report, Write Failure Classification, Backup Freshness Report, Restore Candidate Ranking, Read Model Confidence Report, Operational Window Policy, Recovery Drill Report, Incident Evidence Digest, Data Lifecycle Guard, Operational Handoff Report`
-- `out_of_scope: automatic_repair, automatic_restore, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation, record_ttl_runtime_enforcement, automatic_delete`
-- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, no_automatic_restore, no_automatic_repair, strict_confirmed_spec`
+- `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, no_auto_restore, no_auto_repair, strict_confirmed_spec`
 - `bugfix_summary: backup鮮度テストのcurrent export参照とData Lifecycle Guardの未実装項目判定を修正`
 
 ## v0.008
 
 - `version: v0.008`
 - `status: version_plan_approved`
-- `scope: realtime_database_only`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: realtime_database`
-- `purpose: realtime_database_operational_resilience_hardening`
-- `deployment_system: blank`
-- `authentication: undefined`
-- `authorization: undefined`
-- `external_dependency: not_allowed`
+- `scope: realtime_database_only`
+- `purpose: Realtime Databaseの運用耐性を強化`
+- `targets: pre-write risk, two-step guard, compatibility check, severity, freeze policy, durability`
 - `remote_sync: not_adopted`
-- `libsql_implementation: out_of_scope`
-- `implementation_targets: Pre-Write Risk Evaluation, Critical Write Two-Step Guard, Backup Restore Compatibility Check, Snapshot Seal Verification, Operational Degradation Reason, Incident Severity Classification, Recovery Readiness Report, Operation Freeze Policy, Data Durability Report, Release Safety Evidence`
-- `out_of_scope: automatic_repair, automatic_restore, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation`
 - `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
 
@@ -257,22 +206,13 @@
 
 - `version: v0.007`
 - `status: version_plan_approved`
-- `scope: realtime_database_only`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: realtime_database`
-- `purpose: realtime_database_operational_hardening`
-- `deployment_system: blank`
-- `authentication: undefined`
-- `authorization: undefined`
-- `external_dependency: not_allowed`
+- `scope: realtime_database_only`
+- `purpose: Realtime Databaseの実運用機能を強化`
+- `targets: write intent, commit verification, recovery simulation, impact report, degradation, operation guard`
 - `remote_sync: not_adopted`
-- `libsql_implementation: out_of_scope`
-- `implementation_targets: Write Intent Log, Write Commit Verification, Recovery Simulation, Restore Impact Report, Event Chain Integrity, Snapshot Integrity Seal, Operational Runbook Report, Degraded Mode, Critical Operation Guard, Operational Evidence Bundle`
-- `out_of_scope: automatic_repair, automatic_restore, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation`
 - `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
 
@@ -280,22 +220,13 @@
 
 - `version: v0.006`
 - `status: version_plan_approved`
-- `scope: realtime_database_only`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: realtime_database`
-- `purpose: realtime_database_operational_resilience`
-- `deployment_system: blank`
-- `authentication: undefined`
-- `authorization: undefined`
-- `external_dependency: not_allowed`
+- `scope: realtime_database_only`
+- `purpose: Realtime Databaseの運用耐性を追加`
+- `targets: health baseline, drift compare, write preflight, restore gate, risk score, safe mode`
 - `remote_sync: not_adopted`
-- `libsql_implementation: out_of_scope`
-- `implementation_targets: Health Baseline, Drift Baseline Compare, Write Safety Preflight, Restore Safety Gate, Backup Consistency Report, Event Gap Report, Corruption Suspect Report, Operational Risk Score, Recovery Decision Report, Safe Mode, Readonly Runtime Report, Incident Timeline`
-- `out_of_scope: automatic_repair, automatic_restore, automatic_backup_generation_management, automatic_deletion, remote_sync, websocket, sse, push_connection, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation`
 - `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec`
 - `bugfix_summary: 承認プロセス文言とテスト期待値の旧表記を修正`
 
@@ -303,22 +234,13 @@
 
 - `version: v0.005`
 - `status: version_plan_approved`
-- `scope: realtime_database_only`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: realtime_database`
-- `purpose: realtime_database_feature_enhancement`
-- `deployment_system: blank`
-- `authentication: undefined`
-- `authorization: undefined`
-- `external_dependency: not_allowed`
+- `scope: realtime_database_only`
+- `purpose: Realtime Databaseの機能強化`
+- `targets: change feed, version history, diff, retention plan, backup manifest, restore preview, lock, quota`
 - `remote_sync: not_adopted`
-- `libsql_implementation: out_of_scope`
-- `implementation_targets: Change Feed Filter, Record Version History, Record Diff, Snapshot Retention Plan, Backup Manifest, Restore Preview, Collection Lock, Write Quota Guard, Event Checkpoint, Operational Incident Report, Query Cursor Enhancement, Import Validation Enhancement, Audit Integrity Enhancement, Operational Report Enhancement, Data Redaction Export Enhancement, Schema Versioning Enhancement`
-- `out_of_scope: remote_sync, websocket, sse, sdk_implementation, api_gateway_implementation, authentication, authorization, libsql_implementation, automatic_repair, automatic_backup_generation_management, automatic_deletion`
 - `constraints: realtime_database_only, no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
 
@@ -326,31 +248,21 @@
 
 - `version: v0.004`
 - `status: version_plan_approved`
-- `scope: realtime_database_only`
 - `implementation_status: implemented`
-- `implementation_approval: approved`
-- `specification_confirmation: approved`
-- `version_plan: approved`
+- `approvals: specification_confirmation, version_plan, implementation`
 - `implementation: approved`
-- `primary_axis: realtime_database`
-- `purpose: operational_resilience_and_realtime_database_features`
-- `deployment_system: blank`
-- `authentication: undefined`
-- `authorization: undefined`
-- `external_dependency: not_allowed`
-- `remote_sync: not_adopted`
+- `scope: realtime_database_only`
+- `purpose: Realtime Databaseの実運用耐性と基本機能を強化`
 - `selected_database: sqlite`
-- `sqlite_role: primary_storage`
 - `libsql_role: decided_sqlite_compatible_future_extension`
-- `libsql_runtime: not_implemented_in_v0.004`
-- `operational_resilience: Operational Guard, Maintenance Mode, Write Policy Enforcement, Startup Self Check, Backup Verification, Restore Dry Run, Recovery Check, Event Log Consistency Check, Cursor Safety, Read Model Drift Detection, Operational Metrics, Operational Report`
-- `realtime_database_features: Collection Lifecycle, Schema Versioning, Bulk Import Dry Run, Bulk Write, Record Restore, Snapshot Compare, Event Replay Range, Query Cursor Pagination, Collection Export Filter, Data Redaction Export`
-- `plan_only: Record TTL Plan, Subscriber Checkpoint Plan`
-- `out_of_scope: deployment_system_redesign, authentication, authorization, non_realtime_database_baas_features, libsql_implementation, remote_sync, sdk_implementation, api_gateway_implementation, websocket_implementation, automatic_repair, automatic_backup_generation_management, automatic_event_deletion`
+- `targets: operational guard, maintenance, write policy, startup check, restore dry-run, lifecycle, schema versioning, bulk write, record restore`
+- `remote_sync: not_adopted`
 - `constraints: no_external_dependency, no_remote_sync, no_libsql_runtime, strict_confirmed_spec, core_3_folders_3_to_5_php_files`
 - `bugfix_summary: Read Model Drift判定のrestore後の偽陽性と、複数record状態のsnapshot restore/rebuild件数不整合を修正`
 
 ## v0.003
 
 - `version: v0.003`
+- `status: implemented`
+- `scope: realtime_database_query_foundation`
 - `bugfix_summary: Query Explainのfull scan判定確認条件を、indexed fieldではなくnon-indexed field基準に修正`

@@ -1,6 +1,8 @@
 # Testing
 
-このファイルは、テスト方針、公式テスト入口、テスト範囲の集約先です。
+このファイルは、Adlaire Ecosystemにおけるテスト関係の集約先です。
+
+公式テスト入口、テスト方針、テスト範囲、ドキュメント修正後の確認項目は本ファイルに集約します。
 
 Adlaire Ecosystemの公式テスト入口は、Docker環境下のCLI検証として次のみです。
 
@@ -28,13 +30,40 @@ bugfix_until_zero: true
 
 バグ修正は承認工程に含めません。実装後にバグがある場合は、追加承認を待たずにバグ修正ゼロになるまで必ず修正します。
 
-## v0.017 Test Scope
+## Documentation Test Policy
+
+ドキュメント修正後は、公式テストで次を確認します。
+
+- 仕様正本が`docs/ADLAIRE-ECOSYSTEM.md`へ集約されていること
+- 作業ルール正本が`docs/AGENTS.md`へ集約されていること
+- テスト関連が`docs/testing.md`へ集約されていること
+- READMEが外部向けの簡潔なプロジェクト説明に留まること
+- 現行仕様と異なる古い記載が残っていないこと
+- Runtime廃止、Deployment System白紙、Auth Core追加が現行仕様として矛盾しないこと
+
+## v0.019 Test Scope
+
+カテゴリ:
+
+- Directory
+- Core
+- Realtime Database
+- Event Log
+- Authentication / Authorization
+- SQLite persistence
+- Documents
 
 - 許可ディレクトリのみ存在すること
 - 必須動作要件、承認済み文言、外部依存禁止が仕様へ明記されていること
 - Core直下が共通基盤機能とエントリポイントの2機能であること
 - `Core/EventLog.php`がEvent Log単一ファイルであること
+- `Core/Auth.php`がAuthentication / Authorizationの単一エントリポイントであること
 - Event Log用フォルダが存在しないこと
+- `Core/Database/`が3 PHPファイルで構成されること
+- `Core/Database/DatabaseCore.php`、`Core/Database/DatabaseStorage.php`、`Core/Database/DatabaseOperations.php`が存在すること
+- `Core/Auth/`が3 PHPファイルで構成されること
+- `Core/Auth/AuthCore.php`、`Core/Auth/AuthStorage.php`、`Core/Auth/AuthOperations.php`が存在すること
+- `Core/Runtime.php`と`Core/Runtime/`が存在しないこと
 - Core直下の内部フォルダにエントリポイントを置かないこと
 - 内部フォルダ内PHPファイルが内部実装のみであること
 - Project境界を作成しないこと
@@ -46,6 +75,12 @@ bugfix_until_zero: true
 - Realtime DatabaseのBaaS Core Feature機能が動作すること
 - Realtime DatabaseのSQLite永続化が動作すること
 - Realtime Databaseの実運用耐性機能が動作すること
+- Authentication / Authorization readinessが成功すること
+- User Registry、Credential Registry、Session Registryが動作すること
+- Role Registry、Permission Registry、Policy Registryが動作すること
+- Access Decision Evidence、Authorization Audit、Deny Reason Registryが動作すること
+- Auth Operational Dashboard、Auth Control Tower、Auth Trust Ledgerが動作すること
+- Auth Production Readiness Gate、Auth Write Safety Gate、Auth Emergency Freeze Viewが動作すること
 - Realtime Databaseのv0.004新機能が動作すること
 - Realtime Databaseのv0.005新機能が動作すること
 - Realtime Databaseのv0.006実運用耐性機能が動作すること
@@ -54,6 +89,10 @@ bugfix_until_zero: true
 - Event LogのEnvelope、Domain Source、Metadata、Type Registryが動作すること
 - Event LogのChain Hash、Validation、Cursor Contract、Replay Scope、Evidenceが動作すること
 - Event LogのSnapshot Link、Replay Verification、Import Validation、Export Packet、Retention View、Risk Report、Operation Journalが動作すること
+- Event LogのHealth Summary、Recovery Evidence、Operational Guard、Trust Score、Restore Readiness、Audit Packetが動作すること
+- Event LogのIncident Packet、Degradation Report、Write Safety Gate、Replay Window、Cursor Drift Report、Export Integrityが動作すること
+- Event LogのRestore Impact、Retention Decision View、Operational SLO、Handoff Summary、Preflight Report、Chain Snapshotが動作すること
+- Event LogのContinuity Proof、Payload Integrity Report、Domain Isolation Report、Recovery Route、Manual Review Queue、Operational Timeline、Evidence Seal、Trust Ledgerが動作すること
 - SQLite有効化時にdefault collectionがSQLite対象として扱われること
 - 失敗したtransactionがrecord、event、SQLite書き込みを残さないこと
 - database export fingerprintが環境依存値に引っ張られないこと

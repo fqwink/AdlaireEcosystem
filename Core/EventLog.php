@@ -5,7 +5,32 @@ declare(strict_types=1);
 final class AdlaireEventLog
 {
     private const DOMAINS = ['realtime_database', 'authentication', 'authorization'];
-    private const TYPES = ['create', 'update', 'delete', 'restore'];
+    private const TYPES = [
+        'create',
+        'update',
+        'delete',
+        'restore',
+        'user_create',
+        'user_update',
+        'credential_register',
+        'credential_revoke',
+        'credential_rotate',
+        'session_issue',
+        'session_validate',
+        'session_revoke',
+        'login_success',
+        'login_failure',
+        'password_policy_check',
+        'role_create',
+        'permission_create',
+        'policy_assign',
+        'policy_revoke',
+        'policy_evaluate',
+        'access_allow',
+        'access_deny',
+        'policy_conflict_detect',
+        'least_privilege_review',
+    ];
 
     public static function role(): array
     {
@@ -41,6 +66,21 @@ final class AdlaireEventLog
         ?array $before,
         array $metadata = []
     ): array {
+        return self::recordDomainEvent($events, 'realtime_database', $collection, $channel, $recordId, $type, $version, $payload, $before, $metadata);
+    }
+
+    public static function recordDomainEvent(
+        array $events,
+        string $domain,
+        string $collection,
+        string $channel,
+        string $recordId,
+        string $type,
+        int $version,
+        array $payload,
+        ?array $before = null,
+        array $metadata = []
+    ): array {
         $sequence = count($events) + 1;
         $afterHash = hash('sha256', self::encodeJson(self::stableData($payload)));
         $previous = $events === [] ? null : $events[array_key_last($events)];
@@ -51,8 +91,8 @@ final class AdlaireEventLog
         $event = [
             'id' => 'evt_' . str_pad((string)$sequence, 6, '0', STR_PAD_LEFT),
             'sequence' => $sequence,
-            'source' => 'realtime_database',
-            'domain' => 'realtime_database',
+            'source' => $domain,
+            'domain' => $domain,
             'collection' => $collection,
             'channel' => $channel,
             'record_id' => $recordId,
@@ -446,6 +486,330 @@ final class AdlaireEventLog
             'latest_event_id' => self::lastEventId($events),
             'result' => self::stableData($result),
             'will_mutate_event_log' => false,
+        ];
+    }
+
+    public static function healthSummary(array $events): array
+    {
+        $evidence = self::evidence($events);
+        $risk = self::riskReport($events);
+
+        return [
+            'event_count' => count($events),
+            'latest_cursor' => self::lastEventId($events),
+            'chain_valid' => self::eventChainIntegrity($events)['valid'],
+            'risk_status' => $risk['status'],
+            'ready' => $evidence['valid'] === true && $risk['status'] === 'clear',
+        ];
+    }
+
+    public static function recoveryEvidence(array $events, array $snapshot = [], array $rebuilt = []): array
+    {
+        return [
+            'evidence' => self::evidence($events),
+            'risk' => self::riskReport($events),
+            'chain' => self::eventChainIntegrity($events),
+            'replay_verification' => $snapshot === [] || $rebuilt === [] ? ['verified' => false, 'difference' => 'not_provided'] : self::replayVerification((string)($snapshot['collection'] ?? ''), $snapshot, $rebuilt),
+            'restore_readiness' => self::restoreReadiness($events),
+        ];
+    }
+
+    public static function operationalGuard(array $events): array
+    {
+        $risk = self::riskReport($events);
+
+        return [
+            'status' => $risk['status'] === 'clear' ? 'normal' : 'blocked',
+            'write_allowed' => $risk['status'] === 'clear',
+            'risk' => $risk,
+            'automatic_repair' => false,
+        ];
+    }
+
+    public static function trustScore(array $events): array
+    {
+        $risk = self::riskReport($events);
+        $score = max(0, 100 - ($risk['risk_count'] * 20));
+
+        return [
+            'score' => $score,
+            'level' => $score >= 90 ? 'high' : ($score >= 60 ? 'medium' : 'low'),
+            'risk_count' => $risk['risk_count'],
+        ];
+    }
+
+    public static function restoreReadiness(array $events): array
+    {
+        $health = self::healthSummary($events);
+
+        return [
+            'status' => $health['ready'] ? 'ready' : 'manual_review_required',
+            'event_count' => count($events),
+            'latest_cursor' => self::lastEventId($events),
+            'will_restore' => false,
+        ];
+    }
+
+    public static function auditPacket(array $events): array
+    {
+        $export = self::exportPacket($events);
+
+        return [
+            'evidence' => self::evidence($events),
+            'risk' => self::riskReport($events),
+            'cursor' => self::cursorContract($events),
+            'chain_tip' => self::eventChainIntegrity($events)['tip'],
+            'export_fingerprint' => $export['fingerprint'],
+        ];
+    }
+
+    public static function incidentPacket(array $events): array
+    {
+        return [
+            'health' => self::healthSummary($events),
+            'recovery_evidence' => self::recoveryEvidence($events),
+            'degradation' => self::degradationReport($events),
+            'handoff' => self::handoffSummary($events),
+        ];
+    }
+
+    public static function degradationReport(array $events): array
+    {
+        $risk = self::riskReport($events);
+        $status = $risk['risk_count'] === 0 ? 'normal' : ($risk['risk_count'] <= 2 ? 'watch' : 'degraded');
+
+        return [
+            'status' => $status,
+            'risk_count' => $risk['risk_count'],
+            'blocked' => $status === 'degraded',
+        ];
+    }
+
+    public static function writeSafetyGate(array $events, string $type, string $domain = 'realtime_database'): array
+    {
+        $registry = self::typeRegistry();
+        $safe = self::riskReport($events)['status'] === 'clear'
+            && in_array($type, $registry['types'], true)
+            && in_array($domain, $registry['domains'], true);
+
+        return [
+            'allowed' => $safe,
+            'expected_sequence' => count($events) + 1,
+            'chain_tip' => self::eventChainIntegrity($events)['tip'],
+            'type_known' => in_array($type, $registry['types'], true),
+            'domain_known' => in_array($domain, $registry['domains'], true),
+        ];
+    }
+
+    public static function replayWindow(array $events, int $fromSequence, int $toSequence): array
+    {
+        $scope = self::replayScope($events, null, null, null, $fromSequence, $toSequence);
+
+        return [
+            'from_sequence' => $fromSequence,
+            'to_sequence' => $toSequence,
+            'event_count' => $scope['count'],
+            'safe' => self::importValidation($scope['events'])['valid'],
+        ];
+    }
+
+    public static function cursorDriftReport(array $events, ?string $cursor): array
+    {
+        $contract = self::cursorContract($events, $cursor);
+
+        return [
+            'cursor' => $cursor,
+            'valid' => $contract['valid'],
+            'drift' => $cursor !== null && $contract['event_id'] !== $cursor,
+            'current' => self::cursorContract($events),
+        ];
+    }
+
+    public static function exportIntegrity(array $packet): array
+    {
+        $events = is_array($packet['events'] ?? null) ? $packet['events'] : [];
+        $expected = hash('sha256', self::encodeJson(['events' => $events, 'domains' => $packet['domain_count'] ?? []]));
+
+        return [
+            'valid' => ($packet['fingerprint'] ?? null) === $expected,
+            'event_count' => count($events),
+            'chain_tip' => self::eventChainIntegrity($events)['tip'],
+        ];
+    }
+
+    public static function restoreImpact(array $candidateEvents, array $currentEvents): array
+    {
+        $collections = [];
+        $records = [];
+        foreach ($candidateEvents as $event) {
+            $collections[(string)($event['collection'] ?? '')] = true;
+            $records[(string)($event['record_id'] ?? '')] = true;
+        }
+
+        return [
+            'events_added' => max(0, count($candidateEvents) - count($currentEvents)),
+            'records_affected' => count(array_filter(array_keys($records))),
+            'collections_affected' => count(array_filter(array_keys($collections))),
+            'latest_cursor' => self::lastEventId($candidateEvents),
+        ];
+    }
+
+    public static function retentionDecisionView(array $events): array
+    {
+        return self::retentionView($events) + [
+            'decision' => 'manual_review',
+            'evacuate_candidates' => [],
+            'keep_all' => true,
+        ];
+    }
+
+    public static function operationalSlo(array $events): array
+    {
+        return [
+            'chain_validity' => self::eventChainIntegrity($events)['valid'],
+            'sequence_continuity' => self::consistencyCheck($events)['valid'],
+            'risk_clear' => self::riskReport($events)['status'] === 'clear',
+            'met' => self::healthSummary($events)['ready'],
+        ];
+    }
+
+    public static function handoffSummary(array $events): array
+    {
+        $risk = self::riskReport($events);
+
+        return [
+            'current_status' => self::degradationReport($events)['status'],
+            'latest_cursor' => self::lastEventId($events),
+            'risk' => $risk['status'],
+            'recommended_action' => $risk['status'] === 'clear' ? 'continue_observation' : 'manual_review',
+        ];
+    }
+
+    public static function preflightReport(array $events, string $type, string $domain, array $payload = []): array
+    {
+        $gate = self::writeSafetyGate($events, $type, $domain);
+
+        return $gate + [
+            'payload_hash' => hash('sha256', self::encodeJson(self::stableData($payload))),
+            'metadata_required' => true,
+        ];
+    }
+
+    public static function chainSnapshot(array $events): array
+    {
+        return [
+            'chain_tip' => self::eventChainIntegrity($events)['tip'],
+            'latest_cursor' => self::lastEventId($events),
+            'event_count' => count($events),
+            'domain_count' => self::exportPacket($events)['domain_count'],
+        ];
+    }
+
+    public static function continuityProof(array $events): array
+    {
+        $consistency = self::consistencyCheck($events);
+        $chain = self::eventChainIntegrity($events);
+
+        return [
+            'proved' => $consistency['valid'] === true && $chain['valid'] === true,
+            'sequence_continuity' => $consistency['valid'],
+            'hash_continuity' => $chain['valid'],
+            'errors' => array_merge($consistency['errors'], $chain['errors']),
+        ];
+    }
+
+    public static function payloadIntegrityReport(array $events): array
+    {
+        $errors = [];
+        foreach ($events as $event) {
+            $payload = is_array($event['payload'] ?? null) ? $event['payload'] : [];
+            $hash = hash('sha256', self::encodeJson(self::stableData($payload)));
+            if (($event['payload_hash'] ?? null) !== $hash) {
+                $errors[] = ['type' => 'payload_hash_mismatch', 'event' => $event['id'] ?? null];
+            }
+        }
+
+        return [
+            'valid' => $errors === [],
+            'errors' => $errors,
+            'event_count' => count($events),
+        ];
+    }
+
+    public static function domainIsolationReport(array $events): array
+    {
+        $domains = [];
+        foreach (self::DOMAINS as $domain) {
+            $scope = self::replayScope($events, $domain);
+            $domains[$domain] = [
+                'event_count' => $scope['count'],
+                'latest_cursor' => self::lastEventId($scope['events']),
+                'risk' => self::riskReport($scope['events'])['status'],
+            ];
+        }
+
+        return $domains;
+    }
+
+    public static function recoveryRoute(array $events): array
+    {
+        $ready = self::restoreReadiness($events);
+
+        return [
+            'route' => $ready['status'] === 'ready' ? 'replay' : 'manual_review',
+            'restore_readiness' => $ready,
+            'automatic_restore' => false,
+        ];
+    }
+
+    public static function manualReviewQueue(array $events): array
+    {
+        $errors = self::continuityProof($events)['errors'];
+
+        return [
+            'count' => count($errors),
+            'items' => $errors,
+            'automatic_repair' => false,
+        ];
+    }
+
+    public static function operationalTimeline(array $events): array
+    {
+        $items = [];
+        foreach ($events as $event) {
+            $items[] = [
+                'sequence' => $event['sequence'] ?? null,
+                'type' => $event['type'] ?? null,
+                'collection' => $event['collection'] ?? null,
+                'record_id' => $event['record_id'] ?? null,
+                'chain_hash' => $event['event_hash'] ?? null,
+            ];
+        }
+
+        return [
+            'items' => $items,
+            'count' => count($items),
+        ];
+    }
+
+    public static function evidenceSeal(array $events): array
+    {
+        $evidence = self::evidence($events);
+
+        return [
+            'evidence' => $evidence,
+            'seal' => hash('sha256', self::encodeJson($evidence)),
+            'verified' => $evidence['valid'],
+        ];
+    }
+
+    public static function trustLedger(array $events): array
+    {
+        return [
+            'trust_score' => self::trustScore($events),
+            'risk_report' => self::riskReport($events),
+            'continuity_proof' => self::continuityProof($events),
+            'evidence_seal' => self::evidenceSeal($events),
         ];
     }
 
