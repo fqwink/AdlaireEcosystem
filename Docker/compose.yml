@@ -1,0 +1,29 @@
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+    environment:
+      ADLAIRE_SQLITE_PATH: /data/adlaire.sqlite
+    ports:
+      - "8080:80"
+    volumes:
+      - ..:/app:ro
+      - sqlite-data:/data
+
+  test:
+    build:
+      context: ..
+      dockerfile: Docker/Dockerfile
+    command: ["sh", "/app/Docker/run-production-check.sh"]
+    environment:
+      ADLAIRE_HEALTH_URL: http://web/health
+      ADLAIRE_SQLITE_PATH: /data/adlaire-check.sqlite
+    depends_on:
+      - web
+    volumes:
+      - ..:/app:ro
+      - sqlite-data:/data
+
+volumes:
+  sqlite-data:

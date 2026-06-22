@@ -8,6 +8,69 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.026
+
+- `version: v0.026`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: docker_verification_result_labeling`
+- `purpose: Docker検証実行時に、Docker開発検証かDocker実運用想定検証かを必ず明記し、実運用想定検証未実施の場合も明記する`
+- `targets: docs/AGENTS.md, docs/testing.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md`
+- `bugfix_summary: 未記載`
+
+## v0.025
+
+- `version: v0.025`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: docker_verification_role_split`
+- `purpose: Docker開発検証とDocker実運用想定検証を明確に分け、実運用想定検証は72時間以上の長期間検証として定義する`
+- `targets: docs/AGENTS.md, docs/testing.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md`
+- `bugfix_summary: 未記載`
+
+## v0.024
+
+- `version: v0.024`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: approval_process_strict_individual_instruction_rule`
+- `purpose: 個別指示であっても承認プロセス対象の変更は即時実行せず、未承認なら実行プロセス停止とするルールを明記する`
+- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md`
+- `bugfix_summary: 未記載`
+
+## v0.023
+
+- `version: v0.023`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: docker_verification_policy_update`
+- `purpose: CLI公式テストとPHP 8.3 CLI公式テストを完全廃止し、Docker検証を実運用想定のリポジトリ全体検証へ統一する`
+- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/testing.md`
+- `bugfix_summary: Docker検証実行後に残存した旧テスト表現、CLI公式テストソース、testsフォルダを削除`
+
+## v0.022
+
+- `version: v0.022`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: docker_production_equivalent_environment`
+- `purpose: Docker本番環境同等の検証基盤を作る`
+- `targets: Docker/Dockerfile, Docker/compose.yml, Docker/php.ini, Docker/entrypoint.sh, Docker/run-production-check.sh, docs/testing.md, docs/version-plan.md`
+- `environment: web + php + sqlite_volume`
+- `verification: HTTP疎通, PHP拡張確認, SQLite永続化確認, Core読み込み確認`
+- `constraints: no_external_dependency, no_external_db, no_remote_sync, no_message_broker, no_deployment_system, no_readme_change, docker_files_only, testing_doc_update_only`
+- `bugfix_summary: HTTP health判定、SQLite volume権限、Docker追加後の確認内容を修正`
+
 ## v0.021
 
 - `version: v0.021`
@@ -31,7 +94,7 @@
 - `implementation: approved`
 - `scope: documentation_governance_cleanup`
 - `purpose: ドキュメント全体の役割、最高準拠、承認プロセス、テスト集約、バージョン計画簡潔化を整理`
-- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/testing.md, docs/version-plan.md, tests/debug.php`
+- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/testing.md, docs/version-plan.md`
 - `read_only_scope: docs/README.md, Core, Applications, Docker`
 - `constraints: no_source_code_change, no_readme_change, no_project_doc_restore, no_split_policy, no_feature_change, no_test_scope_expansion`
 - `bugfix_summary: 実装後確認で追加バグ修正なし`
@@ -53,7 +116,7 @@
 - `deployment_system: completely_blank`
 - `database: sqlite`
 - `constraints: no_external_dependency, no_remote_sync, no_message_broker, no_runtime, no_runtime_replacement_category, no_plain_password, no_auto_repair, no_auto_recovery, no_auto_delete, no_auto_rotation, undefined_policy_deny, preserve_AdlaireDatabase_API, strict_confirmed_spec`
-- `bugfix_summary: 仕様書のv0.019 Realtime Database 3ファイル分割表現を公式テストに合わせて修正`
+- `bugfix_summary: 仕様書のv0.019 Realtime Database 3ファイル分割表現を確認内容に合わせて修正`
 
 ## v0.018
 
