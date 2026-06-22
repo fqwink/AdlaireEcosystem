@@ -42,7 +42,7 @@ Docker実運用想定検証:
 
 - 役割: 本番環境に近い条件で実運用に耐えられるかを確認し、リリース前、運用前、重要変更後の判断材料にする
 - 時間: 72時間以上の長期間検証を基準とする
-- 確認: 本番環境想定の構成、SQLite永続化、HTTP経由動作、Core機能、Event Log、Authentication / Authorization、docs整合性、禁止構成、外部依存禁止、長時間稼働による安定性
+- 確認: 本番環境想定の構成、SQLite永続化、HTTP経由動作、BaaS機能全体、Core基盤、Event Log、Realtime Database、Authentication / Authorization、BaaS Admin Dashboard、docs整合性、禁止構成、外部依存禁止、長時間稼働による安定性
 
 Docker開発検証の結果は、Docker実運用想定検証の判断材料として扱えます。短時間確認だけで長期間検証済みとは扱いません。
 
@@ -60,18 +60,24 @@ Docker/verification/production-operation-report.md
 
 実行中の可変ログやSQLite確認用データはDocker volumeに残してよいものとします。
 
-Docker実運用想定検証は、次の10カテゴリで行います。
+Docker実運用想定検証は、BaaS機能全てとCore基盤を検証範囲に含めます。
+
+Docker実運用想定検証は、次の14カテゴリで行います。
 
 1. 稼働継続検証
 2. HTTP経由動作検証
 3. SQLite永続化検証
 4. Realtime Database検証
 5. Authentication / Authorization検証
-6. Event Log内部基盤検証
-7. ドキュメント整合性検証
-8. 禁止構成検証
-9. 追加シナリオ検証
-10. レポート検証
+6. BaaS Admin Dashboard検証
+7. Event Log内部Core基盤検証
+8. Core Boundary検証
+9. Operational Evidence検証
+10. ドキュメント整合性検証
+11. 禁止構成検証
+12. 外部依存禁止検証
+13. 追加シナリオ検証
+14. レポート検証
 
 運用ルール:
 
@@ -133,7 +139,7 @@ Docker実運用想定検証レポートは検証継続中に20分ごとに更新
 - Docker検証が実運用想定のリポジトリ全体検証として定義されていること
 - CLI公式テストが完全廃止されていること
 - PHP 8.3 CLI公式テストが完全廃止されていること
-- BaaS機能がRealtime DatabaseとAuthentication / Authorizationのみに整理されていること
+- BaaS機能がRealtime Database、Authentication / Authorization、BaaS Admin Dashboardに整理されていること
 - Event LogがBaaS機能ではなく内部Core基盤として整理されていること
 - Applications ModulesがCMS、Wikiなどのアプリケーション群として整理されていること
 - BaaS管理画面がApplications Modulesに含まれないこと

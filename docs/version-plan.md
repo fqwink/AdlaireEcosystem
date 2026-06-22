@@ -8,6 +8,42 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.034
+
+- `version: v0.034`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: readme_baas_scope_update`
+- `purpose: READMEを外部向けの簡潔な説明として維持し、BaaS機能をRealtime Database、Authentication / Authorization、BaaS Admin Dashboardへ更新する`
+- `targets: docs/README.md, docs/version-plan.md`
+- `bugfix_summary: 未記載`
+
+## v0.033
+
+- `version: v0.033`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: baas_scope_and_production_operation_verification_expansion`
+- `purpose: BaaS機能をRealtime Database、Authentication / Authorization、BaaS Admin Dashboardへ拡張し、BaaS機能全体とCore基盤をDocker実運用想定検証範囲に含める`
+- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/testing.md, Docker/verification/README.md, Docker/verification/production-operation-report.md, docs/version-plan.md`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
+## v0.032
+
+- `version: v0.032`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: baas_admin_dashboard_operations`
+- `purpose: BaaS Admin Dashboardを実運用向けに強化し、Operations Command Center、Severity Model、Incident Lifecycle、Manual Acknowledgement、Evidence Integrity Viewを定義する`
+- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
 ## v0.031
 
 - `version: v0.031`

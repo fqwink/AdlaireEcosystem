@@ -28,18 +28,24 @@ Docker/verification/production-operation-report.md
 
 ## Production Operation Verification Scope
 
-Docker実運用想定検証は次の10カテゴリで行う。
+Docker実運用想定検証は、BaaS機能全てとCore基盤を検証範囲に含める。
+
+Docker実運用想定検証は次の14カテゴリで行う。
 
 1. 稼働継続検証
 2. HTTP経由動作検証
 3. SQLite永続化検証
 4. Realtime Database検証
 5. Authentication / Authorization検証
-6. Event Log内部基盤検証
-7. ドキュメント整合性検証
-8. 禁止構成検証
-9. 追加シナリオ検証
-10. レポート検証
+6. BaaS Admin Dashboard検証
+7. Event Log内部Core基盤検証
+8. Core Boundary検証
+9. Operational Evidence検証
+10. ドキュメント整合性検証
+11. 禁止構成検証
+12. 外部依存禁止検証
+13. 追加シナリオ検証
+14. レポート検証
 
 運用ルール:
 
