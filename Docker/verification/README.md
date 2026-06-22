@@ -26,9 +26,33 @@ Docker/verification/production-operation-report.md
 - Docker開発検証の結果を記録する場合は、Docker開発検証として明記する。
 - 停止指示を受けた場合は、停止時刻、停止理由、最終状態をレポートへ追記する。
 
+## Production Operation Verification Scope
+
+Docker実運用想定検証は次の10カテゴリで行う。
+
+1. 稼働継続検証
+2. HTTP経由動作検証
+3. SQLite永続化検証
+4. Realtime Database検証
+5. Authentication / Authorization検証
+6. Event Log内部基盤検証
+7. ドキュメント整合性検証
+8. 禁止構成検証
+9. 追加シナリオ検証
+10. レポート検証
+
+運用ルール:
+
+- Docker実運用想定検証は72時間以上を基準とする。
+- 検証継続中は5分間隔の内部チェックを行う。
+- 検証継続中は20分ごとにレポートを更新する。
+- 追加シナリオを実施した場合はレポートへ追記する。
+- バグや異常が出た場合はレポートへ記録し、バグ修正ゼロ方針に従う。
+- Docker開発検証とDocker実運用想定検証は混同しない。
+
 ## Periodic Update
 
-レポートは定期的に更新する。
+レポートは検証継続中に20分ごとに更新する。
 
 更新対象:
 

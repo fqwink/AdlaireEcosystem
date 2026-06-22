@@ -8,6 +8,42 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.031
+
+- `version: v0.031`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: baas_admin_console_boundary`
+- `purpose: BaaS Admin ConsoleをApplications ModulesおよびBaaS機能から分離し、Realtime Database、Authentication / Authorization、Event Logを管理、確認、運用する管理領域として定義する`
+- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
+## v0.030
+
+- `version: v0.030`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: docker_production_operation_verification_scope_definition`
+- `purpose: Docker実運用想定検証の内容を10カテゴリで明確化し、72時間以上、5分間隔チェック、20分ごとレポート更新、追加シナリオ、禁止構成確認を定義する`
+- `targets: Docker/verification/README.md, Docker/verification/production-operation-report.md, docs/AGENTS.md, docs/testing.md, docs/ADLAIRE-ECOSYSTEM.md, docs/version-plan.md`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
+## v0.029
+
+- `version: v0.029`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: applications_modules_and_baas_administration_boundary`
+- `purpose: Applications ModulesをCMSやWikiなどのアプリ群として整理し、BaaS管理画面をApplications Modulesに含めない方針を明記する`
+- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/README.md, docs/testing.md, docs/version-plan.md`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
 ## v0.028
 
 - `version: v0.028`

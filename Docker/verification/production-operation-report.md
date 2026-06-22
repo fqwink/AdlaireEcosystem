@@ -6,8 +6,8 @@
 - status: 進行中
 - target_duration: 72時間以上
 - started_at_utc: 2026-06-22T14:38:52Z
-- last_updated_at_utc: 2026-06-22T14:49:40Z
-- elapsed_at_last_update: 約10分48秒
+- last_updated_at_utc: 2026-06-22T15:15:59Z
+- elapsed_at_last_update: 約37分07秒
 - repository_report: Docker/verification/production-operation-report.md
 - runtime_log: Docker volume内の`/data/adlaire-production-operation-verification.log`
 - stop_policy: ユーザーの停止指示まで継続
@@ -26,6 +26,11 @@ verification=production_operation status=started target=72_hours_or_more started
 verification=production_operation status=ok checked_at=2026-06-22T14:38:52Z
 verification=production_operation status=ok checked_at=2026-06-22T14:43:52Z
 verification=production_operation status=ok checked_at=2026-06-22T14:48:52Z
+verification=production_operation status=ok checked_at=2026-06-22T14:53:52Z
+verification=production_operation status=ok checked_at=2026-06-22T14:58:52Z
+verification=production_operation status=ok checked_at=2026-06-22T15:03:52Z
+verification=production_operation status=ok checked_at=2026-06-22T15:08:52Z
+verification=production_operation status=ok checked_at=2026-06-22T15:13:53Z
 ```
 
 ## Periodic Updates
@@ -33,17 +38,25 @@ verification=production_operation status=ok checked_at=2026-06-22T14:48:52Z
 | updated_at_utc | elapsed | status | latest_check | bugs | debug |
 |---|---:|---|---|---|---|
 | 2026-06-22T14:49:40Z | 約10分48秒 | 進行中 | 2026-06-22T14:48:52Z ok | なし | 追加デバッグなし |
+| 2026-06-22T15:02:38Z | 約23分46秒 | 進行中 | 2026-06-22T14:58:52Z ok | なし | v0.029実装後確認成功 |
+| 2026-06-22T15:06:44Z | 約27分52秒 | 進行中 | 2026-06-22T15:03:52Z ok | なし | v0.030実装中更新 |
+| 2026-06-22T15:09:13Z | 約30分21秒 | 進行中 | 2026-06-22T15:08:52Z ok | なし | v0.030実装後確認成功 |
+| 2026-06-22T15:15:59Z | 約37分07秒 | 進行中 | 2026-06-22T15:13:53Z ok | なし | v0.031実装後確認成功 |
 
 ## Verification Scope
 
-- PHP必須拡張
-- SQLite永続化サイクル
-- HTTP health
-- Web経由Database readiness
-- Docker実運用想定検証ドキュメント前提
-- `tests/`不存在確認
-- Docker開発検証との区別
-- 72時間以上の長期間検証
+| Category | 内容 | Status |
+|---|---|---|
+| 稼働継続検証 | 72時間以上、5分間隔チェック、20分ごとレポート更新、異常停止確認 | 進行中 |
+| HTTP経由動作検証 | `/health`、Web経由Database readiness、JSON応答、PHP実行環境 | 継続確認中 |
+| SQLite永続化検証 | SQLite有効化、record作成、再読み込み、複数record、Docker volume永続化 | 継続確認中 |
+| Realtime Database検証 | collection定義、record作成、record取得、readiness、SQLite persistence | 継続確認中 |
+| Authentication / Authorization検証 | Auth Core読み込み、基本構成、access decision前提 | 追加シナリオで確認 |
+| Event Log内部基盤検証 | Event Log Core読み込み、内部Core基盤、BaaS機能扱いしない前提 | 追加シナリオで確認 |
+| ドキュメント整合性検証 | 最高準拠、Docker検証方針、BaaS機能2種、Applications境界、CLI公式テスト廃止 | 継続確認中 |
+| 禁止構成検証 | 外部依存禁止、remote sync不採用、外部message broker不採用、外部IAM不採用、Runtime廃止 | 継続確認中 |
+| 追加シナリオ検証 | バグ確認、デバッグ、修正後確認、重要変更後確認 | 実施時に追記 |
+| レポート検証 | 20分ごと更新、最新ログ、経過時間、バグ、デバッグ、停止時最終結果 | 進行中 |
 
 ## Additional Scenario Checks
 
@@ -86,6 +99,45 @@ scenario=repository_boundaries ok
 scenario=document_policy ok
 ```
 
+v0.029実装後に実施したDocker開発検証。
+
+```text
+scenario=runtime_extensions ok
+scenario=health_endpoint ok
+scenario=web_database_readiness ok
+scenario=sqlite_persistence_multi_record ok
+scenario=eventlog_core_available ok
+scenario=auth_core_available ok
+scenario=repository_boundaries ok
+scenario=document_policy ok
+```
+
+v0.030実装後に実施したDocker開発検証。
+
+```text
+scenario=runtime_extensions ok
+scenario=health_endpoint ok
+scenario=web_database_readiness ok
+scenario=sqlite_persistence_multi_record ok
+scenario=eventlog_core_available ok
+scenario=auth_core_available ok
+scenario=repository_boundaries ok
+scenario=document_policy ok
+```
+
+v0.031実装後に実施したDocker開発検証。
+
+```text
+scenario=runtime_extensions ok
+scenario=health_endpoint ok
+scenario=web_database_readiness ok
+scenario=sqlite_persistence_multi_record ok
+scenario=eventlog_core_available ok
+scenario=auth_core_available ok
+scenario=repository_boundaries ok
+scenario=document_policy ok
+```
+
 ## Bugs
 
 - 現時点で記録対象のバグなし。
@@ -98,6 +150,11 @@ scenario=document_policy ok
 - v0.027実装後確認はDocker開発検証として実施し、成功した。
 - v0.028実装時点の定期更新で、最新ログと経過時間を追記した。
 - v0.028実装後確認はDocker開発検証として実施し、成功した。
+- v0.029実装時点の定期更新で、最新ログと経過時間を追記した。
+- v0.029実装後確認はDocker開発検証として実施し、成功した。
+- v0.030実装時点で、Docker実運用想定検証の10カテゴリと20分ごとのレポート更新方針を追記した。
+- v0.030実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
+- v0.031実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
 
 ## Completion
 
