@@ -6,8 +6,8 @@
 - status: 進行中
 - target_duration: 72時間以上
 - started_at_utc: 2026-06-22T14:38:52Z
-- last_updated_at_utc: 2026-06-22T15:41:22Z
-- elapsed_at_last_update: 約1時間02分30秒
+- last_updated_at_utc: 2026-06-22T15:45:12Z
+- elapsed_at_last_update: 約1時間06分20秒
 - repository_report: Docker/verification/production-operation-report.md
 - runtime_log: Docker volume内の`/data/adlaire-production-operation-verification.log`
 - stop_policy: ユーザーの停止指示まで継続
@@ -36,6 +36,7 @@ verification=production_operation status=ok checked_at=2026-06-22T15:23:53Z
 verification=production_operation status=ok checked_at=2026-06-22T15:28:53Z
 verification=production_operation status=ok checked_at=2026-06-22T15:33:53Z
 verification=production_operation status=ok checked_at=2026-06-22T15:38:53Z
+verification=production_operation status=ok checked_at=2026-06-22T15:43:53Z
 ```
 
 ## Periodic Updates
@@ -50,6 +51,7 @@ verification=production_operation status=ok checked_at=2026-06-22T15:38:53Z
 | 2026-06-22T15:27:44Z | 約48分52秒 | 進行中 | 2026-06-22T15:23:53Z ok | なし | v0.032実装後確認成功 |
 | 2026-06-22T15:29:02Z | 約50分10秒 | 進行中 | 2026-06-22T15:28:53Z ok | なし | 検証範囲拡大検討前の定期更新 |
 | 2026-06-22T15:41:22Z | 約1時間02分30秒 | 進行中 | 2026-06-22T15:38:53Z ok | なし | v0.033実装後確認成功 |
+| 2026-06-22T15:45:12Z | 約1時間06分20秒 | 進行中 | 2026-06-22T15:43:53Z ok | なし | v0.034実装後確認成功 |
 
 ## Verification Scope
 
@@ -176,6 +178,19 @@ scenario=repository_boundaries ok
 scenario=document_policy ok
 ```
 
+v0.034実装後に実施したDocker開発検証。
+
+```text
+scenario=runtime_extensions ok
+scenario=health_endpoint ok
+scenario=web_database_readiness ok
+scenario=sqlite_persistence_multi_record ok
+scenario=eventlog_core_available ok
+scenario=auth_core_available ok
+scenario=repository_boundaries ok
+scenario=document_policy ok
+```
+
 ## Bugs
 
 - 現時点で記録対象のバグなし。
@@ -197,6 +212,7 @@ scenario=document_policy ok
 - 2026-06-22T15:29:02Z時点で、Docker実運用想定検証は継続中。検証範囲拡大は仕様確定承認前のため未反映。
 - v0.033実装時点で、BaaS機能をRealtime Database、Authentication / Authorization、BaaS Admin Dashboardへ更新し、BaaS機能全体とCore基盤をDocker実運用想定検証範囲へ追加した。
 - v0.033実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
+- v0.034実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
 
 ## Completion
 
