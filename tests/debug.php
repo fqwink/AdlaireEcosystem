@@ -786,7 +786,7 @@ function test_auth_capabilities(): void
     AdlaireAuth::reset();
     $readiness = AdlaireAuth::readiness();
     assert_same(true, $readiness['ready'], 'Auth readiness should pass');
-    assert_same('v0.019', $readiness['planned_state']['version'], 'Auth version should be v0.019');
+    assert_same('v0.021', $readiness['planned_state']['version'], 'Auth version should be v0.021');
     assert_same('Core/Auth.php', $readiness['planned_state']['core_entrypoint'], 'Auth entrypoint should be Core/Auth.php');
     assert_same(3, $readiness['planned_state']['auth_file_count'], 'Auth should keep exactly three internal PHP files');
     assert_same(true, $readiness['planned_state']['authentication'], 'Authentication should be planned');
@@ -796,6 +796,10 @@ function test_auth_capabilities(): void
     assert_same('prohibited', $readiness['planned_state']['runtime_replacement_category'], 'Auth should prohibit Runtime replacement categories');
     assert_same(false, $readiness['planned_state']['plain_password'], 'Auth should not store plain passwords');
     assert_same('deny', $readiness['planned_state']['undefined_policy'], 'Undefined authorization policy should deny');
+    assert_same(true, $readiness['planned_state']['auth_change_impact_report'], 'Auth should expose change impact report');
+    assert_same(true, $readiness['planned_state']['policy_simulation'], 'Auth should expose policy simulation');
+    assert_same(true, $readiness['planned_state']['authorization_regression_guard'], 'Auth should expose authorization regression guard');
+    assert_same(true, $readiness['planned_state']['auth_control_summary'], 'Auth should expose control summary');
 
     $user = AdlaireAuth::createUser();
     $credential = AdlaireAuth::registerCredential($user['id'], 'correct-horse-secret');
@@ -809,6 +813,7 @@ function test_auth_capabilities(): void
 
     $role = AdlaireAuth::createRole('operator');
     $permission = AdlaireAuth::createPermission('collection:tasks', 'read');
+    $unusedPermission = AdlaireAuth::createPermission('collection:tasks', 'archive');
     $policy = AdlaireAuth::assignPolicy($user['id'], $role['id'], $permission['id']);
     $allow = AdlaireAuth::accessDecision($session['id'], 'collection:tasks', 'read');
     assert_same('allow', $allow['decision'], 'Matching policy should allow access');
@@ -818,6 +823,9 @@ function test_auth_capabilities(): void
     assert_same('deny', $deny['decision'], 'Missing policy should deny access');
     assert_same('no_policy', $deny['reason'], 'Denied decision should expose no policy reason');
     assert_true(in_array($deny['reason'], AdlaireAuth::denyReasonRegistry(), true), 'Deny reason should be registered');
+    assert_same(false, AdlaireAuth::login($credential['id'], 'wrong-secret-value')['authenticated'], 'Invalid credential login should fail');
+    $unvalidatedSession = AdlaireAuth::issueSession($user['id']);
+    $dormantUser = AdlaireAuth::createUser();
 
     assert_same(1, AdlaireAuth::leastPrivilegeReport($user['id'])['permission_count'], 'Least privilege report should count active policies');
     assert_same(false, AdlaireAuth::policyConflictReport()['conflict'], 'Policy conflict report should be clear');
@@ -833,6 +841,27 @@ function test_auth_capabilities(): void
     assert_same(false, AdlaireAuth::authWriteSafetyGate('policy_assign')['automatic_block'], 'Auth write safety gate should not auto block');
     assert_same(false, AdlaireAuth::authEmergencyFreezeView()['automatic_freeze'], 'Auth emergency freeze view should not auto freeze');
     assert_true(in_array(AdlaireAuth::authDegradedModeView()['mode'], ['normal', 'degraded'], true), 'Auth degraded mode view should expose a mode');
+    assert_same([$user['id']], AdlaireAuth::authChangeImpactReport('policy_change', ['policy_id' => $policy['id']])['affected_subjects'], 'Auth change impact should expose affected subject');
+    assert_same('allow', AdlaireAuth::policySimulation($user['id'], 'collection:tasks', 'read')['decision'], 'Policy simulation should allow existing policy');
+    assert_same(false, AdlaireAuth::policySimulation($user['id'], 'collection:tasks', 'read')['will_mutate'], 'Policy simulation should not mutate');
+    assert_same($user['id'], AdlaireAuth::sessionRevocationImpact($session['id'])['user_id'], 'Session revocation impact should expose user');
+    assert_same($user['id'], AdlaireAuth::credentialRevocationImpact($credential['id'])['user_id'], 'Credential revocation impact should expose user');
+    assert_true(AdlaireAuth::permissionCoverageReport()['count'] >= 2, 'Permission coverage should include permissions');
+    assert_same(1, AdlaireAuth::unusedPermissionReport()['count'], 'Unused permission report should find unused permission');
+    assert_same(1, AdlaireAuth::dormantUserReport()['count'], 'Dormant user report should find a user without auth activity');
+    assert_same($unvalidatedSession['id'], AdlaireAuth::staleSessionReport()['items'][0]['id'], 'Stale session report should find unvalidated session');
+    assert_same(1, AdlaireAuth::failedLoginTrend()['count'], 'Failed login trend should count failed login');
+    $baseline = AdlaireAuth::accessPatternBaseline();
+    assert_same(false, AdlaireAuth::accessPatternDriftReport($baseline)['drift'], 'Access pattern drift should be clear against current baseline');
+    assert_same(1, AdlaireAuth::roleSaturationReport()['count'], 'Role saturation report should include role');
+    assert_same(false, AdlaireAuth::policyExpiryPlan()['automatic_expiry'], 'Policy expiry plan should not expire automatically');
+    assert_same(false, AdlaireAuth::emergencyAccessReview()['automatic_privilege_escalation'], 'Emergency access review should not escalate privileges automatically');
+    $export = AdlaireAuth::authEvidenceExport();
+    assert_same(true, AdlaireAuth::authEvidenceImportValidation($export)['valid'], 'Auth evidence export should validate before import');
+    assert_same(false, AdlaireAuth::authStateCompare($export, $export)['changed'], 'Auth state compare should be clear for identical payloads');
+    assert_same(true, AdlaireAuth::authorizationRegressionGuard($baseline)['passed'], 'Authorization regression guard should pass current baseline');
+    assert_true(AdlaireAuth::authOperationsLedger()['event_count'] > 0, 'Auth operations ledger should expose events');
+    assert_same(false, AdlaireAuth::authControlSummary()['automatic_recovery'], 'Auth control summary should not auto recover');
 
     $events = AdlaireAuth::authEvents();
     assert_true(count($events) >= 9, 'Auth should record authentication and authorization events');
@@ -842,6 +871,9 @@ function test_auth_capabilities(): void
     assert_same(true, in_array('access_allow', array_column($events, 'type'), true), 'Auth events should include access_allow');
     assert_same(true, in_array('access_deny', array_column($events, 'type'), true), 'Auth events should include access_deny');
     assert_true(is_string(AdlaireAuth::authEvidence()['fingerprint']), 'Auth evidence should expose fingerprint');
+    $registryTypes = AdlaireEventLog::typeRegistry()['types'];
+    assert_true(in_array('auth_change_impact_report', $registryTypes, true), 'Event Log should register auth change impact type');
+    assert_true(in_array('authorization_regression_guard', $registryTypes, true), 'Event Log should register authorization regression guard type');
 }
 
 function test_sqlite_persistence(): void
@@ -943,6 +975,7 @@ function test_documents(): void
     $versionPlan = file_get_contents(__DIR__ . '/../docs/version-plan.md');
 
     assert_true(is_string($spec) && str_contains($spec, 'v0.019'), 'spec should describe v0.019');
+    assert_true(is_string($spec) && str_contains($spec, 'v0.021'), 'spec should describe v0.021');
     assert_true(is_string($spec) && str_contains($spec, 'Selected database | SQLite'), 'spec should select SQLite');
     assert_true(is_string($spec) && str_contains($spec, 'libSQLはSQLite互換の将来拡張として決定済み'), 'spec should define libSQL as decided future SQLite-compatible extension');
     assert_true(is_string($spec) && str_contains($spec, 'Realtime Database BaaS Contract'), 'spec should define the realtime database BaaS contract');
@@ -954,6 +987,8 @@ function test_documents(): void
     assert_true(is_string($spec) && str_contains($spec, 'Realtime Database、Authentication、Authorizationに共通するCore横断履歴基盤'), 'spec should define Event Log as Core common foundation');
     assert_true(is_string($spec) && str_contains($spec, 'Runtimeを廃止'), 'spec should define Runtime removal');
     assert_true(is_string($spec) && str_contains($spec, 'Authentication / Authorization'), 'spec should define Auth features');
+    assert_true(is_string($spec) && str_contains($spec, 'Auth Change Impact Report'), 'spec should define v0.021 Auth change impact');
+    assert_true(is_string($spec) && str_contains($spec, 'Authorization Regression Guard'), 'spec should define v0.021 Auth regression guard');
     assert_true(is_string($spec) && str_contains($spec, 'Realtime Databaseを3ファイルへ分割'), 'spec should define v0.019 database split');
     assert_true(is_string($spec) && str_contains($spec, 'Event Envelope'), 'spec should describe Event Envelope');
     assert_true(is_string($spec) && str_contains($spec, 'Event Chain Hash'), 'spec should describe Event Chain Hash');
@@ -992,6 +1027,7 @@ function test_documents(): void
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'Adlaire Ecosystemにおけるテスト関係の集約先'), 'testing doc should define itself as the test aggregation document');
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'v0.019 Test Scope'), 'testing doc should describe v0.019 test scope');
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'Authentication / Authorization'), 'testing doc should categorize Auth tests');
+    assert_true(is_string($testingDoc) && str_contains($testingDoc, 'v0.021のAuth実運用'), 'testing doc should cover v0.021 Auth operations tests');
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'Core/EventLog.php'), 'testing doc should cover Core/EventLog.php');
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'Core/Auth.php'), 'testing doc should cover Core/Auth.php');
     assert_true(is_string($testingDoc) && str_contains($testingDoc, 'Event LogのEnvelope'), 'testing doc should cover v0.019 Event Log improvements');
@@ -1014,6 +1050,9 @@ function test_documents(): void
     assert_true(is_string($spec) && str_contains($spec, 'docs/testing.md'), 'spec should assign testing documents to docs/testing.md');
     assert_true(is_string($spec) && str_contains($spec, 'docs/version-plan.md'), 'spec should assign version plan documents to docs/version-plan.md');
     assert_true(is_string($spec) && str_contains($spec, 'すべてのドキュメントは`docs/`へ集約する'), 'spec should centralize all documents under docs');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'version: v0.021'), 'version plan should describe v0.021');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'scope: auth_operations_resilience_hardening'), 'version plan should describe v0.021 scope');
+    assert_true(is_string($versionPlan) && str_contains($versionPlan, 'auth_file_count_3'), 'version plan should keep Auth file count constraint');
     assert_true(is_string($versionPlan) && str_contains($versionPlan, 'version: v0.020'), 'version plan should describe v0.020');
     assert_true(is_string($versionPlan) && str_contains($versionPlan, 'scope: documentation_governance_cleanup'), 'version plan should describe v0.020 scope');
     assert_true(is_string($versionPlan) && str_contains($versionPlan, 'no_source_code_change'), 'version plan should keep source code out of v0.020');

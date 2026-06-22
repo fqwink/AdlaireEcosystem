@@ -84,11 +84,11 @@
 
 ## 現行方針
 
-- 現行バージョンは`v0.019`。
+- 現行バージョンは`v0.021`。
 - 名称はAdlaire Ecosystemを継承する。
 - Adlaire EcosystemはBaaS Projectとしてゼロベースで再スタートする。
 - 必須動作要件は`docs/ADLAIRE-ECOSYSTEM.md`を正とする。
-- `v0.019`で維持する中核機能はRealtime Database、Event Log、Authentication / Authorization。
+- 現行で維持する中核機能はRealtime Database、Event Log、Authentication / Authorization。
 - Deployment Systemは基本方針からやり直すため、現行仕様とソースコードを破棄済みとして扱う。
 - Runtimeは廃止し、Runtime代替カテゴリは作らない。
 - Authentication / AuthorizationはBaaS Core機能として扱う。

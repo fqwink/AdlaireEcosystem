@@ -81,6 +81,9 @@ bugfix_until_zero: true
 - Access Decision Evidence、Authorization Audit、Deny Reason Registryが動作すること
 - Auth Operational Dashboard、Auth Control Tower、Auth Trust Ledgerが動作すること
 - Auth Production Readiness Gate、Auth Write Safety Gate、Auth Emergency Freeze Viewが動作すること
+- v0.021のAuth実運用、実運用耐性、監査証跡、運用判断機能が動作すること
+- Auth Change Impact Report、Policy Simulation、Authorization Regression Guardが動作すること
+- Auth Evidence Export、Auth Evidence Import Validation、Auth State Compare、Auth Operations Ledger、Auth Control Summaryが動作すること
 - Realtime Databaseのv0.004新機能が動作すること
 - Realtime Databaseのv0.005新機能が動作すること
 - Realtime Databaseのv0.006実運用耐性機能が動作すること

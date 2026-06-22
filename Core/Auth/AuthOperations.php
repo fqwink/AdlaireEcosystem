@@ -560,6 +560,313 @@ trait AdlaireAuthOperations
         return ['valid' => self::policyDriftReport()['drift'] === false && self::policyConflictReport()['conflict'] === false];
     }
 
+    public static function authChangeImpactReport(string $changeType, array $change): array
+    {
+        $subjects = self::affectedSubjects($change);
+        $sessions = array_values(array_filter(self::$sessions, static fn(array $session): bool => in_array((string)$session['user_id'], $subjects, true)));
+        $sessionIds = array_map(static fn(array $session): string => (string)$session['id'], $sessions);
+        $decisions = array_values(array_filter(self::$decisions, static fn(array $decision): bool => in_array((string)$decision['session_id'], $sessionIds, true)));
+
+        return [
+            'change_type' => $changeType,
+            'affected_subjects' => $subjects,
+            'affected_sessions' => $sessions,
+            'affected_decisions' => $decisions,
+            'automatic_change' => false,
+            'fingerprint' => self::fingerprint(['change_type' => $changeType, 'change' => $change, 'subjects' => $subjects]),
+        ];
+    }
+
+    public static function policySimulation(string $subjectId, string $resource, string $action, array $policyChanges = []): array
+    {
+        self::assertUser($subjectId);
+        $policies = self::simulatedPolicies($policyChanges);
+        $result = self::simulateDecision($policies, $subjectId, $resource, $action);
+
+        return [
+            'subject_id' => $subjectId,
+            'resource' => $resource,
+            'action' => $action,
+            'decision' => $result['decision'],
+            'reason' => $result['reason'],
+            'policy_id' => $result['policy_id'],
+            'dry_run' => true,
+            'will_mutate' => false,
+        ];
+    }
+
+    public static function sessionRevocationImpact(string $sessionId): array
+    {
+        self::assertSession($sessionId);
+        $session = self::$sessions[$sessionId];
+        $userId = (string)$session['user_id'];
+        $sameUserSessions = array_values(array_filter(self::$sessions, static fn(array $item): bool => ($item['user_id'] ?? null) === $userId));
+        $decisions = array_values(array_filter(self::$decisions, static fn(array $decision): bool => ($decision['session_id'] ?? null) === $sessionId));
+
+        return [
+            'session_id' => $sessionId,
+            'user_id' => $userId,
+            'same_user_session_count' => count($sameUserSessions),
+            'affected_decisions' => $decisions,
+            'automatic_revoke' => false,
+        ];
+    }
+
+    public static function credentialRevocationImpact(string $credentialId): array
+    {
+        self::assertCredential($credentialId);
+        $credential = self::$credentials[$credentialId];
+        $userId = (string)$credential['user_id'];
+        $sessions = array_values(array_filter(self::$sessions, static fn(array $session): bool => ($session['user_id'] ?? null) === $userId));
+        $loginEvents = array_values(array_filter(self::$events, static fn(array $event): bool => ($event['payload']['credential_id'] ?? null) === $credentialId));
+
+        return [
+            'credential_id' => $credentialId,
+            'user_id' => $userId,
+            'affected_sessions' => $sessions,
+            'login_event_count' => count($loginEvents),
+            'automatic_revoke' => false,
+        ];
+    }
+
+    public static function permissionCoverageReport(): array
+    {
+        $items = [];
+        foreach (self::$permissions as $permission) {
+            $policies = array_values(array_filter(self::$policies, static fn(array $policy): bool => ($policy['permission_id'] ?? null) === $permission['id'] && ($policy['status'] ?? null) === 'active'));
+            $items[] = [
+                'permission_id' => $permission['id'],
+                'resource' => $permission['resource'],
+                'action' => $permission['action'],
+                'policy_count' => count($policies),
+                'subjects' => array_values(array_unique(array_map(static fn(array $policy): string => (string)$policy['subject_id'], $policies))),
+            ];
+        }
+
+        return ['count' => count($items), 'items' => $items];
+    }
+
+    public static function unusedPermissionReport(): array
+    {
+        $items = array_values(array_filter(self::permissionCoverageReport()['items'], static fn(array $item): bool => $item['policy_count'] === 0));
+        return ['count' => count($items), 'items' => $items];
+    }
+
+    public static function dormantUserReport(): array
+    {
+        $items = [];
+        foreach (self::$users as $user) {
+            $userId = (string)$user['id'];
+            $hasCredential = self::hasMatching(self::$credentials, 'user_id', $userId);
+            $hasSession = self::hasMatching(self::$sessions, 'user_id', $userId);
+            $hasPolicy = self::hasMatching(self::$policies, 'subject_id', $userId);
+            if (!$hasCredential && !$hasSession && !$hasPolicy) {
+                $items[] = $user;
+            }
+        }
+
+        return ['count' => count($items), 'items' => $items];
+    }
+
+    public static function staleSessionReport(): array
+    {
+        $validated = [];
+        foreach (self::$events as $event) {
+            if (($event['type'] ?? null) === 'session_validate') {
+                $validated[(string)($event['payload']['session_id'] ?? '')] = true;
+            }
+        }
+        $items = array_values(array_filter(self::$sessions, static fn(array $session): bool => ($session['status'] ?? null) === 'active' && !isset($validated[(string)$session['id']])));
+
+        return ['count' => count($items), 'items' => $items, 'automatic_revoke' => false];
+    }
+
+    public static function failedLoginTrend(): array
+    {
+        $failures = array_values(array_filter(self::$events, static fn(array $event): bool => ($event['type'] ?? null) === 'login_failure'));
+        $byCredential = [];
+        $byReason = [];
+        foreach ($failures as $event) {
+            $credentialId = (string)($event['payload']['credential_id'] ?? 'unknown');
+            $reason = (string)($event['payload']['reason'] ?? 'unknown');
+            $byCredential[$credentialId] = ($byCredential[$credentialId] ?? 0) + 1;
+            $byReason[$reason] = ($byReason[$reason] ?? 0) + 1;
+        }
+        ksort($byCredential);
+        ksort($byReason);
+
+        return ['count' => count($failures), 'by_credential' => $byCredential, 'by_reason' => $byReason];
+    }
+
+    public static function accessPatternBaseline(): array
+    {
+        $patterns = [];
+        foreach (self::$decisions as $decision) {
+            $session = self::$sessions[$decision['session_id']] ?? [];
+            $userId = (string)($session['user_id'] ?? 'unknown');
+            $key = $userId . '|' . $decision['resource'] . '|' . $decision['action'] . '|' . $decision['decision'];
+            $patterns[$key] = ($patterns[$key] ?? 0) + 1;
+        }
+        ksort($patterns);
+
+        return [
+            'patterns' => $patterns,
+            'decision_count' => count(self::$decisions),
+            'fingerprint' => self::fingerprint($patterns),
+        ];
+    }
+
+    public static function accessPatternDriftReport(array $baseline): array
+    {
+        $current = self::accessPatternBaseline();
+        $baselinePatterns = isset($baseline['patterns']) && is_array($baseline['patterns']) ? $baseline['patterns'] : [];
+        $newPatterns = array_values(array_diff(array_keys($current['patterns']), array_keys($baselinePatterns)));
+        $missingPatterns = array_values(array_diff(array_keys($baselinePatterns), array_keys($current['patterns'])));
+
+        return [
+            'drift' => $newPatterns !== [] || $missingPatterns !== [],
+            'new_patterns' => $newPatterns,
+            'missing_patterns' => $missingPatterns,
+            'current' => $current,
+        ];
+    }
+
+    public static function roleSaturationReport(): array
+    {
+        $items = [];
+        foreach (self::$roles as $role) {
+            $policies = array_values(array_filter(self::$policies, static fn(array $policy): bool => ($policy['role_id'] ?? null) === $role['id'] && ($policy['status'] ?? null) === 'active'));
+            $items[] = [
+                'role_id' => $role['id'],
+                'name' => $role['name'],
+                'policy_count' => count($policies),
+                'subjects' => array_values(array_unique(array_map(static fn(array $policy): string => (string)$policy['subject_id'], $policies))),
+                'review_required' => count($policies) > 10,
+            ];
+        }
+
+        return ['count' => count($items), 'items' => $items];
+    }
+
+    public static function policyExpiryPlan(): array
+    {
+        $activePolicies = array_values(array_filter(self::$policies, static fn(array $policy): bool => ($policy['status'] ?? null) === 'active'));
+        return [
+            'candidate_count' => count($activePolicies),
+            'items' => $activePolicies,
+            'automatic_expiry' => false,
+        ];
+    }
+
+    public static function emergencyAccessReview(): array
+    {
+        $adminDecisions = array_values(array_filter(self::$decisions, static fn(array $decision): bool => ($decision['action'] ?? null) === 'admin'));
+        return [
+            'admin_decision_count' => count($adminDecisions),
+            'admin_decisions' => $adminDecisions,
+            'manual_review' => self::authManualReviewQueue(),
+            'automatic_privilege_escalation' => false,
+        ];
+    }
+
+    public static function authEvidenceExport(): array
+    {
+        $payload = [
+            'kind' => 'auth_evidence_export',
+            'version' => self::VERSION,
+            'evidence' => self::authEvidence(),
+            'users' => self::$users,
+            'credentials' => self::redactedCredentials(),
+            'sessions' => self::$sessions,
+            'roles' => self::$roles,
+            'permissions' => self::$permissions,
+            'policies' => self::$policies,
+            'decisions' => self::$decisions,
+            'events' => self::$events,
+        ];
+        $payload['fingerprint'] = self::fingerprint($payload);
+
+        return $payload;
+    }
+
+    public static function authEvidenceImportValidation(array $payload): array
+    {
+        $errors = [];
+        foreach (['kind', 'version', 'users', 'credentials', 'sessions', 'roles', 'permissions', 'policies', 'decisions', 'events', 'fingerprint'] as $key) {
+            if (!array_key_exists($key, $payload)) {
+                $errors[] = 'missing_' . $key;
+            }
+        }
+        if (($payload['kind'] ?? null) !== 'auth_evidence_export') {
+            $errors[] = 'invalid_kind';
+        }
+        $fingerprintPayload = $payload;
+        $fingerprint = (string)($fingerprintPayload['fingerprint'] ?? '');
+        unset($fingerprintPayload['fingerprint']);
+        if ($fingerprint !== '' && self::fingerprint($fingerprintPayload) !== $fingerprint) {
+            $errors[] = 'fingerprint_mismatch';
+        }
+
+        return ['valid' => $errors === [], 'errors' => $errors, 'dry_run' => true, 'will_mutate' => false];
+    }
+
+    public static function authStateCompare(array $before, array $after): array
+    {
+        $keys = ['users', 'credentials', 'sessions', 'roles', 'permissions', 'policies', 'decisions', 'events'];
+        $diff = [];
+        foreach ($keys as $key) {
+            $beforeCount = isset($before[$key]) && is_array($before[$key]) ? count($before[$key]) : 0;
+            $afterCount = isset($after[$key]) && is_array($after[$key]) ? count($after[$key]) : 0;
+            $diff[$key] = ['before' => $beforeCount, 'after' => $afterCount, 'delta' => $afterCount - $beforeCount];
+        }
+
+        return ['changed' => array_filter($diff, static fn(array $item): bool => $item['delta'] !== 0) !== [], 'diff' => $diff];
+    }
+
+    public static function authorizationRegressionGuard(array $baseline): array
+    {
+        $baselinePatterns = isset($baseline['patterns']) && is_array($baseline['patterns']) ? $baseline['patterns'] : [];
+        $currentPatterns = self::accessPatternBaseline()['patterns'];
+        $regressions = [];
+        foreach ($baselinePatterns as $pattern => $count) {
+            if (!isset($currentPatterns[$pattern])) {
+                $regressions[] = ['type' => 'missing_access_pattern', 'pattern' => $pattern, 'baseline_count' => $count];
+            }
+        }
+
+        return ['passed' => $regressions === [], 'regressions' => $regressions, 'count' => count($regressions)];
+    }
+
+    public static function authOperationsLedger(): array
+    {
+        return [
+            'event_count' => count(self::$events),
+            'latest_event_id' => AdlaireEventLog::lastEventId(self::$events),
+            'items' => array_map(static fn(array $event): array => [
+                'id' => $event['id'] ?? null,
+                'sequence' => $event['sequence'] ?? null,
+                'domain' => $event['domain'] ?? null,
+                'type' => $event['type'] ?? null,
+                'record_id' => $event['record_id'] ?? null,
+            ], self::$events),
+        ];
+    }
+
+    public static function authControlSummary(): array
+    {
+        return [
+            'readiness' => self::readiness(),
+            'health' => self::authHealthSummary(),
+            'manual_review' => self::authManualReviewQueue(),
+            'failed_login_trend' => self::failedLoginTrend(),
+            'permission_coverage' => self::permissionCoverageReport(),
+            'unused_permissions' => self::unusedPermissionReport(),
+            'stale_sessions' => self::staleSessionReport(),
+            'operations_ledger' => self::authOperationsLedger(),
+            'automatic_recovery' => false,
+        ];
+    }
+
     private static function decision(string $sessionId, ?array $policy, string $resource, string $action, bool $allowed, string $reason): array
     {
         $decision = [
@@ -575,6 +882,103 @@ trait AdlaireAuthOperations
         self::recordAuthEvent('authorization', $allowed ? 'access_allow' : 'access_deny', $decision['id'], $decision);
 
         return $decision;
+    }
+
+    private static function affectedSubjects(array $change): array
+    {
+        $subjects = [];
+        foreach (['subject_id', 'user_id'] as $key) {
+            if (isset($change[$key]) && is_string($change[$key])) {
+                $subjects[] = $change[$key];
+            }
+        }
+        if (isset($change['session_id'], self::$sessions[$change['session_id']])) {
+            $subjects[] = (string)self::$sessions[$change['session_id']]['user_id'];
+        }
+        if (isset($change['credential_id'], self::$credentials[$change['credential_id']])) {
+            $subjects[] = (string)self::$credentials[$change['credential_id']]['user_id'];
+        }
+        if (isset($change['policy_id'], self::$policies[$change['policy_id']])) {
+            $subjects[] = (string)self::$policies[$change['policy_id']]['subject_id'];
+        }
+        if (isset($change['role_id'])) {
+            foreach (self::$policies as $policy) {
+                if (($policy['role_id'] ?? null) === $change['role_id']) {
+                    $subjects[] = (string)$policy['subject_id'];
+                }
+            }
+        }
+        if (isset($change['permission_id'])) {
+            foreach (self::$policies as $policy) {
+                if (($policy['permission_id'] ?? null) === $change['permission_id']) {
+                    $subjects[] = (string)$policy['subject_id'];
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter($subjects)));
+    }
+
+    private static function simulatedPolicies(array $policyChanges): array
+    {
+        $policies = self::$policies;
+        foreach ($policyChanges as $change) {
+            if (!is_array($change)) {
+                continue;
+            }
+            $type = (string)($change['type'] ?? 'assign');
+            if ($type === 'revoke' && isset($change['policy_id'], $policies[$change['policy_id']])) {
+                $policies[$change['policy_id']]['status'] = 'revoked';
+                continue;
+            }
+            if (isset($change['subject_id'], $change['role_id'], $change['permission_id'])) {
+                $id = (string)($change['id'] ?? ('sim_policy_' . count($policies)));
+                $policies[$id] = [
+                    'id' => $id,
+                    'subject_id' => (string)$change['subject_id'],
+                    'role_id' => (string)$change['role_id'],
+                    'permission_id' => (string)$change['permission_id'],
+                    'effect' => in_array(($change['effect'] ?? 'allow'), ['allow', 'deny'], true) ? (string)$change['effect'] : 'allow',
+                    'status' => (string)($change['status'] ?? 'active'),
+                ];
+            }
+        }
+
+        return $policies;
+    }
+
+    private static function simulateDecision(array $policies, string $subjectId, string $resource, string $action): array
+    {
+        foreach ($policies as $policy) {
+            if (($policy['subject_id'] ?? null) !== $subjectId || ($policy['status'] ?? null) !== 'active') {
+                continue;
+            }
+            $role = self::$roles[$policy['role_id']] ?? null;
+            $permission = self::$permissions[$policy['permission_id']] ?? null;
+            if (($role['status'] ?? null) !== 'active') {
+                return ['decision' => 'deny', 'reason' => 'inactive_role', 'policy_id' => $policy['id'] ?? null];
+            }
+            if (($permission['status'] ?? null) !== 'active') {
+                return ['decision' => 'deny', 'reason' => 'inactive_permission', 'policy_id' => $policy['id'] ?? null];
+            }
+            if (($permission['resource'] ?? null) === $resource && ($permission['action'] ?? null) === $action) {
+                $allowed = ($policy['effect'] ?? null) === 'allow';
+                return ['decision' => $allowed ? 'allow' : 'deny', 'reason' => $allowed ? 'matched_policy' : 'explicit_deny', 'policy_id' => $policy['id'] ?? null];
+            }
+        }
+
+        return ['decision' => 'deny', 'reason' => 'no_policy', 'policy_id' => null];
+    }
+
+    private static function hasMatching(array $items, string $field, string $value): bool
+    {
+        foreach ($items as $item) {
+            if (($item[$field] ?? null) === $value) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function assertStatus(string $status): void

@@ -8,6 +8,20 @@
 - テスト関係はバージョン計画に含めない。
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 
+## v0.021
+
+- `version: v0.021`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: auth_operations_resilience_hardening`
+- `purpose: Authentication / Authorizationの実運用、監査、権限事故予防、手動復旧判断を強化`
+- `targets: change impact, policy simulation, revocation impact, permission coverage, dormant/stale reports, failed login trend, access baseline/drift, evidence export/import validation, state compare, regression guard, operations ledger, control summary`
+- `event_log_targets: auth_change_impact_report, policy_simulation, authorization_regression_guard, auth_operations_ledger, auth_control_summary`
+- `constraints: no_external_dependency, no_oauth, no_iam, no_policy_engine, no_mail_sms, no_remote_sync, no_message_broker, no_auto_repair, no_auto_recovery, no_auto_delete, no_auto_rotation, no_auto_privilege_escalation, undefined_policy_deny, no_plain_password, preserve_AdlaireAuth_API, auth_file_count_3, strict_confirmed_spec`
+- `bugfix_summary: 仕様書の旧現行バージョン表現をv0.021へ修正`
+
 ## v0.020
 
 - `version: v0.020`

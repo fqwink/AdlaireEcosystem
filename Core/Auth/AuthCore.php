@@ -7,7 +7,7 @@ require_once __DIR__ . '/AuthOperations.php';
 
 final class AdlaireAuth
 {
-    public const VERSION = 'v0.019';
+    public const VERSION = 'v0.021';
 
     private static array $users = [];
     private static array $credentials = [];
@@ -126,6 +126,26 @@ final class AdlaireAuth
             'auth_write_safety_gate' => true,
             'auth_emergency_freeze_view' => true,
             'auth_degraded_mode_view' => true,
+            'auth_change_impact_report' => true,
+            'policy_simulation' => true,
+            'session_revocation_impact' => true,
+            'credential_revocation_impact' => true,
+            'permission_coverage_report' => true,
+            'unused_permission_report' => true,
+            'dormant_user_report' => true,
+            'stale_session_report' => true,
+            'failed_login_trend' => true,
+            'access_pattern_baseline' => true,
+            'access_pattern_drift_report' => true,
+            'role_saturation_report' => true,
+            'policy_expiry_plan' => true,
+            'emergency_access_review' => true,
+            'auth_evidence_export' => true,
+            'auth_evidence_import_validation' => true,
+            'auth_state_compare' => true,
+            'authorization_regression_guard' => true,
+            'auth_operations_ledger' => true,
+            'auth_control_summary' => true,
         ];
     }
 
@@ -146,6 +166,10 @@ final class AdlaireAuth
             'runtime_replacement_category_prohibited' => $planned['runtime_replacement_category'] === 'prohibited',
             'plain_password_prohibited' => $planned['plain_password'] === false,
             'undefined_policy_deny' => $planned['undefined_policy'] === 'deny',
+            'v0021_auth_operations' => $planned['auth_change_impact_report'] === true
+                && $planned['policy_simulation'] === true
+                && $planned['authorization_regression_guard'] === true
+                && $planned['auth_control_summary'] === true,
         ];
 
         return [
