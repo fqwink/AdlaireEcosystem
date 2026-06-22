@@ -73,6 +73,19 @@ scenario=repository_boundaries ok
 scenario=document_policy ok
 ```
 
+v0.028実装後に実施したDocker開発検証。
+
+```text
+scenario=runtime_extensions ok
+scenario=health_endpoint ok
+scenario=web_database_readiness ok
+scenario=sqlite_persistence_multi_record ok
+scenario=eventlog_core_available ok
+scenario=auth_core_available ok
+scenario=repository_boundaries ok
+scenario=document_policy ok
+```
+
 ## Bugs
 
 - 現時点で記録対象のバグなし。
@@ -84,6 +97,7 @@ scenario=document_policy ok
 - Docker実運用想定検証コンテナは継続中。
 - v0.027実装後確認はDocker開発検証として実施し、成功した。
 - v0.028実装時点の定期更新で、最新ログと経過時間を追記した。
+- v0.028実装後確認はDocker開発検証として実施し、成功した。
 
 ## Completion
 
