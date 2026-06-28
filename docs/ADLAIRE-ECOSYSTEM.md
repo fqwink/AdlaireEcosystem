@@ -11,7 +11,7 @@ Adlaire EcosystemはBaaS Projectの現行仕様を定義する。
 | 項目 | 内容 |
 |------|------|
 | Name | Adlaire Ecosystem |
-| Version | v0.038 |
+| Version | v0.039 |
 | Type | BaaS Project |
 | Policy | Zero-base restart |
 | Compatibility | 未定義 |
@@ -1106,7 +1106,7 @@ CLI公式テストは完全廃止する。PHP 8.3 CLI公式テストも完全廃
 
 Docker検証は、実運用を想定したリポジトリ全体の検証とする。
 
-Docker検証は、短時間のDocker開発検証と、72時間以上を基準とするDocker実運用想定検証を明確に分ける。Docker実運用想定検証は、本番環境に近い条件で実運用に耐えられるかを確認する検証である。
+Docker検証は、短時間のDocker開発検証と、72時間以上を最低基準とするDocker実運用想定検証を明確に分ける。Docker実運用想定検証は、本番環境に近い条件で実運用に耐えられるかを確認する検証である。
 
 Docker検証の結果には、Docker開発検証またはDocker実運用想定検証の検証種別を明記する。Docker実運用想定検証を実施していない場合は、未実施として明記する。
 
@@ -1116,7 +1116,7 @@ Docker実運用想定検証は、BaaS機能全てとCore基盤を検証範囲に
 
 Docker実運用想定検証は、稼働継続、HTTP経由動作、SQLite永続化、Realtime Database、Authentication / Authorization、BaaS Admin Dashboard、Event Log内部Core基盤、Core Boundary、Operational Evidence、ドキュメント整合性、禁止構成、外部依存禁止、追加シナリオ、レポートの14カテゴリで行う。
 
-Docker実運用想定検証レポートは、検証継続中に20分ごとに更新する。更新対象は、継続状態、最新ログ、経過時間、バグ、デバッグ、追加検証結果、停止時の最終結果とする。
+Docker実運用想定検証レポートは、検証継続中に20分ごとに更新する。更新対象は、継続状態、最新ログ、経過時間、バグ、デバッグ、追加検証結果、1週間ごとの最終レポート、停止時の最終結果とする。1週間ごとの最終レポートは検証停止を意味しない。最終レポート作成後も、停止指示があるまで継続的検証を続ける。
 
 現行方針:
 
@@ -1125,7 +1125,9 @@ test_mode: docker_verification
 test_scope: repository_wide_operational_verification
 test_environment: docker_production_equivalent
 development_verification: short_duration
-production_operation_verification: 72_hours_or_more
+production_operation_verification_minimum: 72_hours_or_more
+production_operation_final_report_cycle: every_1_week
+production_operation_after_final_report: continue_until_stop_instruction
 result_label_required: true
 production_operation_report: Docker/verification/production-operation-report.md
 production_operation_report_update: every_20_minutes_while_running

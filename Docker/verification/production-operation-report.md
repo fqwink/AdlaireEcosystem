@@ -3,11 +3,13 @@
 ## Summary
 
 - verification_type: Docker実運用想定検証
-- status: 進行中
-- target_duration: 72時間以上
+- status: 進行中 / 72時間以上到達 / 1週間最終レポート待ち
+- target_duration: 72時間以上を最低基準、1週間ごと最終レポート
 - started_at_utc: 2026-06-22T14:38:52Z
-- last_updated_at_utc: 2026-06-22T19:00:24Z
-- elapsed_at_last_update: 約4時間21分32秒
+- current_cycle_started_at_utc: 2026-06-22T19:24:37Z
+- next_weekly_final_report_due_utc: 2026-06-29T19:24:37Z
+- last_updated_at_utc: 2026-06-26T16:56:53Z
+- elapsed_at_last_update: 再開後約3日21時間32分16秒
 - repository_report: Docker/verification/production-operation-report.md
 - runtime_log: Docker volume内の`/data/adlaire-production-operation-verification.log`
 - stop_policy: ユーザーの停止指示まで継続
@@ -15,8 +17,8 @@
 ## Running Containers
 
 ```text
-adlaire-production-operation-verification Up 4 hours
-docker-web-1 Up 4 hours
+adlaire-production-operation-verification Up 3 days
+docker-web-1 Up 3 days
 ```
 
 ## Current Log
@@ -62,6 +64,15 @@ verification=production_operation status=ok checked_at=2026-06-22T18:43:55Z
 verification=production_operation status=ok checked_at=2026-06-22T18:48:55Z
 verification=production_operation status=ok checked_at=2026-06-22T18:53:55Z
 verification=production_operation status=ok checked_at=2026-06-22T18:58:55Z
+verification=production_operation status=restarted reason=v0.038_core_restructure started_at=2026-06-22T19:24:37Z target=72_hours_or_more
+verification=production_operation status=ok checked_at=2026-06-26T16:21:04Z
+verification=production_operation status=ok checked_at=2026-06-26T16:26:04Z
+verification=production_operation status=ok checked_at=2026-06-26T16:31:04Z
+verification=production_operation status=ok checked_at=2026-06-26T16:36:04Z
+verification=production_operation status=ok checked_at=2026-06-26T16:41:05Z
+verification=production_operation status=ok checked_at=2026-06-26T16:46:05Z
+verification=production_operation status=ok checked_at=2026-06-26T16:51:05Z
+verification=production_operation status=ok checked_at=2026-06-26T16:56:05Z
 ```
 
 ## Periodic Updates
@@ -80,12 +91,14 @@ verification=production_operation status=ok checked_at=2026-06-22T18:58:55Z
 | 2026-06-22T16:54:28Z | 約2時間15分36秒 | 進行中 | 2026-06-22T16:53:54Z ok | なし | v0.035実装後確認成功 |
 | 2026-06-22T17:10:09Z | 約2時間31分17秒 | 進行中 | 2026-06-22T17:08:54Z ok | なし | v0.036実装後確認成功 |
 | 2026-06-22T19:00:24Z | 約4時間21分32秒 | 進行中 | 2026-06-22T18:58:55Z ok | なし | v0.037実装後確認成功 |
+| 2026-06-26T16:45:17Z | 再開後約3日21時間20分41秒 | 進行中 / 72時間以上到達 | 2026-06-26T16:41:05Z ok | v0.038旧Core参照停止は復旧済み | ユーザー指示によりレポート更新 |
+| 2026-06-26T16:56:53Z | 再開後約3日21時間32分16秒 | 進行中 / 72時間以上到達 / 1週間最終レポート待ち | 2026-06-26T16:56:05Z ok | なし | v0.039方針反映、検証継続中 |
 
 ## Verification Scope
 
 | Category | 内容 | Status |
 |---|---|---|
-| 稼働継続検証 | 72時間以上、5分間隔チェック、20分ごとレポート更新、異常停止確認 | 進行中 |
+| 稼働継続検証 | 72時間以上を最低基準、1週間ごと最終レポート、5分間隔チェック、20分ごとレポート更新、異常停止確認 | 進行中 |
 | HTTP経由動作検証 | `/health`、Web経由Database readiness、JSON応答、PHP実行環境 | 継続確認中 |
 | SQLite永続化検証 | SQLite有効化、record作成、再読み込み、複数record、Docker volume永続化 | 継続確認中 |
 | Realtime Database検証 | collection定義、record作成、record取得、readiness、SQLite persistence | 継続確認中 |
@@ -281,6 +294,15 @@ http health ok
 web database ok
 ```
 
+v0.039実装後に実施した標準Docker開発検証。
+
+```text
+extensions ok
+sqlite persistence ok
+http health ok
+web database ok
+```
+
 ## Bugs
 
 - v0.038: Docker実運用想定検証コンテナが旧`Core/Database.php`参照で停止した。新`Core/Database/Database.php`参照へ復旧し、再開後の初回チェック成功を確認した。
@@ -309,9 +331,13 @@ web database ok
 - v0.038実装時にCore再構成で`Core/Database.php`を削除したため、旧スクリプトで稼働していたDocker実運用想定検証コンテナが旧Core参照で停止した。
 - v0.038バグ修正としてDocker実運用想定検証を新Core構成へ復旧し、`2026-06-22T19:24:37Z`に同名コンテナで再開した。再開後の初回チェックは成功した。
 - v0.038実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は新Core構成で継続中。
+- 2026-06-26T16:45:17Z時点で、Docker実運用想定検証は再開後72時間以上に到達し、最新チェック`2026-06-26T16:41:05Z`は成功した。停止指示まで継続する方針に従い継続中。
+- v0.039でDocker実運用想定検証を、72時間以上を最低基準、1週間ごとの最終レポート、最終レポート後も停止指示まで継続する方針へ更新した。
+- 2026-06-26T16:56:53Z時点で、Docker実運用想定検証は再開後72時間以上に到達済み。最新チェック`2026-06-26T16:56:05Z`は成功した。次回の1週間最終レポート基準時刻は`2026-06-29T19:24:37Z`。
+- v0.039実装後確認はDocker開発検証として実施し、成功した。Docker実運用想定検証は継続中。
 
 ## Completion
 
-- status: 未完了
-- reason: 72時間以上の長期間検証が進行中
+- status: 継続中
+- reason: 72時間以上に到達済み。1週間ごとの最終レポート作成後も、ユーザー停止指示まで継続中
 - stopped_at_utc: 未記録

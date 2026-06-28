@@ -9,6 +9,18 @@
 - バグ修正内容は、各バージョンごとに修正後まとめて簡潔に記載する。
 - 過去バージョンの旧名称は承認履歴として保持する。現行仕様の正本は`docs/ADLAIRE-ECOSYSTEM.md`とする。
 
+## v0.039
+
+- `version: v0.039`
+- `status: version_plan_approved`
+- `implementation_status: implemented`
+- `approvals: specification_confirmation, version_plan, implementation`
+- `implementation: approved`
+- `scope: docker_production_operation_verification_policy_update`
+- `purpose: Docker実運用想定検証を停止せず継続し、72時間以上を最低基準、1週間ごとの最終レポート、最終レポート後も停止指示まで継続する方針へ更新する`
+- `targets: docs/AGENTS.md, docs/ADLAIRE-ECOSYSTEM.md, docs/testing.md, docs/version-plan.md, Docker/verification/production-operation-report.md`
+- `bugfix_summary: 実装後確認で追加バグ修正なし`
+
 ## v0.038
 
 - `version: v0.038`
